@@ -1,1 +1,8 @@
 rootProject.name = 'jupiter'
+
+include("eureka-server")
+include("gateway-service")
+include("auth-service")
+include("crawling-service")
+include("community-service")
+include("gpt-service")
