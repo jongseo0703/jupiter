@@ -1,6 +1,6 @@
 rootProject.name = 'jupiter'
 
-include("eureka-server")
+include("eureka-service")
 include("gateway-service")
 include("auth-service")
 include("crawling-service")
