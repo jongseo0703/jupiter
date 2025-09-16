@@ -9,5 +9,4 @@ public class GptServiceApplication {
   public static void main(String[] args) {
     SpringApplication.run(GptServiceApplication.class, args);
   }
-
 }
