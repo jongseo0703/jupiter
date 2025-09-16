@@ -1,6 +1,17 @@
 spring:
   application:
     name: gateway-service
+  cloud:
+    gateway: # Spring Cloud Gateway 설정
+      server:
+        webflux: # WebFlux 서버 기반으로 Gateway 동작
+          routes: # 라우팅 설정 목록
+            - id: gpt-service
+              uri: lb://gpt-service # 실제 요청을 보낼 대상 서비스
+              predicates:
+                - Path=/gpt-service/** # 요청 URL 패턴을 기준으로 라우팅
+              filters:
+                - StripPrefix=1 # URL 앞부분 제거
 
 server:
   port: 8080
