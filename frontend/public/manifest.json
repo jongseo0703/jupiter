@@ -1,0 +1,6 @@
+{
+  "name": "Jupiter App",
+  "short_name": "Jupiter",
+  "start_url": "/",
+  "display": "standalone"
+}

@@ -47,7 +47,7 @@ function PricePredictionChart({ product }) {
       };
 
       // TODO: 하드코딩된 localhost URL을 환경변수 또는 설정파일로 관리하도록 수정
-      const response = await fetch('http://localhost:7777/api/predictions', {
+      const response = await fetch('http://localhost:8080/gpt/api/predictions', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
