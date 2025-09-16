@@ -45,7 +45,7 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
       // React 프론트엔드로 리다이렉트 (토큰을 URL 파라미터로 전달)
       String redirectUrl =
           String.format(
-              "http://localhost:3000/?access_token=%s&refresh_token=%s",
+              "http://localhost:3001/?access_token=%s&refresh_token=%s",
               loginResponse.accessToken(), loginResponse.refreshToken());
       response.sendRedirect(redirectUrl);
 
