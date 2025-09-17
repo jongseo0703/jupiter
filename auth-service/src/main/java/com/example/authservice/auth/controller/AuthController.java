@@ -10,6 +10,8 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 
+import com.example.authservice.auth.dto.ForgotPasswordRequest;
+import com.example.authservice.auth.dto.ForgotPasswordResponse;
 import com.example.authservice.auth.dto.LoginRequest;
 import com.example.authservice.auth.dto.LoginResponse;
 import com.example.authservice.auth.dto.RegisterRequest;
@@ -153,6 +155,19 @@ public class AuthController {
       return ResponseEntity.ok(ApiResponse.success("User information retrieved", userResponse));
     } catch (Exception e) {
       log.error("Failed to get current user: ", e);
+      throw e;
+    }
+  }
+
+  @Operation(summary = "비밀번호 찾기", description = "이메일로 임시 비밀번호를 발송합니다")
+  @PostMapping("/forgot-password")
+  public ResponseEntity<ApiResponse<ForgotPasswordResponse>> forgotPassword(
+      @Valid @RequestBody ForgotPasswordRequest request) {
+    try {
+      ForgotPasswordResponse response = authService.forgotPassword(request);
+      return ResponseEntity.ok(ApiResponse.success("임시 비밀번호 발송 완료", response));
+    } catch (Exception e) {
+      log.error("비밀번호 찾기 실패: ", e);
       throw e;
     }
   }
