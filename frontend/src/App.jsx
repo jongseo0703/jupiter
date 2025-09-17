@@ -6,9 +6,11 @@ import Home from './pages/Home';
 import Shop from './pages/Shop';
 import ProductDetail from './pages/ProductDetail';
 import Favorites from './pages/Favorites';
-import Board from './pages/Board';
+import Community from './pages/Community';
 import AboutUs from './pages/AboutUs';
-import CommunityForm from './pages/CommunityForm';
+import PostForm from './pages/PostForm';
+import PostDetail from './pages/PostDetail';
+import PostEdit from './pages/PostEdit';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import MyPage from './pages/MyPage';
@@ -41,8 +43,12 @@ function App() {
             <Route path="/shop" element={<Shop />} />
             <Route path="/product/:id" element={<ProductDetail />} />
             <Route path="/favorites" element={<Favorites />} />
-            <Route path="/board" element={<Board />} />
-            <Route path="/community-form" element={<CommunityForm />} />
+            <Route path="/community" element={<Community />} />
+            <Route path="/board" element={<Community />} />
+            <Route path="/post-form" element={<PostForm />} />
+            <Route path="/community-form" element={<PostForm />} />
+            <Route path="/post/:id" element={<PostDetail />} />
+            <Route path="/post/edit/:id" element={<PostEdit />} />
             <Route path="/about" element={<AboutUs />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
