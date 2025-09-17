@@ -136,6 +136,7 @@ public class DetailPageService {
 
                 }
 
+                //최대페이지 설정
                 //다음 리뷰페이지 전환 UI 모음
                 List<WebElement> next = driver.findElements(By
                         .cssSelector(
