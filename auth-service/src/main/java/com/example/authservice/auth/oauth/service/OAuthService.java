@@ -127,11 +127,27 @@ public class OAuthService {
             ? name.replaceAll("\\s+", "").toLowerCase()
             : email.split("@")[0];
 
+    if (baseUsername.length() < 3) {
+      baseUsername = "user" + baseUsername;
+    }
+
+    if (baseUsername.length() > 50) {
+      baseUsername = baseUsername.substring(0, 50);
+    }
+
     // 중복 확인 및 처리
     String username = baseUsername;
     int counter = 1;
     while (userRepository.existsByUsername(username)) {
-      username = baseUsername + counter;
+      // 카운터 추가 시에도 50자 제한 확인
+      String candidateUsername = baseUsername + counter;
+      if (candidateUsername.length() > 50) {
+        // 기본 이름을 줄여서 카운터 공간 확보
+        int maxBaseLength = 50 - String.valueOf(counter).length();
+        candidateUsername = baseUsername.substring(0, maxBaseLength) + counter;
+      }
+      username = candidateUsername;
+
       counter++;
     }
 
