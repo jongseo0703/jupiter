@@ -123,9 +123,10 @@ const MyPage = () => {
         return;
       }
 
-      // 백엔드에 비밀번호 업데이트 요청
-      await authService.updateProfile({
-        password: passwordFormData.newPassword
+      // 백엔드에 비밀번호 변경 요청
+      await authService.changePassword({
+        currentPassword: passwordFormData.currentPassword,
+        newPassword: passwordFormData.newPassword
       });
 
       // 성공 시 폼 초기화 및 섹션 닫기
@@ -323,16 +324,6 @@ const MyPage = () => {
                   <span className="text-2xl font-bold text-primary">0</span>
                 </div>
 
-                <div className="flex items-center justify-between p-4 bg-purple-50 rounded-lg">
-                  <div className="flex items-center">
-                    <i className="fas fa-search text-purple-500 mr-3 text-xl"></i>
-                    <div>
-                      <p className="font-medium text-gray-900">검색 기록</p>
-                      <p className="text-sm text-gray-600">최근 검색어</p>
-                    </div>
-                  </div>
-                  <span className="text-2xl font-bold text-primary">0</span>
-                </div>
               </div>
             </div>
 

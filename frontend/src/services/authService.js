@@ -106,6 +106,25 @@ class AuthService {
       throw error;
     }
   }
+
+  // 비밀번호 변경
+  async changePassword(passwordData) {
+    try {
+      const response = await apiService.put('/auth/api/v1/auth/change-password', {
+        currentPassword: passwordData.currentPassword,
+        newPassword: passwordData.newPassword,
+      });
+
+      if (response.result === 'SUCCESS') {
+        return response.data;
+      } else {
+        throw new Error(response.message || '비밀번호 변경에 실패했습니다.');
+      }
+    } catch (error) {
+      console.error('Change password error:', error);
+      throw error;
+    }
+  }
 }
 
 export default new AuthService();
