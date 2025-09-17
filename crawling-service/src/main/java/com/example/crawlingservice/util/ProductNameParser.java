@@ -1,7 +1,10 @@
 package com.example.crawlingservice.util;
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -11,6 +14,7 @@ import java.util.regex.Pattern;
  * -브랜드 추출하는 메서드<br>
  */
 @Component
+@Slf4j
 public class ProductNameParser {
     /**
      * 상품명에 제외시킬 키워드 와 숫자+호 구조가 포함되여있는지 확인하는 메서드
@@ -57,5 +61,51 @@ public class ProductNameParser {
             brand = m.group(1);
         }
         return  brand;
+    }
+
+    /**
+     * 상품명에 포함되여 있는 용량(mL,L)와 구성(2개, 2입)을 파싱하기<br>
+     * ml 기준으로 L는 ml로 변환 후 반환
+     * @param productName 상품명
+     * @return  volume(용량), lineup(구성)<br> Map 반환
+     */
+    public Map<String,String> usedName(String productName){
+        Map<String,String> map = new HashMap<>();
+        String volume = null;
+        String lineup;
+
+        //상품명에 있는 ml,l 찾기
+        Pattern volumePattern = Pattern.compile("(\\d+(?:\\.\\d+)?)\\s*[mM][lL]|(\\d+(?:\\.\\d+)?)\\s*[lL]");
+        Matcher volumeMatcher = volumePattern.matcher(productName);
+
+        if (volumeMatcher.find()) {
+            String volumeStr = volumeMatcher.group(1) != null ? volumeMatcher.group(1) : volumeMatcher.group(2);
+            try {
+                double volumeDouble = Double.parseDouble(volumeStr);
+                // L 단위인 경우 ml로 변환
+                if (volumeMatcher.group(0).toLowerCase().contains("l") && !volumeMatcher.group(0).toLowerCase().contains("ml")) {
+                    volumeDouble *= 1000; // L를 ml로 변환
+                }
+                volume = String.valueOf((int) volumeDouble);
+            } catch (NumberFormatException e) {
+                log.debug("용량 파싱 실패: {}", volumeStr);
+            }
+            map.put("volume", volume);
+        }
+
+        //상품명에서 구성(1개, 1입,1구) 얻어오기
+        Pattern lineupPattern = Pattern.compile("(\\d+)\\s*[개입구]");
+        Matcher lineupMatcher = lineupPattern.matcher(productName);
+
+        if (lineupMatcher.find()) {
+            try {
+                lineup = lineupMatcher.group(1)+" 개";
+                map.put("lineup", lineup);
+            } catch (NumberFormatException e) {
+                log.debug("개수 파싱 실패: {}", lineupMatcher.group(1));
+            }
+        }
+
+        return  map;
     }
 }
