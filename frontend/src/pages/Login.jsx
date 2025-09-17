@@ -1,57 +1,47 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import authService from '../services/authService';
 
 const Login = () => {
   const [formData, setFormData] = useState({
     email: '',
-    password: ''
+    password: '',
+    rememberMe: false
   });
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
+  const navigate = useNavigate();
 
   const handleInputChange = (e) => {
-    const { name, value } = e.target;
+    const { name, value, type, checked } = e.target;
     setFormData(prev => ({
       ...prev,
-      [name]: value
+      [name]: type === 'checkbox' ? checked : value
     }));
+    // 에러 메시지 초기화
+    if (error) setError('');
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
+    setError('');
 
-    // 일반 로그인 로직 (실제 구현 시 API 호출)
-    console.log('일반 로그인:', formData);
-
-    // 임시로 2초 후 로딩 해제
-    setTimeout(() => {
+    try {
+      await authService.login(formData.email, formData.password, formData.rememberMe);
+      // 로그인 성공 시 홈으로 리다이렉트
+      navigate('/');
+    } catch (error) {
+      setError(error.message || '로그인에 실패했습니다.');
+    } finally {
       setIsLoading(false);
-      // 로그인 성공 시 홈으로 리다이렉트 또는 이전 페이지로 이동
-    }, 2000);
+    }
   };
 
   const handleOAuthLogin = (provider) => {
-    setIsLoading(true);
-
-    // OAuth 로그인 로직 (실제 구현 시 각 provider별 OAuth URL로 리다이렉트)
-    switch (provider) {
-      case 'naver':
-        console.log('네이버 로그인');
-        break;
-      case 'google':
-        console.log('구글 로그인');
-        break;
-      case 'kakao':
-        console.log('카카오 로그인');
-        break;
-      default:
-        break;
-    }
-
-    // 임시로 2초 후 로딩 해제
-    setTimeout(() => {
-      setIsLoading(false);
-    }, 2000);
+    // OAuth 로그인 URL로 리다이렉트
+    const oauthUrl = authService.getOAuthLoginUrl(provider);
+    window.location.href = oauthUrl;
   };
 
   return (
@@ -76,6 +66,13 @@ const Login = () => {
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
         <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
+          {/* 에러 메시지 */}
+          {error && (
+            <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-md">
+              <p className="text-sm text-red-600">{error}</p>
+            </div>
+          )}
+
           {/* 일반 로그인 폼 */}
           <form className="space-y-6" onSubmit={handleSubmit}>
             <div>
@@ -120,8 +117,10 @@ const Login = () => {
               <div className="flex items-center">
                 <input
                   id="remember-me"
-                  name="remember-me"
+                  name="rememberMe"
                   type="checkbox"
+                  checked={formData.rememberMe}
+                  onChange={handleInputChange}
                   className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
                 />
                 <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-900">

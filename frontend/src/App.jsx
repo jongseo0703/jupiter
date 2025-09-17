@@ -11,6 +11,7 @@ import AboutUs from './pages/AboutUs';
 import CommunityForm from './pages/CommunityForm';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import MyPage from './pages/MyPage';
 import Terms from './pages/Terms';
 import Privacy from './pages/Privacy';
 import ForgotPassword from './pages/ForgotPassword';
@@ -45,6 +46,7 @@ function App() {
             <Route path="/about" element={<AboutUs />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
+            <Route path="/mypage" element={<MyPage />} />
             <Route path="/terms" element={<Terms />} />
             <Route path="/privacy" element={<Privacy />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
