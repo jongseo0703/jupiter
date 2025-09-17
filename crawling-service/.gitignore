@@ -35,3 +35,6 @@ out/
 
 ### VS Code ###
 .vscode/
+
+#무시되는 설정파일
+application-dev.properties
