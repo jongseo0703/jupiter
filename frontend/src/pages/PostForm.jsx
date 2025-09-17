@@ -1,28 +1,27 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 
-function CommunityForm() {
+function PostForm() {
   const [formData, setFormData] = useState({
     category: '',
     title: '',
     content: '',
-    authorName: '',
-    email: '',
+    author_name: '',
+    anonymous_email: '',
+    anonymous_pwd: '',
     tags: '',
-    isAnonymous: false,
-    images: []
+    is_anonymous: false,
+    attachments: []
   });
 
   const [previewImages, setPreviewImages] = useState([]);
 
   const categories = [
     '자유게시판',
-    '주류 추천',
-    '가격 정보',
-    '매장 후기',
-    '이벤트/할인',
-    '질문/답변',
-    '기타'
+    '가격정보',
+    '술리뷰',
+    '질문답변',
+    '이벤트'
   ];
 
   const handleInputChange = (e) => {
@@ -33,23 +32,26 @@ function CommunityForm() {
     }));
   };
 
-  const handleImageUpload = (e) => {
+  const handleFileUpload = (e) => {
     const files = Array.from(e.target.files);
     if (files.length + previewImages.length > 5) {
-      alert('최대 5개의 이미지까지 업로드 가능합니다.');
+      alert('최대 5개의 파일까지 업로드 가능합니다.');
       return;
     }
 
     const newPreviews = files.map(file => ({
       file,
-      url: URL.createObjectURL(file),
-      id: Date.now() + Math.random()
+      url: file.type.startsWith('image/') ? URL.createObjectURL(file) : null,
+      id: Date.now() + Math.random(),
+      name: file.name,
+      size: file.size,
+      type: file.type
     }));
 
     setPreviewImages(prev => [...prev, ...newPreviews]);
     setFormData(prev => ({
       ...prev,
-      images: [...prev.images, ...files]
+      attachments: [...prev.attachments, ...files]
     }));
   };
 
@@ -59,7 +61,22 @@ function CommunityForm() {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    console.log('커뮤니티 게시글 데이터:', formData);
+
+    const postData = {
+      category: formData.category,
+      title: formData.title,
+      content: formData.content,
+      tags: formData.tags,
+      author: {
+        is_anonymous: formData.is_anonymous,
+        author_name: formData.is_anonymous ? null : formData.author_name,
+        anonymous_email: formData.is_anonymous ? formData.anonymous_email : null,
+        anonymous_pwd: formData.is_anonymous ? formData.anonymous_pwd : null
+      },
+      attachments: formData.attachments
+    };
+
+    console.log('게시글 데이터:', postData);
     alert('게시글이 성공적으로 작성되었습니다!');
   };
 
@@ -82,7 +99,7 @@ function CommunityForm() {
         <div className="flex items-center space-x-2 text-sm text-gray-600 mb-8">
           <Link to="/" className="hover:text-blue-600 hover:underline transition-colors duration-200 cursor-pointer">홈</Link>
           <i className="fas fa-chevron-right"></i>
-          <Link to="/board" className="hover:text-blue-600 hover:underline transition-colors duration-200 cursor-pointer">커뮤니티</Link>
+          <Link to="/community" className="hover:text-blue-600 hover:underline transition-colors duration-200 cursor-pointer">커뮤니티</Link>
           <i className="fas fa-chevron-right"></i>
           <span className="text-primary font-medium">글쓰기</span>
         </div>
@@ -182,30 +199,39 @@ function CommunityForm() {
                 <input
                   type="file"
                   multiple
-                  accept="image/*"
-                  onChange={handleImageUpload}
+                  accept="image/*,application/pdf,.doc,.docx,.txt"
+                  onChange={handleFileUpload}
                   className="hidden"
-                  id="image-upload"
+                  id="file-upload"
                 />
-                <label htmlFor="image-upload" className="cursor-pointer">
+                <label htmlFor="file-upload" className="cursor-pointer">
                   <i className="fas fa-cloud-upload-alt text-4xl text-gray-400 mb-4"></i>
-                  <p className="text-gray-600">클릭하여 이미지를 업로드하세요</p>
-                  <p className="text-sm text-gray-500 mt-1">최대 5개, JPG/PNG 파일</p>
+                  <p className="text-gray-600">클릭하여 파일을 업로드하세요</p>
+                  <p className="text-sm text-gray-500 mt-1">최대 5개, 이미지/문서 파일</p>
                 </label>
               </div>
 
               {previewImages.length > 0 && (
                 <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mt-4">
-                  {previewImages.map(image => (
-                    <div key={image.id} className="relative">
-                      <img
-                        src={image.url}
-                        alt="미리보기"
-                        className="w-full h-24 object-cover rounded-lg"
-                      />
+                  {previewImages.map(file => (
+                    <div key={file.id} className="relative">
+                      {file.url ? (
+                        <img
+                          src={file.url}
+                          alt="미리보기"
+                          className="w-full h-24 object-cover rounded-lg"
+                        />
+                      ) : (
+                        <div className="w-full h-24 bg-gray-100 rounded-lg flex items-center justify-center">
+                          <div className="text-center">
+                            <i className="fas fa-file text-2xl text-gray-400"></i>
+                            <p className="text-xs text-gray-500 mt-1">{file.name}</p>
+                          </div>
+                        </div>
+                      )}
                       <button
                         type="button"
-                        onClick={() => removeImage(image.id)}
+                        onClick={() => removeImage(file.id)}
                         className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs hover:bg-red-600"
                       >
                         ×
@@ -227,46 +253,62 @@ function CommunityForm() {
                 <div className="flex items-center">
                   <input
                     type="checkbox"
-                    name="isAnonymous"
-                    checked={formData.isAnonymous}
+                    name="is_anonymous"
+                    checked={formData.is_anonymous}
                     onChange={handleInputChange}
                     className="mr-3 text-primary focus:ring-primary"
                   />
                   <label className="text-gray-700 font-medium">익명으로 작성</label>
                 </div>
 
-                {!formData.isAnonymous && (
+                {formData.is_anonymous ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        닉네임 *
-                      </label>
-                      <input
-                        type="text"
-                        name="authorName"
-                        value={formData.authorName}
-                        onChange={handleInputChange}
-                        placeholder="닉네임을 입력하세요"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                        required={!formData.isAnonymous}
-                      />
-                    </div>
-
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
                         이메일 *
                       </label>
                       <input
                         type="email"
-                        name="email"
-                        value={formData.email}
+                        name="anonymous_email"
+                        value={formData.anonymous_email}
                         onChange={handleInputChange}
-                        placeholder="이메일을 입력하세요"
+                        placeholder="익명 사용자 이메일"
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                        required={!formData.isAnonymous}
+                        required={formData.is_anonymous}
                       />
-                      <p className="text-sm text-gray-500 mt-1">이메일은 공개되지 않습니다.</p>
+                      <p className="text-sm text-gray-500 mt-1">게시글 수정/삭제 시 사용</p>
                     </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        비밀번호 *
+                      </label>
+                      <input
+                        type="password"
+                        name="anonymous_pwd"
+                        value={formData.anonymous_pwd}
+                        onChange={handleInputChange}
+                        placeholder="게시글 비밀번호"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                        required={formData.is_anonymous}
+                      />
+                      <p className="text-sm text-gray-500 mt-1">게시글 수정/삭제 시 사용</p>
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      닉네임 *
+                    </label>
+                    <input
+                      type="text"
+                      name="author_name"
+                      value={formData.author_name}
+                      onChange={handleInputChange}
+                      placeholder="닉네임을 입력하세요"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                      required={!formData.is_anonymous}
+                    />
                   </div>
                 )}
               </div>
@@ -307,7 +349,7 @@ function CommunityForm() {
             {/* 제출 버튼 */}
             <div className="flex justify-center space-x-4">
               <Link
-                to="/board"
+                to="/community"
                 className="px-8 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
               >
                 취소
@@ -353,4 +395,4 @@ function CommunityForm() {
   );
 }
 
-export default CommunityForm;
+export default PostForm;
