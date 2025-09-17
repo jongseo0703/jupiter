@@ -80,6 +80,8 @@ public class DetailPageService {
      */
     public List<ReviewDTO> getReviews(WebDriver driver, String html) {
         List<ReviewDTO> reviews = new ArrayList<>();
+        //페이지 초기화
+        int pageCount =1;
         while (true){
             try {
                 //다음페이지로 넘어가는 UI이 조회
@@ -137,12 +139,17 @@ public class DetailPageService {
                 }
 
                 //최대페이지 설정
+                int MAX_PAGES = 3;
                 //다음 리뷰페이지 전환 UI 모음
                 List<WebElement> next = driver.findElements(By
                         .cssSelector(
                                 "div.page_nav_area .nums_area .page_num.now_page + a.page_num"));
 
-
+                //최대페이지 도달
+                if(pageCount > MAX_PAGES){
+                    log.debug("최대 패이지 도달했습니다");
+                    break;
+                }
                 //마지막페이지 도달
                 if(next.isEmpty()){
                     log.debug("리뷰 마지막패이지 도달했습니다");
@@ -152,6 +159,7 @@ public class DetailPageService {
                 //다음페이지로 넘가기기 클릭
                 WebElement nextReview = next.get(0);
                 ((JavascriptExecutor) driver).executeScript("arguments[0].click();", nextReview);
+                pageCount++;
                 Thread.sleep(3000);
 
             } catch (Exception e) {
