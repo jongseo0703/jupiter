@@ -12,6 +12,7 @@ import java.util.regex.Pattern;
  * 상품명에서 정보를 추출하는 클래스<br>
  * -제외 상품(세트,키트 등) 확인하는 메서드<br>
  * -브랜드 추출하는 메서드<br>
+ * -용량, 구성을 추출하는 메서드
  */
 @Component
 @Slf4j
