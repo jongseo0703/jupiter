@@ -1,8 +1,11 @@
 package com.example.crawlingservice.util;
 
+import org.springframework.stereotype.Component;
+
 /**
  * 문자열 안에 있는 숫자를 찾는 기능
  */
+@Component
 public class ParseNum {
     /**
      * 숫자를 찾으면 int 형을 반환
