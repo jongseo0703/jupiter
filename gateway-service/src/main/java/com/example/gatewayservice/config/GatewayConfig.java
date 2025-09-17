@@ -14,6 +14,7 @@ public class GatewayConfig {
                 .route("auth-service", r -> r.path("/auth/**")
                         .uri("http://localhost:8081"))
                 .route("gpt-service", r -> r.path("/gpt/**")
+                        .filters(f -> f.stripPrefix(1))
                         .uri("http://localhost:8082"))
                 .route("crawling-service", r -> r.path("/crawling/**")
                         .uri("http://localhost:8083"))
