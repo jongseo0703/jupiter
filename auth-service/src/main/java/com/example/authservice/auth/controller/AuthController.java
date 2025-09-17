@@ -23,7 +23,9 @@ import com.example.authservice.auth.token.RefreshTokenRepository;
 import com.example.authservice.auth.token.RefreshTokenService;
 import com.example.authservice.global.common.ApiResponse;
 import com.example.authservice.global.exception.BusinessException;
+import com.example.authservice.user.dto.PasswordChangeRequest;
 import com.example.authservice.user.dto.UserResponse;
+import com.example.authservice.user.dto.UserUpdateRequest;
 import com.example.authservice.user.entity.User;
 import com.example.authservice.user.service.UserService;
 
@@ -168,6 +170,34 @@ public class AuthController {
       return ResponseEntity.ok(ApiResponse.success("임시 비밀번호 발송 완료", response));
     } catch (Exception e) {
       log.error("비밀번호 찾기 실패: ", e);
+      throw e;
+    }
+  }
+
+  @Operation(summary = "프로필 업데이트", description = "현재 사용자의 프로필 정보를 업데이트합니다")
+  @PutMapping("/profile")
+  public ResponseEntity<ApiResponse<UserResponse>> updateProfile(
+      @Valid @RequestBody UserUpdateRequest request) {
+    try {
+      User currentUser = userService.getCurrentUser();
+      UserResponse userResponse = userService.updateCurrentUser(currentUser.getId(), request);
+      return ResponseEntity.ok(ApiResponse.success("프로필이 성공적으로 업데이트되었습니다", userResponse));
+    } catch (Exception e) {
+      log.error("프로필 업데이트 실패: ", e);
+      throw e;
+    }
+  }
+
+  @Operation(summary = "비밀번호 변경", description = "현재 사용자의 비밀번호를 변경합니다")
+  @PutMapping("/change-password")
+  public ResponseEntity<ApiResponse<UserResponse>> changePassword(
+      @Valid @RequestBody PasswordChangeRequest request) {
+    try {
+      User currentUser = userService.getCurrentUser();
+      UserResponse userResponse = userService.changePassword(currentUser.getId(), request);
+      return ResponseEntity.ok(ApiResponse.success("비밀번호가 성공적으로 변경되었습니다", userResponse));
+    } catch (Exception e) {
+      log.error("비밀번호 변경 실패: ", e);
       throw e;
     }
   }
