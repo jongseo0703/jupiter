@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import authService from '../services/authService';
 
 const Register = () => {
   const [formData, setFormData] = useState({
@@ -14,6 +15,8 @@ const Register = () => {
   });
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState({});
+  const [successMessage, setSuccessMessage] = useState('');
+  const navigate = useNavigate();
 
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -74,7 +77,7 @@ const Register = () => {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
     if (!validateForm()) {
@@ -82,39 +85,27 @@ const Register = () => {
     }
 
     setIsLoading(true);
+    setErrors({});
 
-    // 회원가입 로직 (실제 구현 시 API 호출)
-    console.log('회원가입 데이터:', formData);
+    try {
+      await authService.register(formData);
+      setSuccessMessage('회원가입이 완료되었습니다. 로그인해주세요.');
 
-    // 임시로 3초 후 로딩 해제
-    setTimeout(() => {
+      // 3초 후 로그인 페이지로 리다이렉트
+      setTimeout(() => {
+        navigate('/login');
+      }, 3000);
+    } catch (error) {
+      setErrors({ general: error.message || '회원가입에 실패했습니다.' });
+    } finally {
       setIsLoading(false);
-      // 회원가입 성공 시 로그인 페이지로 리다이렉트
-    }, 3000);
+    }
   };
 
   const handleOAuthRegister = (provider) => {
-    setIsLoading(true);
-
-    // OAuth 회원가입 로직 (실제 구현 시 각 provider별 OAuth URL로 리다이렉트)
-    switch (provider) {
-      case 'naver':
-        console.log('네이버 회원가입');
-        break;
-      case 'google':
-        console.log('구글 회원가입');
-        break;
-      case 'kakao':
-        console.log('카카오 회원가입');
-        break;
-      default:
-        break;
-    }
-
-    // 임시로 2초 후 로딩 해제
-    setTimeout(() => {
-      setIsLoading(false);
-    }, 2000);
+    // OAuth 회원가입도 로그인과 동일한 URL로 리다이렉트
+    const oauthUrl = authService.getOAuthLoginUrl(provider);
+    window.location.href = oauthUrl;
   };
 
   return (
@@ -139,6 +130,20 @@ const Register = () => {
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
         <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
+          {/* 성공 메시지 */}
+          {successMessage && (
+            <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-md">
+              <p className="text-sm text-green-600">{successMessage}</p>
+            </div>
+          )}
+
+          {/* 에러 메시지 */}
+          {errors.general && (
+            <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-md">
+              <p className="text-sm text-red-600">{errors.general}</p>
+            </div>
+          )}
+
           {/* 소셜 회원가입 버튼들 */}
           <div className="space-y-3 mb-6">
             {/* 네이버 회원가입 */}

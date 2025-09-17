@@ -1,0 +1,111 @@
+import apiService from './api';
+
+class AuthService {
+  // 일반 로그인
+  async login(email, password, rememberMe = false) {
+    try {
+      const response = await apiService.post('/auth/api/v1/auth/login', {
+        email,
+        password,
+        rememberMe,
+      });
+
+      if (response.result === 'SUCCESS') {
+        // JWT 토큰 저장
+        apiService.saveTokens(response.data.accessToken, response.data.refreshToken);
+        return response;
+      } else {
+        throw new Error(response.message || '로그인에 실패했습니다.');
+      }
+    } catch (error) {
+      console.error('Login error:', error);
+      throw error;
+    }
+  }
+
+  // 회원가입
+  async register(userData) {
+    try {
+      const response = await apiService.post('/auth/api/v1/auth/register', {
+        username: userData.name,
+        email: userData.email,
+        password: userData.password,
+      });
+
+      if (response.result === 'SUCCESS') {
+        return response;
+      } else {
+        throw new Error(response.message || '회원가입에 실패했습니다.');
+      }
+    } catch (error) {
+      console.error('Register error:', error);
+      throw error;
+    }
+  }
+
+  // 로그아웃
+  async logout() {
+    try {
+      const accessToken = localStorage.getItem('accessToken');
+      if (accessToken) {
+        await apiService.post('/auth/api/v1/auth/logout');
+      }
+    } catch (error) {
+      console.error('Logout error:', error);
+    } finally {
+      // 토큰 삭제 (서버 요청 실패해도 클라이언트에서는 삭제)
+      apiService.clearTokens();
+    }
+  }
+
+  // 현재 사용자 정보 조회
+  async getCurrentUser() {
+    try {
+      const response = await apiService.get('/auth/api/v1/auth/me');
+      if (response.result === 'SUCCESS') {
+        return response.data;
+      } else {
+        throw new Error(response.message || '사용자 정보를 가져올 수 없습니다.');
+      }
+    } catch (error) {
+      console.error('Get current user error:', error);
+      throw error;
+    }
+  }
+
+  // OAuth 로그인 URL 생성
+  getOAuthLoginUrl(provider) {
+    return `${apiService.baseURL}/auth/api/v1/auth/oauth/login/${provider}`;
+  }
+
+  // 로그인 상태 확인
+  isLoggedIn() {
+    return !!localStorage.getItem('accessToken');
+  }
+
+  // 토큰 갱신
+  async refreshToken() {
+    return await apiService.refreshToken();
+  }
+
+  // 프로필 업데이트
+  async updateProfile(profileData) {
+    try {
+      const response = await apiService.put('/auth/api/v1/auth/profile', {
+        username: profileData.username,
+        email: profileData.email,
+      });
+
+      if (response.result === 'SUCCESS') {
+        return response.data;
+      } else {
+        throw new Error(response.message || '프로필 업데이트에 실패했습니다.');
+      }
+    } catch (error) {
+      console.error('Update profile error:', error);
+      throw error;
+    }
+  }
+}
+
+export default new AuthService();

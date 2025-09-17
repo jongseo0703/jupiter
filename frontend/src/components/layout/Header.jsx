@@ -1,8 +1,64 @@
-import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
+import authService from '../../services/authService';
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [user, setUser] = useState(null);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  useEffect(() => {
+    const handleOAuthCallback = () => {
+      const urlParams = new URLSearchParams(location.search);
+      const accessToken = urlParams.get('access_token');
+      const refreshToken = urlParams.get('refresh_token');
+
+      if (accessToken && refreshToken) {
+        localStorage.setItem('accessToken', accessToken);
+        localStorage.setItem('refreshToken', refreshToken);
+
+        // URL에서 토큰 파라미터 제거
+        const newUrl = location.pathname;
+        window.history.replaceState({}, document.title, newUrl);
+
+        // 사용자 정보 로드
+        loadUserInfo();
+      }
+    };
+
+    const loadUserInfo = async () => {
+      if (authService.isLoggedIn()) {
+        try {
+          const userData = await authService.getCurrentUser();
+          setUser(userData);
+          setIsLoggedIn(true);
+        } catch (error) {
+          console.error('Failed to load user info:', error);
+          setIsLoggedIn(false);
+          setUser(null);
+        }
+      } else {
+        setIsLoggedIn(false);
+        setUser(null);
+      }
+    };
+
+    handleOAuthCallback();
+    loadUserInfo();
+  }, [location]);
+
+  const handleLogout = async () => {
+    try {
+      await authService.logout();
+      setUser(null);
+      setIsLoggedIn(false);
+      navigate('/');
+    } catch (error) {
+      console.error('Logout failed:', error);
+    }
+  };
 
   return (
     <div className="relative">
@@ -85,12 +141,29 @@ const Header = () => {
                 </Link>
               </div>
 
-              <Link
-                to="/login"
-                className="bg-primary text-white px-4 py-2 rounded-full hover:bg-blue-800 transition-colors font-medium"
-              >
-                로그인
-              </Link>
+              {isLoggedIn ? (
+                <div className="flex items-center space-x-3">
+                  <Link
+                    to="/mypage"
+                    className="text-gray-700 font-medium hover:text-primary transition-colors cursor-pointer"
+                  >
+                    안녕하세요, {user?.username || user?.name}님
+                  </Link>
+                  <button
+                    onClick={handleLogout}
+                    className="bg-gray-500 text-white px-4 py-2 rounded-full hover:bg-gray-600 transition-colors font-medium"
+                  >
+                    로그아웃
+                  </button>
+                </div>
+              ) : (
+                <Link
+                  to="/login"
+                  className="bg-primary text-white px-4 py-2 rounded-full hover:bg-blue-800 transition-colors font-medium"
+                >
+                  로그인
+                </Link>
+              )}
 
               {/* Mobile Menu Button */}
               <button 
@@ -114,13 +187,34 @@ const Header = () => {
                 <Link to="/favorites" className="block text-gray-700 hover:text-primary font-medium" onClick={() => setIsMenuOpen(false)}>즐겨찾기</Link>
                 <Link to="/community-form" className="block text-gray-700 hover:text-primary font-medium" onClick={() => setIsMenuOpen(false)}>글쓰기</Link>
                 <Link to="/about" className="block text-gray-700 hover:text-primary font-medium" onClick={() => setIsMenuOpen(false)}>회사소개</Link>
-                <Link
-                  to="/login"
-                  onClick={() => setIsMenuOpen(false)}
-                  className="block w-full text-center bg-primary text-white px-4 py-2 rounded-lg hover:bg-blue-800 transition-colors font-medium"
-                >
-                  로그인
-                </Link>
+                {isLoggedIn ? (
+                  <div className="space-y-2">
+                    <Link
+                      to="/mypage"
+                      onClick={() => setIsMenuOpen(false)}
+                      className="block text-center text-gray-700 font-medium py-2 hover:text-primary transition-colors"
+                    >
+                      안녕하세요, {user?.username || user?.name}님
+                    </Link>
+                    <button
+                      onClick={() => {
+                        handleLogout();
+                        setIsMenuOpen(false);
+                      }}
+                      className="block w-full text-center bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600 transition-colors font-medium"
+                    >
+                      로그아웃
+                    </button>
+                  </div>
+                ) : (
+                  <Link
+                    to="/login"
+                    onClick={() => setIsMenuOpen(false)}
+                    className="block w-full text-center bg-primary text-white px-4 py-2 rounded-lg hover:bg-blue-800 transition-colors font-medium"
+                  >
+                    로그인
+                  </Link>
+                )}
                 <div className="pt-4">
                   <input 
                     type="text" 
