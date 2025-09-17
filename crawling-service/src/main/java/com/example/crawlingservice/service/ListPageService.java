@@ -88,7 +88,7 @@ public class ListPageService {
 
             //상품명 검사 추가
             if(productNameParser.checkProductName(productName)){
-                log.debug("크롤링 제외 상품입니다");
+                log.debug("{}는(은) 크롤링 제외 상품입니다",productName);
                 return null;
             }
 
