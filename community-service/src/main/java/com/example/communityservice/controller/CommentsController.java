@@ -76,15 +76,15 @@ public class CommentsController {
     return ResponseEntity.ok(ApiResponseDTO.success("댓글이 성공적으로 삭제되었습니다.", null));
   }
 
-  // === 내부 API (User MyPage용) ===
+  // === User Service용 API ===
 
   // 특정 작성자의 댓글 목록 조회
-  // GET /api/comments/internal/author/{authorId}
+  // GET /api/comments/author/{authorId}
   @Operation(
       summary = "작성자별 댓글 목록 조회",
-      description = "특정 작성자가 작성한 댓글 목록을 조회합니다. User Service 내부 API용입니다.")
+      description = "특정 작성자가 작성한 댓글 목록을 조회합니다. User Service에서 사용됩니다.")
   @ApiResponses({@ApiResponse(responseCode = "200", description = "조회 성공")})
-  @GetMapping("/internal/author/{authorId}")
+  @GetMapping("/author/{authorId}")
   public ResponseEntity<ApiResponseDTO<List<CommentsResponseDTO>>> getCommentsByAuthor(
       @Parameter(description = "작성자 ID") @PathVariable Long authorId) {
     List<CommentsResponseDTO> comments = commentsService.getCommentsByAuthorId(authorId);
