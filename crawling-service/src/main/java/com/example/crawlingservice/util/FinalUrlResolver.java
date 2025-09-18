@@ -2,7 +2,9 @@ package com.example.crawlingservice.util;
 
 import lombok.extern.slf4j.Slf4j;
 import org.openqa.selenium.JavascriptExecutor;
+import org.openqa.selenium.TimeoutException;
 import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.WebDriverException;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.WebDriverWait;
 import org.springframework.stereotype.Component;
@@ -23,7 +25,7 @@ public class FinalUrlResolver {
         //최종 URL 초기화
         String finalUrl = url;
         //제품 상세페이지로 돌아가기 위한 탭 저장
-        String originalTab =  driver.getCurrentUrl();
+        String originalTab =  driver.getWindowHandle();
         //새로운 탭을 저장할 변수 초기화
         String newTab = null;
 
@@ -62,13 +64,31 @@ public class FinalUrlResolver {
             //사이트에 팝업이 있을 경우 무시하고 경로 가져오기
             finalUrl = withOutPopup(driver, url);
 
-        } catch (Exception e) {
+        }catch (InterruptedException e){
+            log.debug("링크 리졸빙 중 스레드 중단");
+            Thread.currentThread().interrupt();
+        }catch (TimeoutException e){
+            log.debug("구매 링크 로딩 초과 대기 발생");
+            try {
+                //시간 초과 시 현재 URL 시도
+                finalUrl= driver.getCurrentUrl();
+            } catch (Exception ex) {
+                log.debug("시간 초과로 URL 추출 실패 : {}", ex.getMessage());
+            }
+
+        }catch (WebDriverException e){
+            log.debug("Chrom Driver 오류 발생 : {}",e.getMessage());
+        }catch (Exception e) {
             log.debug("구매사이트를 찾을 수 없습니다");
         }finally {
-            //구매사이트 탭 닫기
-            closeNewTab(driver,newTab);
-            //상세페이지로 돌아가기
-            toDetailPage(originalTab,driver);
+            try {
+                //구매사이트 탭 닫기
+                closeNewTab(driver,newTab);
+                //상세페이지로 돌아가기
+                toDetailPage(originalTab,driver);
+            } catch (Exception e) {
+                log.error("탭 정리 중 오류 발생 {}",e.getMessage());
+            }
         }
 
         //최종 URL 반환
@@ -116,6 +136,10 @@ public class FinalUrlResolver {
             if (openTabs.contains(originalTab)) {
                 //상세 페이지 탭으로 반환
                 driver.switchTo().window(originalTab);
+            }else {
+                if (!openTabs.isEmpty()) {
+                    driver.switchTo().window(openTabs.iterator().next());
+                }
             }
 
         } catch (Exception e) {
@@ -135,33 +159,58 @@ public class FinalUrlResolver {
         try {
             //구매상세 페이지 로드하고 잠시 대기
             driver.get(url);
-            Thread.sleep(3000);
+            WebDriverWait wait1 = new WebDriverWait(driver, Duration.ofSeconds(15));
+            wait1.until(d -> "complete".equals(
+                    ((JavascriptExecutor) d).executeScript("return document.readyState")));
 
             //현재 페이지 상태 확인
             String currentUrl = driver.getCurrentUrl();
 
             //리다이렉션이 있을 수 있으므로 짧은 시간 더 대기
-            WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(5));
+            WebDriverWait wait2 = new WebDriverWait(driver, Duration.ofSeconds(5));
 
             // URL 변경 감지 (리다이렉션 처리)
-            wait.until(ExpectedConditions.not(ExpectedConditions.urlToBe(currentUrl)));
+            wait2.until(ExpectedConditions.not(ExpectedConditions.urlToBe(currentUrl)));
             finalUrl = driver.getCurrentUrl();
 
             // URL 안정화 확인(3번) (추가 리다이렉션 대기)
             for (int i = 0; i < 3; i++) {
-                Thread.sleep(1000);
+                Thread.sleep(800);
                 String newUrl = driver.getCurrentUrl();
-                assert finalUrl != null;
-                if (!finalUrl.equals(newUrl)) {
+                if (finalUrl != null&&!finalUrl.equals(newUrl)) {
                     //URL 변경이 있을 경우 잠시 대기
                     finalUrl = newUrl;
                 } else {
                     break; // URL이 안정화됨
                 }
             }
-
-
-        } catch (Exception e) {
+        }catch (InterruptedException e){
+            log.debug("팝업 무시 중 스레드 중단");
+            Thread.currentThread().interrupt();
+            try {
+                finalUrl=driver.getCurrentUrl();
+            } catch (Exception ex) {
+                log.debug("중단 후 URL 추출 실패");
+                finalUrl=url;
+            }
+        }catch (TimeoutException e){
+            log.debug("페이지 로딩 시간초과로 스레드 중단");
+            try {
+                finalUrl = driver.getCurrentUrl();
+            } catch (Exception ex) {
+                log.debug("시간 초과 후 URL 확득 실패");
+                finalUrl=url;
+            }
+        }catch (WebDriverException e){
+            log.debug("WebDriver 예외 발색 {}",e.getMessage());
+            try {
+                finalUrl = driver.getCurrentUrl();
+            } catch (Exception ex) {
+                log.debug("예외 후 URL 획득 실패");
+                finalUrl = url;
+            }
+        }catch (Exception e) {
+            log.error("예기치 못한 오류 발생 {}",e.getMessage());
             try {
                 //팝업창이 없을 경우 그대로 추출
                 finalUrl = driver.getCurrentUrl();
