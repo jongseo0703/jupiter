@@ -1,5 +1,7 @@
 package com.example.communityservice.controller;
 
+import java.util.List;
+
 import jakarta.validation.Valid;
 
 import org.springframework.data.domain.Page;
@@ -7,11 +9,13 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import com.example.communityservice.dto.posts.PostAttachmentsResponseDTO;
 import com.example.communityservice.dto.posts.PostsRequestDTO;
 import com.example.communityservice.dto.posts.PostsResponseDTO;
 import com.example.communityservice.dto.posts.PostsSummaryDTO;
 import com.example.communityservice.global.common.ApiResponseDTO;
 import com.example.communityservice.global.common.PageResponseDTO;
+import com.example.communityservice.service.FileUploadService;
 import com.example.communityservice.service.PostsService;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -29,6 +33,7 @@ import lombok.RequiredArgsConstructor;
 public class PostsController {
 
   private final PostsService postsService;
+  private final FileUploadService fileUploadService;
 
   // 게시글 목록 조회
   // GET /api/posts?category=전체&page=0&size=20
@@ -136,5 +141,31 @@ public class PostsController {
       @Parameter(description = "게시글 ID") @PathVariable Long id) {
     postsService.removeLike(id);
     return ResponseEntity.ok(ApiResponseDTO.success("좋아요가 취소되었습니다.", null));
+  }
+
+  // === 첨부파일 관련 API ===
+
+  @Operation(summary = "첨부파일 목록 조회", description = "특정 게시글의 첨부파일 목록을 조회합니다.")
+  @ApiResponses({
+    @ApiResponse(responseCode = "200", description = "조회 성공"),
+    @ApiResponse(responseCode = "404", description = "게시글을 찾을 수 없음")
+  })
+  @GetMapping("/{id}/attachments")
+  public ResponseEntity<ApiResponseDTO<List<PostAttachmentsResponseDTO>>> getAttachments(
+      @Parameter(description = "게시글 ID") @PathVariable Long id) {
+    List<PostAttachmentsResponseDTO> attachments = fileUploadService.getAttachmentsByPostId(id);
+    return ResponseEntity.ok(ApiResponseDTO.success(attachments));
+  }
+
+  @Operation(summary = "첨부파일 삭제", description = "특정 첨부파일을 삭제합니다.")
+  @ApiResponses({
+    @ApiResponse(responseCode = "200", description = "삭제 성공"),
+    @ApiResponse(responseCode = "404", description = "첨부파일을 찾을 수 없음")
+  })
+  @DeleteMapping("/attachments/{attachmentId}")
+  public ResponseEntity<ApiResponseDTO<Void>> deleteAttachment(
+      @Parameter(description = "첨부파일 ID") @PathVariable Long attachmentId) {
+    fileUploadService.deleteAttachment(attachmentId);
+    return ResponseEntity.ok(ApiResponseDTO.success("첨부파일이 삭제되었습니다.", null));
   }
 }

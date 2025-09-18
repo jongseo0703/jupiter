@@ -2,6 +2,7 @@ package com.example.communityservice.dto.posts;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import com.example.communityservice.dto.comments.CommentsResponseDTO;
 import com.example.communityservice.entity.PostCategory;
@@ -62,6 +63,9 @@ public class PostsResponseDTO {
   @Schema(description = "댓글 목록")
   private List<CommentsResponseDTO> comments;
 
+  @Schema(description = "첨부파일 목록")
+  private List<PostAttachmentsResponseDTO> attachments;
+
   /**
    * Posts 엔티티를 PostsResponseDto로 변환하는 정적 팩토리 메서드
    *
@@ -82,6 +86,10 @@ public class PostsResponseDTO {
         .tags(post.getTags())
         .createdAt(post.getCreatedAt())
         .updatedAt(post.getUpdatedAt())
+        .attachments(
+            post.getAttachments().stream()
+                .map(PostAttachmentsResponseDTO::from)
+                .collect(Collectors.toList()))
         .build();
   }
 }
