@@ -72,7 +72,30 @@ public class FinalUrlResolver {
         //최종 URL 반환
         return  finalUrl;
     }
-    public void closeNewTab(WebDriver driver, String newTab) {}
+
+    /**
+     * 더이상 사용하지 않는 구매사이트 탭 자동으로 닫기
+     * @param driver 현재 사용하고 있는 크롬 드라이버
+     * @param newTab 닫고 싶은 탭
+     */
+    public void closeNewTab(WebDriver driver, String newTab) {
+        //닫고 싶은 탭의 존재 여부 확인
+        if (newTab == null) return;
+
+        try {
+            // 현재 열린 탭들
+            Set<String> openTabs = driver.getWindowHandles();
+
+            // 닫고 싶은 탭 위치 찾기
+            if (openTabs.contains(newTab)) {
+                //확인 후 닫기
+                driver.switchTo().window(newTab);
+                driver.close();
+            }
+        } catch (Exception e) {
+            log.warn("탭 닫기 중 오류: {}", e.getMessage());
+        }
+    }
     public void toDetailPage(String originalTab, WebDriver driver) {}
     public String withOutPopup(WebDriver driver, String url) {
         String finalUrl = url;
