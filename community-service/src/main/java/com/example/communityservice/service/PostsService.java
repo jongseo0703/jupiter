@@ -4,7 +4,6 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import com.example.communityservice.entity.Comments;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -16,8 +15,12 @@ import com.example.communityservice.dto.posts.PostsRequestDTO;
 import com.example.communityservice.dto.posts.PostsResponseDTO;
 import com.example.communityservice.dto.posts.PostsSummaryDTO;
 import com.example.communityservice.entity.Authors;
+import com.example.communityservice.entity.Comments;
 import com.example.communityservice.entity.PostCategory;
 import com.example.communityservice.entity.Posts;
+import com.example.communityservice.global.exception.AccessDeniedException;
+import com.example.communityservice.global.exception.AuthorNotFoundException;
+import com.example.communityservice.global.exception.PostNotFoundException;
 import com.example.communityservice.repository.AuthorsRepository;
 import com.example.communityservice.repository.PostsRepository;
 
@@ -51,9 +54,7 @@ public class PostsService {
   @Transactional
   public PostsResponseDTO getPost(Long postId) {
     Posts post =
-        postsRepository
-            .findById(postId)
-            .orElseThrow(() -> new IllegalArgumentException("게시글을 찾을 수 없습니다. ID: " + postId));
+        postsRepository.findById(postId).orElseThrow(() -> new PostNotFoundException(postId));
 
     // 조회수 증가
     postsRepository.incrementViews(postId);
@@ -92,9 +93,7 @@ public class PostsService {
   @Transactional
   public PostsResponseDTO updatePost(Long postId, PostsRequestDTO requestDto) {
     Posts post =
-        postsRepository
-            .findById(postId)
-            .orElseThrow(() -> new IllegalArgumentException("게시글을 찾을 수 없습니다. ID: " + postId));
+        postsRepository.findById(postId).orElseThrow(() -> new PostNotFoundException(postId));
 
     // 작성자 권한 체크
     validateAuthorPermission(post, requestDto);
@@ -112,9 +111,7 @@ public class PostsService {
   @Transactional
   public void deletePost(Long postId, PostsRequestDTO requestDto) {
     Posts post =
-        postsRepository
-            .findById(postId)
-            .orElseThrow(() -> new IllegalArgumentException("게시글을 찾을 수 없습니다. ID: " + postId));
+        postsRepository.findById(postId).orElseThrow(() -> new PostNotFoundException(postId));
 
     // 작성자 권한 체크
     validateAuthorPermission(post, requestDto);
@@ -126,7 +123,7 @@ public class PostsService {
   @Transactional
   public void addLike(Long postId) {
     if (!postsRepository.existsById(postId)) {
-      throw new IllegalArgumentException("게시글을 찾을 수 없습니다. ID: " + postId);
+      throw new PostNotFoundException(postId);
     }
     postsRepository.incrementLikes(postId);
   }
@@ -135,7 +132,7 @@ public class PostsService {
   @Transactional
   public void removeLike(Long postId) {
     if (!postsRepository.existsById(postId)) {
-      throw new IllegalArgumentException("게시글을 찾을 수 없습니다. ID: " + postId);
+      throw new PostNotFoundException(postId);
     }
     postsRepository.decrementLikes(postId);
   }
@@ -155,7 +152,7 @@ public class PostsService {
       }
       return authorsRepository
           .findById(requestDto.getAuthorId())
-          .orElseThrow(() -> new IllegalArgumentException("작성자를 찾을 수 없습니다."));
+          .orElseThrow(() -> new AuthorNotFoundException(requestDto.getAuthorId()));
     }
   }
 
@@ -168,12 +165,12 @@ public class PostsService {
       if (!postAuthor.getAnonymousEmail().equals(requestDto.getAnonymousEmail())
           || !passwordEncoder.matches(
               requestDto.getAnonymousPassword(), postAuthor.getAnonymousPwd())) {
-        throw new IllegalArgumentException("게시글 수정/삭제 권한이 없습니다.");
+        throw AccessDeniedException.forPost();
       }
     } else {
       // 회원 사용자 검증: 작성자 ID 확인
       if (!postAuthor.getAuthorId().equals(requestDto.getAuthorId())) {
-        throw new IllegalArgumentException("게시글 수정/삭제 권한이 없습니다.");
+        throw AccessDeniedException.forPost();
       }
     }
   }

@@ -12,6 +12,10 @@ import com.example.communityservice.dto.comments.CommentsResponseDTO;
 import com.example.communityservice.entity.Authors;
 import com.example.communityservice.entity.Comments;
 import com.example.communityservice.entity.Posts;
+import com.example.communityservice.global.exception.AccessDeniedException;
+import com.example.communityservice.global.exception.AuthorNotFoundException;
+import com.example.communityservice.global.exception.CommentNotFoundException;
+import com.example.communityservice.global.exception.PostNotFoundException;
 import com.example.communityservice.repository.AuthorsRepository;
 import com.example.communityservice.repository.CommentsRepository;
 import com.example.communityservice.repository.PostsRepository;
@@ -43,7 +47,7 @@ public class CommentsService {
     Posts post =
         postsRepository
             .findById(requestDto.getPostId())
-            .orElseThrow(() -> new IllegalArgumentException("게시글을 찾을 수 없습니다."));
+            .orElseThrow(() -> new PostNotFoundException(requestDto.getPostId()));
 
     // 작성자 정보 조회 또는 생성
     Authors author = getOrCreateAuthor(requestDto);
@@ -61,7 +65,7 @@ public class CommentsService {
     Comments comment =
         commentsRepository
             .findById(commentId)
-            .orElseThrow(() -> new IllegalArgumentException("댓글을 찾을 수 없습니다. ID: " + commentId));
+            .orElseThrow(() -> new CommentNotFoundException(commentId));
 
     // 작성자 권한 체크
     validateAuthorPermission(comment, requestDto);
@@ -76,7 +80,7 @@ public class CommentsService {
     Comments comment =
         commentsRepository
             .findById(commentId)
-            .orElseThrow(() -> new IllegalArgumentException("댓글을 찾을 수 없습니다. ID: " + commentId));
+            .orElseThrow(() -> new CommentNotFoundException(commentId));
 
     // 작성자 권한 체크
     validateAuthorPermission(comment, requestDto);
@@ -99,7 +103,7 @@ public class CommentsService {
       }
       return authorsRepository
           .findById(requestDto.getAuthorId())
-          .orElseThrow(() -> new IllegalArgumentException("작성자를 찾을 수 없습니다."));
+          .orElseThrow(() -> new AuthorNotFoundException(requestDto.getAuthorId()));
     }
   }
 
@@ -112,12 +116,12 @@ public class CommentsService {
       if (!commentAuthor.getAnonymousEmail().equals(requestDto.getAnonymousEmail())
           || !passwordEncoder.matches(
               requestDto.getAnonymousPassword(), commentAuthor.getAnonymousPwd())) {
-        throw new IllegalArgumentException("댓글 수정/삭제 권한이 없습니다.");
+        throw AccessDeniedException.forComment();
       }
     } else {
       // 회원 사용자 검증: 작성자 ID 확인
       if (!commentAuthor.getAuthorId().equals(requestDto.getAuthorId())) {
-        throw new IllegalArgumentException("댓글 수정/삭제 권한이 없습니다.");
+        throw AccessDeniedException.forComment();
       }
     }
   }
