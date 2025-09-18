@@ -96,7 +96,30 @@ public class FinalUrlResolver {
             log.warn("탭 닫기 중 오류: {}", e.getMessage());
         }
     }
-    public void toDetailPage(String originalTab, WebDriver driver) {}
+
+    /**
+     * 다시 상품 상세페이지로 돌아가는 메서드
+     * @param originalTab 상세페이지 탭
+     * @param driver 현재 사용하기 있는 드라이버
+     */
+    public void toDetailPage(String originalTab, WebDriver driver) {
+        //상품 상세피이지의 존재 여부 확인
+        if (originalTab == null) return;
+
+        try {
+            // 현재 열린 탭들 확인
+            Set<String> openTabs = driver.getWindowHandles();
+
+            //탭들 중에서 원하는 탭 찾기
+            if (openTabs.contains(originalTab)) {
+                //상세 페이지 탭으로 반환
+                driver.switchTo().window(originalTab);
+            }
+
+        } catch (Exception e) {
+            log.error("탭 전환 중 오류: {}", e.getMessage());
+        }
+    }
     public String withOutPopup(WebDriver driver, String url) {
         String finalUrl = url;
         return  finalUrl;
