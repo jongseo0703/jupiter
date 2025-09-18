@@ -12,18 +12,16 @@ public record NotificationSettingsResponse(
     LocalTime notificationEndTime,
     Boolean weekendNotifications,
     Integer minDiscountPercent,
-    Integer maxDailyNotifications
-) {
-    public static NotificationSettingsResponse from(NotificationSettings settings) {
-        return new NotificationSettingsResponse(
-            settings.getId(),
-            settings.getEmailNotifications(),
-            settings.getPushNotifications(),
-            settings.getNotificationStartTime(),
-            settings.getNotificationEndTime(),
-            settings.getWeekendNotifications(),
-            settings.getMinDiscountPercent(),
-            settings.getMaxDailyNotifications()
-        );
-    }
+    Integer maxDailyNotifications) {
+  public static NotificationSettingsResponse from(NotificationSettings settings) {
+    return new NotificationSettingsResponse(
+        settings.getId(),
+        settings.getEmailNotifications(),
+        settings.getPushNotifications(),
+        settings.getNotificationStartTime(),
+        settings.getNotificationEndTime(),
+        settings.getWeekendNotifications(),
+        settings.getMinDiscountPercent(),
+        settings.getMaxDailyNotifications());
+  }
 }
