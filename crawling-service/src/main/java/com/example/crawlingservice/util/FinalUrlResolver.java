@@ -18,4 +18,6 @@ public class FinalUrlResolver {
         //최종 URL 반환
         return  finalUrl;
     }
+
+    public void toDetailPage(String originalTab, WebDriver driver) {}
 }
