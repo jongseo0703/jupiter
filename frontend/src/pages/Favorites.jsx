@@ -1,8 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import AlcoholPreloader from '../components/AlcoholPreloader';
 
 function Favorites() {
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [favoriteItems, setFavoriteItems] = useState([
     {
       id: 1,
@@ -58,8 +60,18 @@ function Favorites() {
     }, 1000);
   };
 
+  useEffect(() => {
+    setIsLoading(true);
+  }, []);
+
+  const handleLoadingComplete = () => {
+    setIsLoading(false);
+  };
+
   if (favoriteItems.length === 0) {
     return (
+      <>
+        <AlcoholPreloader isLoading={isLoading} handleLoadingComplete={handleLoadingComplete} />
       <div className="py-16 bg-gray-50 min-h-screen">
         <div className="container mx-auto px-4 text-center">
           <div className="bg-white rounded-lg shadow-sm p-12">
@@ -76,10 +88,13 @@ function Favorites() {
           </div>
         </div>
       </div>
+      </>
     );
   }
 
   return (
+    <>
+      <AlcoholPreloader isLoading={isLoading} handleLoadingComplete={handleLoadingComplete} />
     <div className="py-16 bg-gray-50">
       {/* 페이지 헤더 */}
       <div
@@ -342,6 +357,7 @@ function Favorites() {
         </div>
       </div>
     </div>
+    </>
   );
 }
 
