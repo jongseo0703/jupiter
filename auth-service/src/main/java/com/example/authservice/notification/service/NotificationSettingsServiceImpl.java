@@ -33,15 +33,7 @@ public class NotificationSettingsServiceImpl implements NotificationSettingsServ
 
     // 설정이 없으면 기본값으로 응답 (DB에 저장하지 않음)
     return new NotificationSettingsResponse(
-        null,
-        true,
-        true,
-        LocalTime.of(9, 0),
-        LocalTime.of(21, 0),
-        true,
-        5,
-        10
-    );
+        null, true, true, LocalTime.of(9, 0), LocalTime.of(21, 0), true, 5, 10);
   }
 
   @Override
