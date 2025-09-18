@@ -1,12 +1,22 @@
 package com.example.crawlingservice.util;
 
 import lombok.extern.slf4j.Slf4j;
+import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.WebDriver;
 import org.springframework.stereotype.Component;
+
+import java.util.Set;
+import java.util.concurrent.TimeUnit;
 
 @Component
 @Slf4j
 public class FinalUrlResolver {
+    /**
+     * 상세페이지에서 얻은 구매링크를 로딩페이지 없이 최종 구매사이트 링크를 추출하는 메서드
+     * @param url 상세페이지에서 가져온 링크
+     * @param driver 현재 사용하고 있는 크롬 드라이버
+     * @return (String)최종 구매사이트 링크
+     */
     public String resolve(String url, WebDriver driver) {
         //최종 URL 초기화
         String finalUrl = url;
@@ -14,6 +24,50 @@ public class FinalUrlResolver {
         String originalTab =  driver.getCurrentUrl();
         //새로운 탭을 저장할 변수 초기화
         String newTab = null;
+
+        try {
+            //현재 있는 모든 탭 저장
+            Set<String>allTabs = driver.getWindowHandles();
+            //탭들이 있는지 확인
+            if(allTabs.isEmpty()){
+                return finalUrl;
+            }
+
+            //새로운 탭 열고 잠시 대기
+            ((JavascriptExecutor) driver).executeScript("window.open('', '_blank');");
+            Thread.sleep(1000);
+
+            //새로운 탭까지 포합한 모든 탭들 가져오기
+            Set<String> afterAllTabs = driver.getWindowHandles();
+            for (String handle : afterAllTabs) {
+                //기존 탭들에서 다른 탭 찾아서 대입
+                if (!allTabs.contains(handle)) {
+                    newTab = handle;
+                    break;
+                }
+            }
+
+            //구매사이트 탭이 존재 여부 확인
+            if (newTab == null) {
+                log.warn("새 탭을 찾을 수 없습니다");
+                return finalUrl;
+            }
+
+            //구매사이트 탭으로 이동
+            driver.switchTo().window(newTab);
+            //페이지 로딩 시간 제한(10초) 오버 시 에러
+            driver.manage().timeouts().pageLoadTimeout(10, TimeUnit.SECONDS);
+            //사이트에 팝업이 있을 경우 무시하고 경로 가져오기
+            finalUrl = withOutPopup(driver, url);
+
+        } catch (Exception e) {
+            log.debug("구매사이트를 찾을 수 없습니다");
+        }finally {
+            //구매사이트 탭 닫기
+            closeNewTab(driver,newTab);
+            //상세페이지로 돌아가기
+            toDetailPage(originalTab,driver);
+        }
 
         //최종 URL 반환
         return  finalUrl;
