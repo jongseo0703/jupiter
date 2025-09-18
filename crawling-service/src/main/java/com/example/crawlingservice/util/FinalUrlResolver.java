@@ -9,7 +9,6 @@ import org.springframework.stereotype.Component;
 
 import java.time.Duration;
 import java.util.Set;
-import java.util.concurrent.TimeUnit;
 
 @Component
 @Slf4j
@@ -59,7 +58,7 @@ public class FinalUrlResolver {
             //구매사이트 탭으로 이동
             driver.switchTo().window(newTab);
             //페이지 로딩 시간 제한(10초) 오버 시 에러
-            driver.manage().timeouts().pageLoadTimeout(10, TimeUnit.SECONDS);
+            driver.manage().timeouts().pageLoadTimeout(Duration.ofSeconds(10));
             //사이트에 팝업이 있을 경우 무시하고 경로 가져오기
             finalUrl = withOutPopup(driver, url);
 
@@ -152,6 +151,7 @@ public class FinalUrlResolver {
             for (int i = 0; i < 3; i++) {
                 Thread.sleep(1000);
                 String newUrl = driver.getCurrentUrl();
+                assert finalUrl != null;
                 if (!finalUrl.equals(newUrl)) {
                     //URL 변경이 있을 경우 잠시 대기
                     finalUrl = newUrl;
@@ -162,7 +162,13 @@ public class FinalUrlResolver {
 
 
         } catch (Exception e) {
-            log.debug("팝업 창 무시 실패");
+            try {
+                //팝업창이 없을 경우 그대로 추출
+                finalUrl = driver.getCurrentUrl();
+            } catch (Exception ex) {
+                log.error("구매사이트를 찾을 수 없음");
+                finalUrl = url;
+            }
         }
         return  finalUrl;
     }
