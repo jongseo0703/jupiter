@@ -20,4 +20,8 @@ public class FinalUrlResolver {
     }
     public void closeNewTab(WebDriver driver, String newTab) {}
     public void toDetailPage(String originalTab, WebDriver driver) {}
+    public String withOutPopup(WebDriver driver, String url) {
+        String finalUrl = url;
+        return  finalUrl;
+    }
 }
