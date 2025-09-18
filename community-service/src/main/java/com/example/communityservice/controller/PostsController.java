@@ -14,9 +14,15 @@ import com.example.communityservice.global.common.ApiResponseDTO;
 import com.example.communityservice.global.common.PageResponseDTO;
 import com.example.communityservice.service.PostsService;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 
 /** 게시글 관련 REST API 컨트롤러 */
+@Tag(name = "Posts", description = "게시글 관리 API")
 @RestController
 @RequestMapping("/api/posts")
 @RequiredArgsConstructor
@@ -26,9 +32,17 @@ public class PostsController {
 
   // 게시글 목록 조회
   // GET /api/posts?category=전체&page=0&size=20
+  @Operation(summary = "게시글 목록 조회", description = "카테고리별 게시글 목록을 페이징하여 조회합니다.")
+  @ApiResponses({
+    @ApiResponse(responseCode = "200", description = "조회 성공"),
+    @ApiResponse(responseCode = "400", description = "잘못된 요청")
+  })
   @GetMapping
   public ResponseEntity<ApiResponseDTO<PageResponseDTO<PostsSummaryDTO>>> getPosts(
-      @RequestParam(required = false) String category, Pageable pageable) {
+      @Parameter(description = "게시글 카테고리 (전체, FREE_BOARD, PRICE_INFO, LIQUOR_REVIEW, QNA, EVENT)")
+          @RequestParam(required = false)
+          String category,
+      @Parameter(description = "페이징 정보 (page, size, sort)") Pageable pageable) {
     Page<PostsSummaryDTO> posts = postsService.getPosts(category, pageable);
     PageResponseDTO<PostsSummaryDTO> pageResponse = PageResponseDTO.from(posts);
     return ResponseEntity.ok(ApiResponseDTO.success(pageResponse));
@@ -36,51 +50,90 @@ public class PostsController {
 
   // 게시글 상세 조회
   // GET /api/posts/{id}
+  @Operation(summary = "게시글 상세 조회", description = "게시글 ID로 상세 정보를 조회합니다. 댓글 목록도 포함됩니다.")
+  @ApiResponses({
+    @ApiResponse(responseCode = "200", description = "조회 성공"),
+    @ApiResponse(responseCode = "404", description = "게시글을 찾을 수 없음")
+  })
   @GetMapping("/{id}")
-  public ResponseEntity<ApiResponseDTO<PostsResponseDTO>> getPost(@PathVariable Long id) {
+  public ResponseEntity<ApiResponseDTO<PostsResponseDTO>> getPost(
+      @Parameter(description = "게시글 ID") @PathVariable Long id) {
     PostsResponseDTO post = postsService.getPost(id);
     return ResponseEntity.ok(ApiResponseDTO.success(post));
   }
 
   // 게시글 작성
   // POST /api/posts
+  @Operation(summary = "게시글 작성", description = "새로운 게시글을 작성합니다. 회원/익명 사용자 모두 가능합니다.")
+  @ApiResponses({
+    @ApiResponse(responseCode = "200", description = "작성 성공"),
+    @ApiResponse(responseCode = "400", description = "입력값 검증 실패"),
+    @ApiResponse(responseCode = "404", description = "작성자를 찾을 수 없음")
+  })
   @PostMapping
   public ResponseEntity<ApiResponseDTO<PostsResponseDTO>> createPost(
-      @Valid @RequestBody PostsRequestDTO requestDto) {
+      @Parameter(description = "게시글 작성 요청 정보") @Valid @RequestBody PostsRequestDTO requestDto) {
     PostsResponseDTO createdPost = postsService.createPost(requestDto);
     return ResponseEntity.ok(ApiResponseDTO.success("게시글이 성공적으로 작성되었습니다.", createdPost));
   }
 
   // 게시글 수정
   // PUT /api/posts/{id}
+  @Operation(summary = "게시글 수정", description = "기존 게시글을 수정합니다. 작성자만 수정할 수 있습니다.")
+  @ApiResponses({
+    @ApiResponse(responseCode = "200", description = "수정 성공"),
+    @ApiResponse(responseCode = "400", description = "입력값 검증 실패"),
+    @ApiResponse(responseCode = "403", description = "수정 권한 없음"),
+    @ApiResponse(responseCode = "404", description = "게시글을 찾을 수 없음")
+  })
   @PutMapping("/{id}")
   public ResponseEntity<ApiResponseDTO<PostsResponseDTO>> updatePost(
-      @PathVariable Long id, @Valid @RequestBody PostsRequestDTO requestDto) {
+      @Parameter(description = "게시글 ID") @PathVariable Long id,
+      @Parameter(description = "게시글 수정 요청 정보") @Valid @RequestBody PostsRequestDTO requestDto) {
     PostsResponseDTO updatedPost = postsService.updatePost(id, requestDto);
     return ResponseEntity.ok(ApiResponseDTO.success("게시글이 성공적으로 수정되었습니다.", updatedPost));
   }
 
   // 게시글 삭제
   // DELETE /api/posts/{id}
+  @Operation(summary = "게시글 삭제", description = "기존 게시글을 삭제합니다. 작성자만 삭제할 수 있습니다.")
+  @ApiResponses({
+    @ApiResponse(responseCode = "200", description = "삭제 성공"),
+    @ApiResponse(responseCode = "403", description = "삭제 권한 없음"),
+    @ApiResponse(responseCode = "404", description = "게시글을 찾을 수 없음")
+  })
   @DeleteMapping("/{id}")
   public ResponseEntity<ApiResponseDTO<Void>> deletePost(
-      @PathVariable Long id, @RequestBody PostsRequestDTO requestDto) {
+      @Parameter(description = "게시글 ID") @PathVariable Long id,
+      @Parameter(description = "작성자 권한 확인용 정보") @RequestBody PostsRequestDTO requestDto) {
     postsService.deletePost(id, requestDto);
     return ResponseEntity.ok(ApiResponseDTO.success("게시글이 성공적으로 삭제되었습니다.", null));
   }
 
   // 좋아요 추가
   // POST /api/posts/{id}/likes
+  @Operation(summary = "좋아요 추가", description = "게시글에 좋아요를 추가합니다.")
+  @ApiResponses({
+    @ApiResponse(responseCode = "200", description = "좋아요 추가 성공"),
+    @ApiResponse(responseCode = "404", description = "게시글을 찾을 수 없음")
+  })
   @PostMapping("/{id}/likes")
-  public ResponseEntity<ApiResponseDTO<Void>> addLike(@PathVariable Long id) {
+  public ResponseEntity<ApiResponseDTO<Void>> addLike(
+      @Parameter(description = "게시글 ID") @PathVariable Long id) {
     postsService.addLike(id);
     return ResponseEntity.ok(ApiResponseDTO.success("좋아요가 추가되었습니다.", null));
   }
 
   // 좋아요 취소
   // DELETE /api/posts/{id}/likes
+  @Operation(summary = "좋아요 취소", description = "게시글의 좋아요를 취소합니다.")
+  @ApiResponses({
+    @ApiResponse(responseCode = "200", description = "좋아요 취소 성공"),
+    @ApiResponse(responseCode = "404", description = "게시글을 찾을 수 없음")
+  })
   @DeleteMapping("/{id}/likes")
-  public ResponseEntity<ApiResponseDTO<Void>> removeLike(@PathVariable Long id) {
+  public ResponseEntity<ApiResponseDTO<Void>> removeLike(
+      @Parameter(description = "게시글 ID") @PathVariable Long id) {
     postsService.removeLike(id);
     return ResponseEntity.ok(ApiResponseDTO.success("좋아요가 취소되었습니다.", null));
   }
