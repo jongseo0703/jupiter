@@ -1,22 +1,59 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import authService from '../services/authService';
 
 const Register = () => {
-    const [formData, setFormData] = useState({
-        name: '',
-        email: '',
-        password: '',
-        confirmPassword: '',
-        phone: '',
-        agreeTerms: false,
-        agreePrivacy: false,
-        agreeMarketing: false
-    });
+    // sessionStorage에서 저장된 폼 데이터 복원
+    const getInitialFormData = () => {
+        const savedData = sessionStorage.getItem('registerFormData');
+        if (savedData) {
+            try {
+                return JSON.parse(savedData);
+            } catch (error) {
+                console.error('Failed to parse saved form data:', error);
+            }
+        }
+        return {
+            name: '',
+            email: '',
+            password: '',
+            confirmPassword: '',
+            phone: '',
+            agreeTerms: false,
+            agreePrivacy: false,
+            agreeMarketing: false
+        };
+    };
+
+    const [formData, setFormData] = useState(getInitialFormData);
     const [isLoading, setIsLoading] = useState(false);
     const [errors, setErrors] = useState({});
     const [successMessage, setSuccessMessage] = useState('');
+    const [showRestoredMessage, setShowRestoredMessage] = useState(false);
     const navigate = useNavigate();
+
+    // 폼 데이터가 변경될 때마다 sessionStorage에 저장
+    useEffect(() => {
+        sessionStorage.setItem('registerFormData', JSON.stringify(formData));
+    }, [formData]);
+
+    // 컴포넌트 마운트 시 저장된 데이터가 있으면 알림 표시
+    useEffect(() => {
+        const savedData = sessionStorage.getItem('registerFormData');
+        if (savedData) {
+            try {
+                const parsedData = JSON.parse(savedData);
+                // 폼에 실제 입력된 데이터가 있는지 확인
+                const hasData = parsedData.name || parsedData.email || parsedData.password || parsedData.phone;
+                if (hasData) {
+                    setShowRestoredMessage(true);
+                    setTimeout(() => setShowRestoredMessage(false), 5000);
+                }
+            } catch (error) {
+                console.error('Failed to parse saved form data:', error);
+            }
+        }
+    }, []);
 
     const handleInputChange = (e) => {
         const { name, value, type, checked } = e.target;
@@ -91,6 +128,9 @@ const Register = () => {
             await authService.register(formData);
             setSuccessMessage('회원가입이 완료되었습니다. 로그인해주세요.');
 
+            // 회원가입 성공 시 저장된 폼 데이터 삭제
+            sessionStorage.removeItem('registerFormData');
+
             // 3초 후 로그인 페이지로 리다이렉트
             setTimeout(() => {
                 navigate('/login');
@@ -102,6 +142,22 @@ const Register = () => {
         }
     };
 
+    // 폼 초기화 함수
+    const handleClearForm = () => {
+        const initialData = {
+            name: '',
+            email: '',
+            password: '',
+            confirmPassword: '',
+            phone: '',
+            agreeTerms: false,
+            agreePrivacy: false,
+            agreeMarketing: false
+        };
+        setFormData(initialData);
+        setErrors({});
+        sessionStorage.removeItem('registerFormData');
+    };
 
     return (
         <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
@@ -125,6 +181,24 @@ const Register = () => {
 
             <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
                 <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
+                    {/* 복원 메시지 */}
+                    {showRestoredMessage && (
+                        <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-md">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center">
+                                    <i className="fas fa-info-circle text-blue-600 mr-2"></i>
+                                    <p className="text-sm text-blue-600">이전에 입력하신 정보가 복원되었습니다.</p>
+                                </div>
+                                <button
+                                    onClick={handleClearForm}
+                                    className="text-sm text-blue-600 hover:text-blue-800 underline"
+                                >
+                                    새로 시작
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
                     {/* 성공 메시지 */}
                     {successMessage && (
                         <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-md">
