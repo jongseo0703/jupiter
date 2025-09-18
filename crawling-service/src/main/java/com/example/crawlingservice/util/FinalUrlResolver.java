@@ -3,8 +3,11 @@ package com.example.crawlingservice.util;
 import lombok.extern.slf4j.Slf4j;
 import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.support.ui.ExpectedConditions;
+import org.openqa.selenium.support.ui.WebDriverWait;
 import org.springframework.stereotype.Component;
 
+import java.time.Duration;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
@@ -120,8 +123,47 @@ public class FinalUrlResolver {
             log.error("탭 전환 중 오류: {}", e.getMessage());
         }
     }
+
+    /**
+     * 팝업창 무시하고 링크 추출 후 반환<br>
+     * "성인 인증", "로그인 필요" 등과 같은 모든 팝업창 무시
+     * @param driver 현재 사용하고 있는 크롬 드라이버
+     * @param url 들어간 페이지 URL
+     * @return (String)최종 페이지 URL 반환
+     */
     public String withOutPopup(WebDriver driver, String url) {
         String finalUrl = url;
+        try {
+            //구매상세 페이지 로드하고 잠시 대기
+            driver.get(url);
+            Thread.sleep(3000);
+
+            //현재 페이지 상태 확인
+            String currentUrl = driver.getCurrentUrl();
+
+            //리다이렉션이 있을 수 있으므로 짧은 시간 더 대기
+            WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(5));
+
+            // URL 변경 감지 (리다이렉션 처리)
+            wait.until(ExpectedConditions.not(ExpectedConditions.urlToBe(currentUrl)));
+            finalUrl = driver.getCurrentUrl();
+
+            // URL 안정화 확인(3번) (추가 리다이렉션 대기)
+            for (int i = 0; i < 3; i++) {
+                Thread.sleep(1000);
+                String newUrl = driver.getCurrentUrl();
+                if (!finalUrl.equals(newUrl)) {
+                    //URL 변경이 있을 경우 잠시 대기
+                    finalUrl = newUrl;
+                } else {
+                    break; // URL이 안정화됨
+                }
+            }
+
+
+        } catch (Exception e) {
+            log.debug("팝업 창 무시 실패");
+        }
         return  finalUrl;
     }
 }
