@@ -271,8 +271,9 @@ public class DetailPageService {
                 String url = link.attr("href");
                 //로딩 페이지 없는 최종 사이트 링크 추출
                 String finalUrl = finalUrlResolver.resolve(url,driver);
-                if(finalUrl != null){
-                price.setShopLink(finalUrl);
+                log.debug("{}의 최종 상품구매링크 {}",price.getShopName(),finalUrl);
+                if(!finalUrl.isEmpty()){
+                    price.setShopLink(finalUrl);
                 }
             }
             prices.add(price);
