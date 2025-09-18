@@ -3,6 +3,7 @@ package com.example.crawlingservice.service;
 import com.example.crawlingservice.dto.PriceDTO;
 import com.example.crawlingservice.dto.ProductDTO;
 import com.example.crawlingservice.dto.ReviewDTO;
+import com.example.crawlingservice.util.FinalUrlResolver;
 import com.example.crawlingservice.util.ParseNum;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -28,6 +29,7 @@ import java.util.regex.Pattern;
 @RequiredArgsConstructor
 public class DetailPageService {
     private final ParseNum parseNum;
+    private final FinalUrlResolver finalUrlResolver;
 
     /**
      * 상품상세 페이지 얻어온 데이터를 파싱하는 메서드<br>
@@ -56,7 +58,7 @@ public class DetailPageService {
                 item.setProductKind(kind);
 
                 //가격들을 저장할 리스트
-                List<PriceDTO> priceList = getPrices(doc);
+                List<PriceDTO> priceList = getPrices(doc,driver);
                 item.setPrices(priceList);
             }
 
@@ -219,7 +221,7 @@ public class DetailPageService {
      * @param doc 파싱할 html
      * @return 상품 가격 리스트 반환
      */
-    public List<PriceDTO> getPrices(Document doc) {
+    public List<PriceDTO> getPrices(Document doc,WebDriver driver) {
         List<PriceDTO> prices = new ArrayList<>();
         for(Element element : doc.select("#lowPriceCompanyArea ul.list__mall-price li.list-item")) {
             PriceDTO price = new PriceDTO();
@@ -265,9 +267,13 @@ public class DetailPageService {
             //구매사이트
             Element link = element.selectFirst("a.link__full-cover[href]");
             if (link != null) {
-                //구매 링크 사이트 저장
+                //상세페이지에 있는 구매사이트 링크 대입
                 String url = link.attr("href");
-                price.setShopLink(url);
+                //로딩 페이지 없는 최종 사이트 링크 추출
+                String finalUrl = finalUrlResolver.resolve(url,driver);
+                if(finalUrl != null){
+                price.setShopLink(finalUrl);
+                }
             }
             prices.add(price);
         }
