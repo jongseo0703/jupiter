@@ -10,12 +10,12 @@ import lombok.extern.slf4j.Slf4j;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
-import org.openqa.selenium.By;
-import org.openqa.selenium.JavascriptExecutor;
-import org.openqa.selenium.WebDriver;
-import org.openqa.selenium.WebElement;
+import org.openqa.selenium.*;
+import org.openqa.selenium.support.ui.ExpectedConditions;
+import org.openqa.selenium.support.ui.WebDriverWait;
 import org.springframework.stereotype.Service;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Matcher;
@@ -57,14 +57,13 @@ public class DetailPageService {
                 item.setCategory(category);
                 item.setProductKind(kind);
 
+                //리뷰페이지 넘아기기 반복문 후 파싱
+                item.setReviews(getReviews(driver,html));
+
                 //가격들을 저장할 리스트
                 List<PriceDTO> priceList = getPrices(doc,driver);
                 item.setPrices(priceList);
             }
-
-            //리뷰페이지 넘아기기 반복문 후 파싱
-            item.setReviews(getReviews(driver,html));
-
 
         }
         catch (Exception e){
@@ -138,6 +137,8 @@ public class DetailPageService {
                     Element contentEl = li.selectFirst(".rvw_atc .atc_cont .atc");
                     if (contentEl != null) review.setContent(contentEl.text().trim());
 
+                    //리뷰정보 목록에 추가
+                    reviews.add(review);
                 }
 
                 //최대페이지 설정
@@ -159,14 +160,48 @@ public class DetailPageService {
                 }
 
                 //다음페이지로 넘가기기 클릭
-                WebElement nextReview = next.get(0);
-                ((JavascriptExecutor) driver).executeScript("arguments[0].click();", nextReview);
+                WebElement nextReview = next.getFirst();
+                WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(10));
+                wait.until(ExpectedConditions.elementToBeClickable(nextReview));
+                try {
+                    //일반적인 클릭 시도
+                    nextReview.click();
+                } catch (ElementNotInteractableException ex) {
+                    //실패 시 JavaScript로 클릭 시도
+                    ((JavascriptExecutor) driver).executeScript("arguments[0].click();", nextReview);
+                }
+                //페이지 카운터 증가
                 pageCount++;
-                Thread.sleep(3000);
+                //새로운 페이지 로딩 대기
+                Thread.sleep(2000);
+                //새로운 페이지 html 확득
+                html = driver.getPageSource();
 
-            } catch (Exception e) {
+            }catch (InterruptedException e){
+                log.debug("리뷰 수집 중 스레드 중단");
                 Thread.currentThread().interrupt();
-                log.error("스레드 중단");
+                break;
+            }catch (TimeoutException e){
+                log.debug("페이딩 로딩 시간 초과");
+                break;
+            }catch (NoSuchElementException e){
+                log.debug("다음 버튼을 찾을 수 없음");
+                break;
+            } catch (StaleElementReferenceException  e) {
+                try {
+                    //패이지 새로고침
+                    driver.navigate().refresh();
+                    Thread.sleep(3000);
+                    html = driver.getPageSource();
+                    continue;
+                } catch (InterruptedException ex) {
+                    log.debug("페이지 새로 고침 실패 {}",ex.getMessage());
+                }
+            }catch (WebDriverException e){
+                log.error("Chrome Driver 오류 발생 : {}",e.getMessage());
+                break;
+            }catch (Exception e){
+                log.error("리뷰 수집 중 예기치 못할 오류 발생 {}",e.getMessage());
             }
         }
         return reviews;
