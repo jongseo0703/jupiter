@@ -34,7 +34,7 @@ public class User extends BaseEntity implements UserDetails {
   private Long id;
 
   // username
-  @Column(unique = true, nullable = false)
+  @Column(nullable = false)
   @NotBlank(message = "Username is required")
   @Size(min = 3, max = 50, message = "Username must be between 3 and 50 characters")
   private String username;

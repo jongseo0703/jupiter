@@ -42,11 +42,6 @@ public class AuthServiceImpl implements AuthService {
   public UserResponse register(RegisterRequest request) {
     log.info("Registering new user with username: {}", request.username());
 
-    // 이미 유저가 있는지 확인
-    if (userRepository.existsByUsername(request.username())) {
-      throw new BusinessException("Username already exists", 409, "DUPLICATE_USERNAME");
-    }
-
     // 이미 있는 이메일인지 확인
     if (userRepository.existsByEmail(request.email())) {
       throw new BusinessException("Email already exists", 409, "DUPLICATE_EMAIL");
