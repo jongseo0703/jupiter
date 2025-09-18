@@ -25,6 +25,16 @@ public enum ErrorCode {
   INVALID_AUTHOR_INFO(HttpStatus.BAD_REQUEST, "A002", "작성자 정보가 유효하지 않습니다."),
   ANONYMOUS_AUTH_FAILED(HttpStatus.UNAUTHORIZED, "A003", "익명 사용자 인증에 실패했습니다."),
 
+  // File 관련 에러
+  FILE_UPLOAD_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "F001", "파일 업로드에 실패했습니다."),
+  FILE_NOT_FOUND(HttpStatus.NOT_FOUND, "F002", "파일을 찾을 수 없습니다."),
+  ATTACHMENT_NOT_FOUND(HttpStatus.NOT_FOUND, "F003", "첨부파일을 찾을 수 없습니다."),
+  FILE_SIZE_EXCEEDED(HttpStatus.BAD_REQUEST, "F004", "파일 크기가 제한을 초과했습니다."),
+  INVALID_FILE_TYPE(HttpStatus.BAD_REQUEST, "F005", "허용되지 않은 파일 형식입니다."),
+  EMPTY_FILE(HttpStatus.BAD_REQUEST, "F006", "빈 파일은 업로드할 수 없습니다."),
+  INVALID_FILENAME(HttpStatus.BAD_REQUEST, "F007", "파일명이 올바르지 않습니다."),
+  FILE_DELETE_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "F008", "파일 삭제에 실패했습니다."),
+
   // 공통 에러
   INVALID_INPUT_VALUE(HttpStatus.BAD_REQUEST, "G001", "입력값이 유효하지 않습니다."),
   INTERNAL_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "G002", "내부 서버 오류가 발생했습니다.");

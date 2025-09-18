@@ -15,6 +15,9 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.multipart.MultipartFile;
 
+import com.example.communityservice.global.exception.BusinessException;
+import com.example.communityservice.global.exception.ErrorCode;
+
 import lombok.extern.slf4j.Slf4j;
 
 /** 파일 시스템 관리 유틸리티 - 파일 저장, 삭제 등 파일 관련 기본 기능 제공 */
@@ -98,23 +101,23 @@ public class FileManager {
   /** 파일 유효성 검증 */
   private void validateFile(MultipartFile file) {
     if (file.isEmpty()) {
-      throw new IllegalArgumentException("빈 파일은 업로드할 수 없습니다.");
+      throw new BusinessException(ErrorCode.EMPTY_FILE);
     }
 
     if (file.getSize() > maxFileSize) {
-      throw new IllegalArgumentException(
+      throw new BusinessException(ErrorCode.FILE_SIZE_EXCEEDED,
           String.format("파일 크기가 제한을 초과했습니다. (최대: %dMB)", maxFileSize / (1024 * 1024)));
     }
 
     String originalFilename = file.getOriginalFilename();
     if (originalFilename == null || originalFilename.trim().isEmpty()) {
-      throw new IllegalArgumentException("파일명이 올바르지 않습니다.");
+      throw new BusinessException(ErrorCode.INVALID_FILENAME);
     }
 
     // 파일 확장자 검증
     String extension = getFileExtension(originalFilename).toLowerCase();
     if (!allowedExtensions.contains(extension)) {
-      throw new IllegalArgumentException(
+      throw new BusinessException(ErrorCode.INVALID_FILE_TYPE,
           String.format("허용되지 않은 파일 형식입니다. 허용 형식: %s", String.join(", ", allowedExtensions)));
     }
 
@@ -122,7 +125,7 @@ public class FileManager {
     if (originalFilename.contains("..")
         || originalFilename.contains("/")
         || originalFilename.contains("\\")) {
-      throw new IllegalArgumentException("파일명에 허용되지 않은 문자가 포함되어 있습니다.");
+      throw new BusinessException(ErrorCode.INVALID_FILENAME, "파일명에 허용되지 않은 문자가 포함되어 있습니다.");
     }
   }
 

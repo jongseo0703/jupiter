@@ -10,6 +10,8 @@ import org.springframework.web.multipart.MultipartFile;
 import com.example.communityservice.dto.posts.PostAttachmentsResponseDTO;
 import com.example.communityservice.entity.PostAttachments;
 import com.example.communityservice.entity.Posts;
+import com.example.communityservice.global.exception.BusinessException;
+import com.example.communityservice.global.exception.ErrorCode;
 import com.example.communityservice.global.util.FileManager;
 import com.example.communityservice.repository.PostAttachmentsRepository;
 
@@ -42,7 +44,7 @@ public class FileUploadService {
           attachments.add(attachment);
         } catch (Exception e) {
           log.error("파일 업로드 실패: {}, 오류: {}", file.getOriginalFilename(), e.getMessage());
-          throw new RuntimeException("파일 업로드에 실패했습니다: " + file.getOriginalFilename());
+          throw new BusinessException(ErrorCode.FILE_UPLOAD_FAILED, "파일 업로드에 실패했습니다: " + file.getOriginalFilename());
         }
       }
     }
@@ -100,7 +102,7 @@ public class FileUploadService {
     PostAttachments attachment =
         postAttachmentsRepository
             .findById(attachmentId)
-            .orElseThrow(() -> new RuntimeException("첨부파일을 찾을 수 없습니다."));
+            .orElseThrow(() -> new BusinessException(ErrorCode.ATTACHMENT_NOT_FOUND));
 
     // FileManager를 사용하여 실제 파일 삭제
     boolean deleted = fileManager.deleteFile(attachment.getFilePath());
