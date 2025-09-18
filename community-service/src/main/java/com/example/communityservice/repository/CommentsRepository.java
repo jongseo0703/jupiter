@@ -11,9 +11,6 @@ import com.example.communityservice.entity.Comments;
 @Repository
 public interface CommentsRepository extends JpaRepository<Comments, Long> {
 
-  // 특정 게시글의 댓글 목록 조회 (오래된순 - 최근 댓글이 맨 아래)
-  List<Comments> findByPost_PostIdOrderByCreatedAtAsc(Long postId);
-
   // 특정 작성자의 댓글 목록 조회 (User - MyPage용  내부 API)
   List<Comments> findByAuthors_AuthorIdOrderByCreatedAtDesc(Long authorId);
 

@@ -1,7 +1,9 @@
 package com.example.communityservice.dto.posts;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
+import com.example.communityservice.dto.comments.CommentsResponseDTO;
 import com.example.communityservice.entity.PostCategory;
 import com.example.communityservice.entity.Posts;
 
@@ -31,6 +33,7 @@ public class PostsResponseDTO {
   private String tags;
   private LocalDateTime createdAt;
   private LocalDateTime updatedAt;
+  private List<CommentsResponseDTO> comments; // 댓글 목록
 
   /**
    * Posts 엔티티를 PostsResponseDto로 변환하는 정적 팩토리 메서드

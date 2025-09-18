@@ -29,12 +29,6 @@ public class CommentsService {
   private final AuthorsRepository authorsRepository;
   private final PasswordEncoder passwordEncoder;
 
-  // 특정 게시글의 댓글 목록 조회 (오래된순)
-  public List<CommentsResponseDTO> getCommentsByPostId(Long postId) {
-    List<Comments> comments = commentsRepository.findByPost_PostIdOrderByCreatedAtAsc(postId);
-    return comments.stream().map(CommentsResponseDTO::from).collect(Collectors.toList());
-  }
-
   // 특정 작성자의 댓글 목록 조회 (User MyPage용 내부 API)
   public List<CommentsResponseDTO> getCommentsByAuthorId(Long authorId) {
     List<Comments> comments =

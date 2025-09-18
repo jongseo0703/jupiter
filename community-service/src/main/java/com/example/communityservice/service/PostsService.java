@@ -1,11 +1,17 @@
 package com.example.communityservice.service;
 
+import java.util.Comparator;
+import java.util.List;
+import java.util.stream.Collectors;
+
+import com.example.communityservice.entity.Comments;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.example.communityservice.dto.comments.CommentsResponseDTO;
 import com.example.communityservice.dto.posts.PostsRequestDTO;
 import com.example.communityservice.dto.posts.PostsResponseDTO;
 import com.example.communityservice.dto.posts.PostsSummaryDTO;
@@ -41,7 +47,7 @@ public class PostsService {
     return posts.map(PostsSummaryDTO::from);
   }
 
-  // 게시글 상세 조회 (조회수 증가)
+  // 게시글 상세 조회 (조회수 증가 + 댓글 목록 포함)
   @Transactional
   public PostsResponseDTO getPost(Long postId) {
     Posts post =
@@ -52,7 +58,16 @@ public class PostsService {
     // 조회수 증가
     postsRepository.incrementViews(postId);
 
-    return PostsResponseDTO.from(post);
+    // 댓글 목록 조회
+    List<CommentsResponseDTO> comments =
+        post.getComments().stream()
+            .sorted(Comparator.comparing(Comments::getCreatedAt)) // 오래된순 정렬
+            .map(CommentsResponseDTO::from)
+            .collect(Collectors.toList());
+
+    PostsResponseDTO response = PostsResponseDTO.from(post);
+    response.setComments(comments);
+    return response;
   }
 
   // 게시글 생성
