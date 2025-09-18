@@ -19,6 +19,7 @@ public class GatewayConfig {
                 .route("crawling-service", r -> r.path("/crawling/**")
                         .uri("http://localhost:8083"))
                 .route("community-service", r -> r.path("/community/**")
+                        .filters(f -> f.stripPrefix(1))
                         .uri("http://localhost:8084"))
                 .build();
     }

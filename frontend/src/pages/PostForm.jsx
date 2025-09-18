@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
 function PostForm() {
+  const navigate = useNavigate();
   const [formData, setFormData] = useState({
     category: '',
     title: '',
@@ -15,14 +16,21 @@ function PostForm() {
   });
 
   const [previewImages, setPreviewImages] = useState([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const categories = [
-    '자유게시판',
-    '가격정보',
-    '술리뷰',
-    '질문답변',
-    '이벤트'
-  ];
+  const categories = ['자유게시판', '가격정보', '술리뷰', '질문답변', '이벤트'];
+
+  // 카테고리 변환 함수
+  const getCategoryForAPI = (koreanCategory) => {
+    const categoryMap = {
+      '자유게시판': 'FREE_BOARD',
+      '가격정보': 'PRICE_INFO',
+      '술리뷰': 'LIQUOR_REVIEW',
+      '질문답변': 'QNA',
+      '이벤트': 'EVENT'
+    };
+    return categoryMap[koreanCategory];
+  };
 
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -59,25 +67,73 @@ function PostForm() {
     setPreviewImages(prev => prev.filter(img => img.id !== id));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
-    const postData = {
-      category: formData.category,
-      title: formData.title,
-      content: formData.content,
-      tags: formData.tags,
-      author: {
-        is_anonymous: formData.is_anonymous,
-        author_name: formData.is_anonymous ? null : formData.author_name,
-        anonymous_email: formData.is_anonymous ? formData.anonymous_email : null,
-        anonymous_pwd: formData.is_anonymous ? formData.anonymous_pwd : null
-      },
-      attachments: formData.attachments
-    };
+    if (isSubmitting) return;
 
-    console.log('게시글 데이터:', postData);
-    alert('게시글이 성공적으로 작성되었습니다!');
+    setIsSubmitting(true);
+
+    try {
+      // 게시글 데이터 준비
+      const postData = {
+        category: getCategoryForAPI(formData.category),
+        title: formData.title,
+        content: formData.content,
+        tags: formData.tags,
+        isAnonymous: formData.is_anonymous,
+        authorName: formData.author_name,
+        anonymousEmail: formData.is_anonymous ? formData.anonymous_email : null,
+        anonymousPassword: formData.is_anonymous ? formData.anonymous_pwd : null
+      };
+
+      // 게시글 생성 API 호출
+      const response = await fetch('http://localhost:8080/community/api/posts', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(postData)
+      });
+
+      if (!response.ok) {
+        throw new Error('게시글 생성 실패');
+      }
+
+      const result = await response.json();
+      const createdPost = result.data;
+
+      // 파일이 있다면 업로드
+      if (formData.attachments.length > 0) {
+        const fileFormData = new FormData();
+        formData.attachments.forEach(file => {
+          fileFormData.append('files', file);
+        });
+
+        try {
+          const fileResponse = await fetch(`http://localhost:8080/community/api/posts/${createdPost.postId}/attachments`, {
+            method: 'POST',
+            body: fileFormData
+          });
+
+          if (!fileResponse.ok) {
+            throw new Error('파일 업로드 실패');
+          }
+        } catch (fileError) {
+          console.error('파일 업로드 실패:', fileError);
+          alert('게시글은 작성되었지만 파일 업로드에 실패했습니다.');
+        }
+      }
+
+      alert('게시글이 성공적으로 작성되었습니다!');
+      navigate(`/post/${createdPost.postId}`);
+
+    } catch (error) {
+      console.error('게시글 작성 실패:', error);
+      alert('게시글 작성에 실패했습니다. 다시 시도해주세요.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -356,10 +412,20 @@ function PostForm() {
               </Link>
               <button
                 type="submit"
-                className="px-8 py-3 bg-primary text-white rounded-lg hover:bg-blue-800 transition-colors font-semibold"
+                disabled={isSubmitting}
+                className="px-8 py-3 bg-primary text-white rounded-lg hover:bg-blue-800 transition-colors font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <i className="fas fa-paper-plane mr-2"></i>
-                게시글 등록
+                {isSubmitting ? (
+                  <>
+                    <i className="fas fa-spinner fa-spin mr-2"></i>
+                    게시글 등록 중...
+                  </>
+                ) : (
+                  <>
+                    <i className="fas fa-paper-plane mr-2"></i>
+                    게시글 등록
+                  </>
+                )}
               </button>
             </div>
           </form>
