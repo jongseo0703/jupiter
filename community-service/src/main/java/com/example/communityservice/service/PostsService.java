@@ -6,8 +6,6 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import lombok.RequiredArgsConstructor;
-
 import com.example.communityservice.dto.posts.PostsRequestDTO;
 import com.example.communityservice.dto.posts.PostsResponseDTO;
 import com.example.communityservice.dto.posts.PostsSummaryDTO;
@@ -16,6 +14,8 @@ import com.example.communityservice.entity.PostCategory;
 import com.example.communityservice.entity.Posts;
 import com.example.communityservice.repository.AuthorsRepository;
 import com.example.communityservice.repository.PostsRepository;
+
+import lombok.RequiredArgsConstructor;
 
 // 게시글 관련 비즈니스 로직 처리 서비스
 @Service

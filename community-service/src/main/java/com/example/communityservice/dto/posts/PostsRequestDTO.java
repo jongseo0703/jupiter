@@ -4,19 +4,15 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
+import com.example.communityservice.entity.PostCategory;
+
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-import com.example.communityservice.entity.PostCategory;
-
-/**
- * 게시글 생성/수정 요청용 DTO
- * - 클라이언트에서 서버로 게시글 데이터를 전송할 때 사용
- * - Bean Validation 어노테이션으로 입력값 검증
- */
+/** 게시글 생성/수정 요청용 DTO - 클라이언트에서 서버로 게시글 데이터를 전송할 때 사용 - Bean Validation 어노테이션으로 입력값 검증 */
 @Getter
 @Setter
 @NoArgsConstructor
