@@ -44,7 +44,8 @@ public class FileUploadService {
           attachments.add(attachment);
         } catch (Exception e) {
           log.error("파일 업로드 실패: {}, 오류: {}", file.getOriginalFilename(), e.getMessage());
-          throw new BusinessException(ErrorCode.FILE_UPLOAD_FAILED, "파일 업로드에 실패했습니다: " + file.getOriginalFilename());
+          throw new BusinessException(
+              ErrorCode.FILE_UPLOAD_FAILED, "파일 업로드에 실패했습니다: " + file.getOriginalFilename());
         }
       }
     }
@@ -61,23 +62,19 @@ public class FileUploadService {
    */
   private PostAttachmentsResponseDTO uploadSingleFile(MultipartFile file, Posts post)
       throws IOException {
-    // FileManager를 사용하여 파일 저장
-    FileManager.SavedFileInfo savedFileInfo = fileManager.saveFile(file, "posts");
+    // FileManager를 사용하여 파일 저장 (웹 URL 반환)
+    String fileUrl = fileManager.saveFile(file, "posts");
+
+    // 저장된 파일명 추출 (URL에서 파일명만)
+    String savedFileName = fileUrl.substring(fileUrl.lastIndexOf("/") + 1);
 
     // 데이터베이스에 파일 정보 저장
     PostAttachments attachment =
         PostAttachments.create(
-            post,
-            savedFileInfo.getOriginalFilename(),
-            savedFileInfo.getSavedFileName(),
-            savedFileInfo.getFullPath(),
-            savedFileInfo.getFileSize());
+            post, file.getOriginalFilename(), savedFileName, fileUrl, file.getSize());
     PostAttachments savedAttachment = postAttachmentsRepository.save(attachment);
 
-    log.info(
-        "파일 업로드 완료: {} -> {}",
-        savedFileInfo.getOriginalFilename(),
-        savedFileInfo.getSavedFileName());
+    log.info("파일 업로드 완료: {} -> {} (URL: {})", file.getOriginalFilename(), savedFileName, fileUrl);
     return PostAttachmentsResponseDTO.from(savedAttachment);
   }
 
@@ -105,9 +102,9 @@ public class FileUploadService {
             .orElseThrow(() -> new BusinessException(ErrorCode.ATTACHMENT_NOT_FOUND));
 
     // FileManager를 사용하여 실제 파일 삭제
-    boolean deleted = fileManager.deleteFile(attachment.getFilePath());
+    boolean deleted = fileManager.deleteFile(attachment.getFileUrl());
     if (!deleted) {
-      log.warn("실제 파일 삭제 실패: {}", attachment.getFilePath());
+      log.warn("실제 파일 삭제 실패: {}", attachment.getFileUrl());
     }
 
     // 데이터베이스에서 삭제

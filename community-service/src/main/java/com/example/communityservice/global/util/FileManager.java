@@ -25,10 +25,10 @@ import lombok.extern.slf4j.Slf4j;
 @Component
 public class FileManager {
 
-  @Value("${file.upload.path:/tmp/uploads}")
+  @Value("${file.upload.path}") // 프로젝트 폴더/uploads
   private String baseUploadPath;
 
-  @Value("${file.upload.max-size:10485760}") // 10MB
+  @Value("${file.upload.max-size}") // 10MB
   private long maxFileSize;
 
   /** 허용되는 파일 확장자 목록 */
@@ -38,13 +38,13 @@ public class FileManager {
           "pptx", "zip");
 
   /**
-   * 파일을 저장하고 저장된 파일 정보를 반환
+   * 파일을 저장하고 웹 접근 가능한 URL을 반환
    *
    * @param file 저장할 파일
    * @param subDirectory 하위 디렉토리 (예: "posts", "profiles")
-   * @return 저장된 파일 정보
+   * @return 웹 접근 가능한 URL (예: /uploads/posts/2025/09/18/filename.jpg)
    */
-  public SavedFileInfo saveFile(MultipartFile file, String subDirectory) throws IOException {
+  public String saveFile(MultipartFile file, String subDirectory) throws IOException {
     validateFile(file);
 
     // 날짜별 디렉토리 구조 생성 (예: uploads/posts/2024/01/15/)
@@ -64,36 +64,38 @@ public class FileManager {
     Path filePath = Paths.get(fullFilePath);
     Files.write(filePath, file.getBytes());
 
-    log.info("파일 저장 완료: {} -> {}", originalFilename, fullFilePath);
+    // 웹 접근 가능한 URL 생성 (예: /uploads/posts/2025/09/18/filename.jpg)
+    String webUrl = String.format("/uploads/%s/%s/%s", subDirectory, datePath, uniqueFileName);
 
-    return SavedFileInfo.builder()
-        .originalFilename(originalFilename)
-        .savedFileName(uniqueFileName)
-        .fullPath(fullFilePath)
-        .relativePath(subDirectory + "/" + datePath + "/" + uniqueFileName)
-        .fileSize(file.getSize())
-        .contentType(file.getContentType())
-        .build();
+    log.info("파일 저장 완료: {} -> {} (URL: {})", originalFilename, fullFilePath, webUrl);
+
+    return webUrl;
   }
 
   /**
-   * 파일 삭제
+   * 파일 삭제 (웹 URL을 받아서 실제 파일 경로로 변환 후 삭제)
    *
-   * @param filePath 삭제할 파일의 전체 경로
+   * @param fileUrl 삭제할 파일의 웹 URL (예: /uploads/posts/2025/09/18/file.jpg)
    * @return 삭제 성공 여부
    */
-  public boolean deleteFile(String filePath) {
+  public boolean deleteFile(String fileUrl) {
     try {
-      Path path = Paths.get(filePath);
+      // URL을 실제 파일 경로로 변환 (예: /uploads/posts/... -> ./uploads/posts/...)
+      String relativePath =
+          fileUrl.startsWith("/uploads/") ? fileUrl.substring("/uploads/".length()) : fileUrl;
+      String fullFilePath =
+          baseUploadPath + File.separator + relativePath.replace("/", File.separator);
+
+      Path path = Paths.get(fullFilePath);
       boolean deleted = Files.deleteIfExists(path);
       if (deleted) {
-        log.info("파일 삭제 완료: {}", filePath);
+        log.info("파일 삭제 완료: {} (URL: {})", fullFilePath, fileUrl);
       } else {
-        log.warn("삭제할 파일이 존재하지 않음: {}", filePath);
+        log.warn("삭제할 파일이 존재하지 않음: {} (URL: {})", fullFilePath, fileUrl);
       }
       return deleted;
     } catch (IOException e) {
-      log.error("파일 삭제 실패: {}, 오류: {}", filePath, e.getMessage());
+      log.error("파일 삭제 실패: {}, 오류: {}", fileUrl, e.getMessage());
       return false;
     }
   }
@@ -105,7 +107,8 @@ public class FileManager {
     }
 
     if (file.getSize() > maxFileSize) {
-      throw new BusinessException(ErrorCode.FILE_SIZE_EXCEEDED,
+      throw new BusinessException(
+          ErrorCode.FILE_SIZE_EXCEEDED,
           String.format("파일 크기가 제한을 초과했습니다. (최대: %dMB)", maxFileSize / (1024 * 1024)));
     }
 
@@ -117,7 +120,8 @@ public class FileManager {
     // 파일 확장자 검증
     String extension = getFileExtension(originalFilename).toLowerCase();
     if (!allowedExtensions.contains(extension)) {
-      throw new BusinessException(ErrorCode.INVALID_FILE_TYPE,
+      throw new BusinessException(
+          ErrorCode.INVALID_FILE_TYPE,
           String.format("허용되지 않은 파일 형식입니다. 허용 형식: %s", String.join(", ", allowedExtensions)));
     }
 
@@ -169,17 +173,5 @@ public class FileManager {
       return filename.substring(0, lastDotIndex);
     }
     return filename;
-  }
-
-  /** 파일 저장 결과 정보를 담는 클래스 */
-  @lombok.Builder
-  @lombok.Getter
-  public static class SavedFileInfo {
-    private final String originalFilename;
-    private final String savedFileName;
-    private final String fullPath;
-    private final String relativePath;
-    private final long fileSize;
-    private final String contentType;
   }
 }

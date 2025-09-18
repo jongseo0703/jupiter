@@ -8,6 +8,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.example.communityservice.dto.posts.PostAttachmentsResponseDTO;
 import com.example.communityservice.dto.posts.PostsRequestDTO;
@@ -155,6 +156,21 @@ public class PostsController {
       @Parameter(description = "게시글 ID") @PathVariable Long id) {
     List<PostAttachmentsResponseDTO> attachments = fileUploadService.getAttachmentsByPostId(id);
     return ResponseEntity.ok(ApiResponseDTO.success(attachments));
+  }
+
+  @Operation(summary = "첨부파일 업로드", description = "특정 게시글에 파일을 업로드합니다.")
+  @ApiResponses({
+    @ApiResponse(responseCode = "200", description = "업로드 성공"),
+    @ApiResponse(responseCode = "400", description = "파일 업로드 실패"),
+    @ApiResponse(responseCode = "404", description = "게시글을 찾을 수 없음")
+  })
+  @PostMapping("/{id}/attachments")
+  public ResponseEntity<ApiResponseDTO<List<PostAttachmentsResponseDTO>>> uploadFiles(
+      @Parameter(description = "게시글 ID") @PathVariable Long id,
+      @Parameter(description = "업로드할 파일들") @RequestParam("files") List<MultipartFile> files) {
+    List<PostAttachmentsResponseDTO> attachments =
+        fileUploadService.uploadFiles(files, postsService.getPostEntity(id));
+    return ResponseEntity.ok(ApiResponseDTO.success("파일이 성공적으로 업로드되었습니다.", attachments));
   }
 
   @Operation(summary = "첨부파일 삭제", description = "특정 첨부파일을 삭제합니다.")

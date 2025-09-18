@@ -30,20 +30,20 @@ public class PostAttachments {
   @Column(name = "file_name", nullable = false)
   private String fileName;
 
-  @Column(name = "file_path", nullable = false, length = 500)
-  private String filePath;
+  @Column(name = "file_url", nullable = false, length = 500)
+  private String fileUrl;
 
   @Column(name = "file_size", nullable = false)
   private Long fileSize;
 
   // 생성자 메서드
   public static PostAttachments create(
-      Posts post, String originalFilename, String fileName, String filePath, Long fileSize) {
+      Posts post, String originalFilename, String fileName, String fileUrl, Long fileSize) {
     return PostAttachments.builder()
         .post(post)
         .originalFilename(originalFilename)
         .fileName(fileName)
-        .filePath(filePath)
+        .fileUrl(fileUrl)
         .fileSize(fileSize)
         .build();
   }

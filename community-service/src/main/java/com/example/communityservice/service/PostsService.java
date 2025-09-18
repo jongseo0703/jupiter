@@ -174,4 +174,9 @@ public class PostsService {
       }
     }
   }
+
+  // 파일 업로드를 위한 Posts 엔티티 조회
+  public Posts getPostEntity(Long postId) {
+    return postsRepository.findById(postId).orElseThrow(() -> new PostNotFoundException(postId));
+  }
 }

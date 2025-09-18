@@ -27,6 +27,11 @@ public class PostAttachmentsResponseDTO {
   @Schema(description = "저장된 파일명", example = "20240115_103000_abc123.jpg")
   private String fileName;
 
+  @Schema(
+      description = "파일 웹 접근 URL",
+      example = "/uploads/posts/2025/09/18/20240115_103000_abc123.jpg")
+  private String fileUrl;
+
   @Schema(description = "파일 크기 (바이트)", example = "1048576")
   private Long fileSize;
 
@@ -44,6 +49,7 @@ public class PostAttachmentsResponseDTO {
         .postAttachmentId(attachment.getPostAttachmentId())
         .originalFilename(attachment.getOriginalFilename())
         .fileName(attachment.getFileName())
+        .fileUrl(attachment.getFileUrl())
         .fileSize(attachment.getFileSize())
         .formattedFileSize(attachment.getFormattedFileSize())
         .build();
