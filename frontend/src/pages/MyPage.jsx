@@ -19,6 +19,7 @@ const MyPage = () => {
     confirmPassword: ''
   });
   const [isPasswordSaving, setIsPasswordSaving] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -88,8 +89,9 @@ const MyPage = () => {
       setUser(updatedUser);
       setIsEditing(false);
 
-      // 성공 메시지 (임시로 콘솔에)
-      console.log('프로필이 성공적으로 업데이트되었습니다.');
+      // 성공 메시지 표시
+      setSuccessMessage('프로필이 성공적으로 업데이트되었습니다.');
+      setTimeout(() => setSuccessMessage(''), 3000);
 
     } catch (error) {
       console.error('Profile update failed:', error);
@@ -137,8 +139,9 @@ const MyPage = () => {
       });
       setShowPasswordChange(false);
 
-      // 성공 메시지
-      console.log('비밀번호가 성공적으로 변경되었습니다.');
+      // 성공 메시지 표시
+      setSuccessMessage('비밀번호가 성공적으로 변경되었습니다.');
+      setTimeout(() => setSuccessMessage(''), 3000);
 
     } catch (error) {
       console.error('Password update failed:', error);
@@ -179,6 +182,13 @@ const MyPage = () => {
     <div className="min-h-screen bg-gray-50 py-12">
       <div className="container mx-auto px-4">
         <div className="max-w-4xl mx-auto">
+          {/* 성공 메시지 */}
+          {successMessage && (
+            <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded-lg mb-6 flex items-center">
+              <i className="fas fa-check-circle mr-2"></i>
+              {successMessage}
+            </div>
+          )}
           {/* 헤더 */}
           <div className="bg-white rounded-lg shadow-md p-6 mb-6">
             <div className="flex items-center justify-between">

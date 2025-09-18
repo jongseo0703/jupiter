@@ -45,8 +45,20 @@ const Header = () => {
       }
     };
 
+    // 프로필 업데이트 이벤트 리스너 등록
+    const handleProfileUpdate = () => {
+      loadUserInfo();
+    };
+
+    authService.addListener(handleProfileUpdate);
+
     handleOAuthCallback();
     loadUserInfo();
+
+    // 클린업 함수로 이벤트 리스너 제거
+    return () => {
+      authService.removeListener(handleProfileUpdate);
+    };
   }, [location]);
 
   const handleLogout = async () => {

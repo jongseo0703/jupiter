@@ -1,6 +1,25 @@
 import apiService from './api';
 
 class AuthService {
+  constructor() {
+    this.listeners = [];
+  }
+
+  // 이벤트 리스너 추가
+  addListener(callback) {
+    this.listeners.push(callback);
+  }
+
+  // 이벤트 리스너 제거
+  removeListener(callback) {
+    this.listeners = this.listeners.filter(listener => listener !== callback);
+  }
+
+  // 이벤트 발생 (프로필 업데이트 시)
+  notifyListeners() {
+    this.listeners.forEach(callback => callback());
+  }
+
   // 일반 로그인
   async login(email, password, rememberMe = false) {
     try {
@@ -97,6 +116,8 @@ class AuthService {
       });
 
       if (response.result === 'SUCCESS') {
+        // 프로필 업데이트 성공 시 헤더에 알림
+        this.notifyListeners();
         return response.data;
       } else {
         throw new Error(response.message || '프로필 업데이트에 실패했습니다.');
