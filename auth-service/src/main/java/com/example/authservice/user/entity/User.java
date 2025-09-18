@@ -14,6 +14,7 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
 import com.example.authservice.global.common.BaseEntity;
+import com.example.authservice.notification.entity.NotificationSettings;
 
 import lombok.*;
 
@@ -63,6 +64,9 @@ public class User extends BaseEntity implements UserDetails {
   @Builder.Default private boolean accountNonLocked = true;
 
   @Builder.Default private boolean credentialsNonExpired = true;
+
+  @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+  private NotificationSettings notificationSettings;
 
   @Override
   public Collection<? extends GrantedAuthority> getAuthorities() {
