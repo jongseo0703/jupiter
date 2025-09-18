@@ -18,6 +18,8 @@ import ForgotPassword from './pages/ForgotPassword';
 import NotFound from './pages/NotFound';
 import PagesList from './pages/PagesList';
 import NotificationSettings from './pages/NotificationSettings';
+import Settings from './pages/Settings';
+import Help from './pages/Help';
 
 function ScrollToTop() {
   const { pathname } = useLocation();
@@ -51,7 +53,9 @@ function App() {
             <Route path="/privacy" element={<Privacy />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/pages" element={<PagesList />} />
+            <Route path="/settings" element={<Settings />} />
             <Route path="/notification-settings" element={<NotificationSettings />} />
+            <Route path="/help" element={<Help />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </main>

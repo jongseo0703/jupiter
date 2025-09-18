@@ -156,6 +156,13 @@ const Header = () => {
               {isLoggedIn ? (
                 <div className="flex items-center space-x-3">
                   <Link
+                    to="/settings"
+                    className="p-2 text-gray-700 hover:text-primary transition-colors"
+                    title="설정"
+                  >
+                    <i className="fas fa-cog text-xl"></i>
+                  </Link>
+                  <Link
                     to="/mypage"
                     className="text-gray-700 font-medium hover:text-primary transition-colors cursor-pointer"
                   >
@@ -199,6 +206,9 @@ const Header = () => {
                 <Link to="/favorites" className="block text-gray-700 hover:text-primary font-medium" onClick={() => setIsMenuOpen(false)}>즐겨찾기</Link>
                 <Link to="/community-form" className="block text-gray-700 hover:text-primary font-medium" onClick={() => setIsMenuOpen(false)}>글쓰기</Link>
                 <Link to="/about" className="block text-gray-700 hover:text-primary font-medium" onClick={() => setIsMenuOpen(false)}>회사소개</Link>
+                {isLoggedIn && (
+                  <Link to="/settings" className="block text-gray-700 hover:text-primary font-medium" onClick={() => setIsMenuOpen(false)}>설정</Link>
+                )}
                 {isLoggedIn ? (
                   <div className="space-y-2">
                     <Link
