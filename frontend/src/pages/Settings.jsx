@@ -184,7 +184,7 @@ const Settings = () => {
 
               <div className="p-6 space-y-4">
                 <button
-                  onClick={() => navigate('/change-password')}
+                  onClick={() => navigate('/mypage', { state: { openPasswordChange: true } })}
                   className="w-full text-left p-4 border border-gray-200 rounded-lg hover:border-primary hover:bg-blue-50 transition-colors group"
                 >
                   <div className="flex items-center justify-between">

@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import authService from '../services/authService';
 
 const MyPage = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
   const [user, setUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
@@ -21,7 +23,6 @@ const MyPage = () => {
   });
   const [isPasswordSaving, setIsPasswordSaving] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
-  const navigate = useNavigate();
 
   useEffect(() => {
     const loadUserInfo = async () => {
@@ -49,6 +50,15 @@ const MyPage = () => {
 
     loadUserInfo();
   }, [navigate]);
+
+  // 설정 페이지에서 비밀번호 변경 요청 시 모달 자동 열기
+  useEffect(() => {
+    if (location.state?.openPasswordChange) {
+      setShowPasswordChange(true);
+      // state 초기화하여 뒤로가기 시 다시 열리지 않도록 함
+      navigate(location.pathname, { replace: true });
+    }
+  }, [location, navigate]);
 
   const handleLogout = async () => {
     try {
