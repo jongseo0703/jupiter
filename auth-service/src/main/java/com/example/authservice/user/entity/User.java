@@ -52,6 +52,12 @@ public class User extends BaseEntity implements UserDetails {
   @Size(min = 8, message = "Password must be at least 8 characters long")
   private String password;
 
+  // phone number
+  @Column(nullable = false)
+  @NotBlank(message = "phone number is required")
+  @Size(min = 8, message = "Phone number must be at least 8 characters long")
+  private String phone;
+
   // role(USER, ADMIN)
   @Enumerated(EnumType.STRING)
   @Builder.Default
