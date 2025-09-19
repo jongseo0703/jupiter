@@ -7,6 +7,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
 
+import com.example.authservice.auth.service.SmsService;
 import com.example.authservice.global.exception.BusinessException;
 import com.example.authservice.user.dto.PasswordChangeRequest;
 import com.example.authservice.user.dto.UserResponse;
@@ -25,6 +26,7 @@ public class UserServiceImpl implements UserService {
   private final UserRepository userRepository;
   private final PasswordEncoder passwordEncoder;
   private final TransactionTemplate transactionTemplate;
+  private final SmsService smsService;
 
   @Override
   @Transactional(readOnly = true)
@@ -66,6 +68,18 @@ public class UserServiceImpl implements UserService {
               throw new BusinessException("Email already exists", 400, "EMAIL_ALREADY_EXISTS");
             }
             user.setEmail(request.email());
+          }
+
+          if (request.phone() != null && !request.phone().trim().isEmpty()) {
+            // 기존 휴대폰 번호와 다른 경우에만 인증 확인
+            if (!user.getPhone().equals(request.phone())) {
+              if (!smsService.isPhoneVerified(request.phone())) {
+                throw new BusinessException("휴대폰 인증이 완료되지 않았습니다", 400, "PHONE_NOT_VERIFIED");
+              }
+              user.setPhone(request.phone());
+              // 휴대폰 인증 사용 완료 처리
+              smsService.markVerificationAsUsed(request.phone());
+            }
           }
 
           if (request.password() != null && !request.password().trim().isEmpty()) {
