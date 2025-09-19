@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { getKoreanCategory, getEnglishCategory, KOREAN_CATEGORIES } from '../utils/categoryUtils';
 import { useFileUpload } from '../hooks/useFileUpload';
 import { categorizeAttachments } from '../utils/fileUtils';
-import { fetchPosts } from '../services/api';
+import { fetchPopularPosts } from '../services/api';
 
 function PostEdit() {
   const { id } = useParams();
@@ -36,10 +36,10 @@ function PostEdit() {
     '🍸'  // 칵테일
   ];
 
-  // 인기 게시글 조회 (전체 카테고리, 첫 번째 페이지)
+  // 인기 게시글 조회 (전체 카테고리, 첫 번째 페이지, 조회수 순 정렬)
   const { data: popularPostsData } = useQuery({
-    queryKey: ['posts', '전체', 1],
-    queryFn: fetchPosts,
+    queryKey: ['popularPosts', '전체', 1],
+    queryFn: fetchPopularPosts,
     staleTime: 5 * 60 * 1000, // 5분간 fresh 상태 유지
   });
 

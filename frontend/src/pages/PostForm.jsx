@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import { getEnglishCategory, KOREAN_CATEGORIES } from '../utils/categoryUtils';
 import { useFileUpload } from '../hooks/useFileUpload';
-import { createPostWithFiles, fetchPosts } from '../services/api';
+import { createPostWithFiles, fetchPopularPosts } from '../services/api';
 import { categorizeAttachments } from '../utils/fileUtils';
 
 function PostForm() {
@@ -25,10 +25,10 @@ function PostForm() {
 
   const categories = KOREAN_CATEGORIES;
 
-  // 인기 게시글 조회 (전체 카테고리, 첫 번째 페이지)
+  // 인기 게시글 조회 (전체 카테고리, 첫 번째 페이지, 조회수 순 정렬)
   const { data: popularPostsData } = useQuery({
-    queryKey: ['posts', '전체', 1],
-    queryFn: fetchPosts,
+    queryKey: ['popularPosts', '전체', 1],
+    queryFn: fetchPopularPosts,
     staleTime: 5 * 60 * 1000, // 5분간 fresh 상태 유지
   });
 

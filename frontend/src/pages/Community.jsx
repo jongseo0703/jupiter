@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { KOREAN_CATEGORIES } from '../utils/categoryUtils';
-import { fetchPosts } from '../services/api';
+import { fetchPosts, fetchPopularPosts } from '../services/api';
 
 function Community() {
   const [selectedCategory, setSelectedCategory] = useState('전체');
@@ -17,7 +17,15 @@ function Community() {
     keepPreviousData: true, // 페이지 변경 시 이전 데이터를 유지하여 UX 개선
   });
 
+  // 인기 게시글 조회 (조회수 순)
+  const { data: popularPostsData } = useQuery({
+    queryKey: ['popularPosts', '전체', 1],
+    queryFn: fetchPopularPosts,
+    staleTime: 5 * 60 * 1000, // 5분간 fresh 상태 유지
+  });
+
   const posts = data?.posts || [];
+  const popularPosts = popularPostsData?.posts || [];
   const totalPages = data?.totalPages || 1;
 
   if (isError) {
@@ -81,7 +89,7 @@ function Community() {
                 인기 게시글
               </h3>
               <div className="space-y-3">
-                {posts.slice(0, 3).map(post => (
+                {popularPosts.slice(0, 3).map(post => (
                   <div key={post.post_id} className="border-b border-gray-100 pb-3 last:border-b-0">
                     <h4 className="text-sm font-semibold text-gray-800 mb-1 line-clamp-1 flex items-center">
                       {post.title}

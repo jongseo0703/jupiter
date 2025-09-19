@@ -38,8 +38,10 @@ public class PostsController {
   private final FileUploadService fileUploadService;
 
   // 게시글 목록 조회
-  // GET /api/posts?category=전체&page=0&size=20
-  @Operation(summary = "게시글 목록 조회", description = "카테고리별 게시글 목록을 페이징하여 조회합니다.")
+  // GET /api/posts?category=전체&page=0&size=20&sort=views 또는 sort=createdAt
+  @Operation(
+      summary = "게시글 목록 조회",
+      description = "카테고리별 게시글 목록을 페이징하여 조회합니다. sort 파라미터로 정렬 기준을 지정할 수 있습니다.")
   @ApiResponses({
     @ApiResponse(responseCode = "200", description = "조회 성공"),
     @ApiResponse(responseCode = "400", description = "잘못된 요청")
@@ -49,8 +51,16 @@ public class PostsController {
       @Parameter(description = "게시글 카테고리 (전체, FREE_BOARD, PRICE_INFO, LIQUOR_REVIEW, QNA, EVENT)")
           @RequestParam(required = false)
           String category,
-      @Parameter(description = "페이징 정보 (page, size, sort)") Pageable pageable) {
-    Page<PostsSummaryDTO> posts = postsService.getPosts(category, pageable);
+      @Parameter(description = "정렬 기준 (views: 조회수순, createdAt: 최신순)")
+          @RequestParam(required = false, defaultValue = "createdAt")
+          String sort,
+      @Parameter(description = "페이징 정보 (page, size)") Pageable pageable) {
+    Page<PostsSummaryDTO> posts;
+    if ("views".equals(sort)) {
+      posts = postsService.getPopularPosts(category, pageable);
+    } else {
+      posts = postsService.getPosts(category, pageable);
+    }
     PageResponseDTO<PostsSummaryDTO> pageResponse = PageResponseDTO.from(posts);
     return ResponseEntity.ok(ApiResponseDTO.success(pageResponse));
   }

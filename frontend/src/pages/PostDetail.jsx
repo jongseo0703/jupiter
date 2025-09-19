@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import {fetchPost, fetchPosts, likePost, createComment, updateComment, deleteComment, verifyAnonymousComment, deletePost as deletePostAPI, verifyAnonymousPost} from '../services/api';
+import {fetchPost, fetchPopularPosts, likePost, createComment, updateComment, deleteComment, verifyAnonymousComment, deletePost as deletePostAPI, verifyAnonymousPost} from '../services/api';
 import { categorizeAttachments } from '../utils/fileUtils';
 
 function PostDetail() {
@@ -53,10 +53,10 @@ function PostDetail() {
     queryFn: fetchPost
   });
 
-  // 인기 게시글 조회 (전체 카테고리, 첫 번째 페이지)
+  // 인기 게시글 조회 (전체 카테고리, 첫 번째 페이지, 조회수 순 정렬)
   const { data: popularPostsData } = useQuery({
-    queryKey: ['posts', '전체', 1],
-    queryFn: fetchPosts,
+    queryKey: ['popularPosts', '전체', 1],
+    queryFn: fetchPopularPosts,
     staleTime: 5 * 60 * 1000, // 5분간 fresh 상태 유지
   });
 

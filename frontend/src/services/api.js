@@ -189,6 +189,46 @@ export const fetchPosts = async ({ queryKey }) => {
 };
 
 /**
+ * 인기 게시물 목록을 조회하는 API 함수 (React Query용) - 조회수 순 정렬
+ * @param {object} queryKey - React Query에서 제공하는 쿼리 키
+ * @returns {Promise<Object>} - 변환된 인기 게시물 목록과 페이지 정보
+ */
+export const fetchPopularPosts = async ({ queryKey }) => {
+  const [_key, category, page] = queryKey;
+
+  const queryParams = new URLSearchParams();
+  if (category !== '전체') {
+    const englishCategory = getEnglishCategory(category);
+    if (englishCategory) {
+      queryParams.append('category', englishCategory);
+    }
+  }
+  queryParams.append('page', (page - 1).toString());
+  queryParams.append('size', '20');
+  queryParams.append('sort', 'views');
+
+  const response = await fetch(`${COMMUNITY_API_URL}/posts?${queryParams.toString()}`);
+  const pageData = await handleQueryApiResponse(response);
+
+  const transformedPosts = pageData.content.map(post => ({
+    post_id: post.postId,
+    title: post.title,
+    content: post.content,
+    author_name: post.authorName,
+    category: getKoreanCategory(post.category),
+    created_at: new Date(post.createdAt).toLocaleDateString('ko-KR'),
+    views: post.views || 0,
+    comments_count: post.commentsCount || 0,
+    likes: post.likes || 0,
+    tags: post.tags,
+    is_anonymous: post.isAnonymous,
+    has_attachments: post.hasAttachments || false
+  }));
+
+  return { posts: transformedPosts, totalPages: pageData.totalPages };
+};
+
+/**
  * 게시물 상세 정보를 조회하는 API 함수 (React Query용)
  * @param {object} queryKey - React Query에서 제공하는 쿼리 키
  * @returns {Promise<Object>} - 변환된 게시물 상세 정보
