@@ -227,4 +227,27 @@ public class FinalUrlResolver {
         }
         return  finalUrl;
     }
+
+    /**
+     * 안전하게 현재 URL을 가져오는 메서드
+     * WebDriver 예외 발생 시 대체 URL 반환으로 안정성 보장
+     * @param driver 현재 사용중인 Chrom Driver
+     * @param fallbackUrl 실패 시 반환할 URL
+     * @return 현재 URL 또는 대체 URL
+     */
+    private String getSafeCurrentUrl(WebDriver driver, String fallbackUrl) {
+        try {
+            //현재 URL 가져오기
+            String currentUrl = driver.getCurrentUrl();
+            // null 또는  빈 문자열 체크
+            if (currentUrl == null || currentUrl.trim().isEmpty()) {
+                log.debug("현재 URL이 null 또는 빈 문자열, 대체 URL 사용");
+                return fallbackUrl;
+            }
+            return currentUrl;
+        } catch (Exception ex) {
+            log.debug("현재 URL 획득 실패, 대체 URL 사용: {}", ex.getMessage());
+            return fallbackUrl;
+        }
+    }
 }
