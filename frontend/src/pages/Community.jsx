@@ -79,8 +79,11 @@ function Community() {
               <div className="space-y-3">
                 {posts.slice(0, 3).map(post => (
                   <div key={post.post_id} className="border-b border-gray-100 pb-3 last:border-b-0">
-                    <h4 className="text-sm font-semibold text-gray-800 mb-1 line-clamp-1">
+                    <h4 className="text-sm font-semibold text-gray-800 mb-1 line-clamp-1 flex items-center">
                       {post.title}
+                      {post.has_attachments && (
+                        <i className="fas fa-paperclip ml-1 text-red-400 text-xs" title="첨부파일 있음"></i>
+                      )}
                     </h4>
                     <div className="flex items-center text-xs text-gray-500">
                       <span>{post.is_anonymous ? '익명' : post.author_name}</span>
@@ -154,8 +157,11 @@ function Community() {
                         )}
 
                         <Link to={`/post/${post.post_id}`}>
-                          <h3 className="text-lg font-semibold text-gray-800 mb-2 hover:text-primary cursor-pointer">
+                          <h3 className="text-lg font-semibold text-gray-800 mb-2 hover:text-primary cursor-pointer flex items-center">
                             {post.title}
+                            {post.has_attachments && (
+                              <i className="fas fa-paperclip ml-2 text-red-400 text-sm" title="첨부파일 있음"></i>
+                            )}
                           </h3>
                         </Link>
 

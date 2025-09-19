@@ -48,6 +48,9 @@ public class PostsSummaryDTO {
   @Schema(description = "작성일시", example = "2024-01-15T10:30:00")
   private LocalDateTime createdAt;
 
+  @Schema(description = "첨부파일 있는지 여부", example = "true")
+  private Boolean hasAttachments;
+
   /**
    * Posts 엔티티를 PostsSummaryDto로 변환하는 정적 팩토리 메서드
    *

@@ -181,7 +181,8 @@ export const fetchPosts = async ({ queryKey }) => {
     comments_count: post.commentsCount || 0,
     likes: post.likes || 0,
     tags: post.tags,
-    is_anonymous: post.isAnonymous
+    is_anonymous: post.isAnonymous,
+    has_attachments: post.hasAttachments || false // 백엔드에서 제공하는 hasAttachments 필드 사용
   }));
 
   return { posts: transformedPosts, totalPages: pageData.totalPages };

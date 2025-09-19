@@ -23,6 +23,7 @@ import com.example.communityservice.global.exception.AccessDeniedException;
 import com.example.communityservice.global.exception.AuthorNotFoundException;
 import com.example.communityservice.global.exception.PostNotFoundException;
 import com.example.communityservice.repository.AuthorsRepository;
+import com.example.communityservice.repository.PostAttachmentsRepository;
 import com.example.communityservice.repository.PostsRepository;
 
 import lombok.RequiredArgsConstructor;
@@ -37,6 +38,7 @@ public class PostsService {
 
   private final PostsRepository postsRepository;
   private final AuthorsRepository authorsRepository;
+  private final PostAttachmentsRepository postAttachmentsRepository;
   private final PasswordEncoder passwordEncoder;
   private final FileUploadService fileUploadService;
 
@@ -51,7 +53,14 @@ public class PostsService {
       posts = postsRepository.findByCategoryOrderByCreatedAtDesc(postCategory, pageable);
     }
 
-    return posts.map(PostsSummaryDTO::from);
+    return posts.map(
+        post -> {
+          PostsSummaryDTO postsSummaryDTO = PostsSummaryDTO.from(post);
+          // 첨부파일 개수 확인하여 hasAttachments 설정
+          int attachmentCount = postAttachmentsRepository.countByPostId(post.getPostId());
+          postsSummaryDTO.setHasAttachments(attachmentCount > 0);
+          return postsSummaryDTO;
+        });
   }
 
   // 게시글 상세 조회 (조회수 증가 + 댓글 목록 포함)
