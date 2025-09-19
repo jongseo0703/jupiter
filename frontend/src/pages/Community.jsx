@@ -52,7 +52,8 @@ function Community() {
         <div className="flex flex-col lg:flex-row gap-8">
           {/* 사이드바 */}
           <div className="lg:w-1/4">
-            <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
+            <div className="sticky top-8 space-y-6">
+            <div className="bg-white rounded-lg shadow-sm p-6">
               <h3 className="text-xl font-bold mb-4 text-gray-800">카테고리</h3>
               <div className="space-y-2">
                 {categories.map(category => (
@@ -75,7 +76,10 @@ function Community() {
             </div>
 
             <div className="bg-white rounded-lg shadow-sm p-6">
-              <h3 className="text-xl font-bold mb-4 text-gray-800">인기 글</h3>
+              <h3 className="text-xl font-bold mb-4 text-gray-800">
+                <i className="fas fa-fire text-red-500 mr-2"></i>
+                인기 게시글
+              </h3>
               <div className="space-y-3">
                 {posts.slice(0, 3).map(post => (
                   <div key={post.post_id} className="border-b border-gray-100 pb-3 last:border-b-0">
@@ -93,6 +97,7 @@ function Community() {
                   </div>
                 ))}
               </div>
+            </div>
             </div>
           </div>
 

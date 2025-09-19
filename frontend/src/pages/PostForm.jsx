@@ -354,31 +354,6 @@ function PostForm() {
             </div>
           </form>
 
-          {/* 인기 게시글 미리보기 */}
-          <div className="mt-12 bg-white rounded-lg shadow-sm p-6">
-            <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center">
-              <i className="fas fa-fire text-red-500 mr-2"></i>
-              인기 게시글 둘러보기
-            </h3>
-            <div className="space-y-3">
-              {[
-                { title: "소주 추천 - 처음처럼과 참이슬 비교", category: "주류 추천", comments: 23 },
-                { title: "편의점 주류 할인 정보 모음", category: "이벤트/할인", comments: 15 },
-                { title: "와인 초보자를 위한 가이드", category: "질문/답변", comments: 31 }
-              ].map((post, index) => (
-                <div key={index} className="flex items-center justify-between p-3 hover:bg-gray-50 rounded-lg transition-colors">
-                  <div className="flex items-center space-x-3">
-                    <span className="text-xs bg-primary text-white px-2 py-1 rounded-full">{post.category}</span>
-                    <span className="text-gray-800 hover:text-primary cursor-pointer">{post.title}</span>
-                  </div>
-                  <div className="flex items-center text-sm text-gray-500">
-                    <i className="fas fa-comment mr-1"></i>
-                    {post.comments}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
         </div>
       </div>
     </div>

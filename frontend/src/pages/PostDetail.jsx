@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import {fetchPost, likePost, createComment, updateComment, deleteComment, verifyAnonymousComment, deletePost as deletePostAPI, verifyAnonymousPost} from '../services/api';
+import {fetchPost, fetchPosts, likePost, createComment, updateComment, deleteComment, verifyAnonymousComment, deletePost as deletePostAPI, verifyAnonymousPost} from '../services/api';
 import { categorizeAttachments } from '../utils/fileUtils';
 
 function PostDetail() {
@@ -52,6 +52,15 @@ function PostDetail() {
     queryKey: ['post', id],
     queryFn: fetchPost
   });
+
+  // 인기 게시글 조회 (전체 카테고리, 첫 번째 페이지)
+  const { data: popularPostsData } = useQuery({
+    queryKey: ['posts', '전체', 1],
+    queryFn: fetchPosts,
+    staleTime: 5 * 60 * 1000, // 5분간 fresh 상태 유지
+  });
+
+  const popularPosts = popularPostsData?.posts || [];
 
   // React Query에서 댓글 데이터 직접 사용
   const comments = post?.comments || [];
@@ -651,9 +660,12 @@ function PostDetail() {
           <span className="text-primary font-medium">게시글 상세</span>
         </div>
 
-        <div className="max-w-4xl mx-auto">
-          {/* 게시글 내용 */}
-          <div className="bg-white rounded-lg shadow-sm mb-8">
+        <div className="max-w-7xl mx-auto">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* 메인 콘텐츠 영역 */}
+          <div className="lg:col-span-2">
+            {/* 게시글 내용 */}
+            <div className="bg-white rounded-lg shadow-sm mb-8">
             {/* 게시글 헤더 */}
             <div className="p-6 border-b border-gray-200">
               <div className="flex items-center space-x-2 mb-4">
@@ -673,7 +685,29 @@ function PostDetail() {
                 </div>
               )}
 
-              <h1 className="text-3xl font-bold text-gray-800 mb-4">{post.title}</h1>
+              <div className="flex items-start justify-between mb-4">
+                <h1 className="text-3xl font-bold text-gray-800 flex-1">{post.title}</h1>
+
+                {/* 수정/삭제 버튼 */}
+                {canEditPost() && (
+                  <div className="flex space-x-2 ml-4">
+                    <button
+                      onClick={handleEditClick}
+                      className="px-3 py-1 text-sm text-blue-600 hover:text-blue-800 border border-blue-300 rounded hover:bg-blue-50 transition-colors"
+                    >
+                      <i className="fas fa-edit mr-1"></i>
+                      수정
+                    </button>
+                    <button
+                      onClick={handleDeleteClick}
+                      className="px-3 py-1 text-sm text-red-600 hover:text-red-800 border border-red-300 rounded hover:bg-red-50 transition-colors"
+                    >
+                      <i className="fas fa-trash mr-1"></i>
+                      삭제
+                    </button>
+                  </div>
+                )}
+              </div>
 
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-4 text-sm text-gray-500">
@@ -771,37 +805,6 @@ function PostDetail() {
               )}
             </div>
 
-            {/* 게시글 액션 */}
-            <div className="p-6 border-t border-gray-200 bg-gray-50">
-              <div className="flex justify-between items-center">
-                <Link
-                  to="/community"
-                  className="text-gray-600 hover:text-gray-800 transition-colors"
-                >
-                  <i className="fas fa-list mr-2"></i>
-                  목록으로
-                </Link>
-
-                {canEditPost() && (
-                  <div className="flex space-x-2">
-                    <button
-                      onClick={handleEditClick}
-                      className="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors"
-                    >
-                      <i className="fas fa-edit mr-1"></i>
-                      수정
-                    </button>
-                    <button
-                      onClick={handleDeleteClick}
-                      className="px-4 py-2 text-red-600 hover:text-red-800 transition-colors"
-                    >
-                      <i className="fas fa-trash mr-1"></i>
-                      삭제
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
           </div>
 
           {/* 댓글 섹션 */}
@@ -835,14 +838,16 @@ function PostDetail() {
                       <div className="flex space-x-2">
                         <button
                           onClick={() => comment.is_anonymous ? handleAnonymousCommentEdit(comment) : startEditComment(comment)}
-                          className="text-sm text-blue-600 hover:text-blue-800 transition-colors"
+                          className="px-2 py-1 text-xs text-blue-600 hover:text-blue-800 border border-blue-300 rounded hover:bg-blue-50 transition-colors"
                         >
+                          <i className="fas fa-edit mr-1"></i>
                           수정
                         </button>
                         <button
                           onClick={() => comment.is_anonymous ? handleAnonymousCommentDelete(comment.comment_id) : handleDeleteComment(comment.comment_id)}
-                          className="text-sm text-red-600 hover:text-red-800 transition-colors"
+                          className="px-2 py-1 text-xs text-red-600 hover:text-red-800 border border-red-300 rounded hover:bg-red-50 transition-colors"
                         >
+                          <i className="fas fa-trash mr-1"></i>
                           삭제
                         </button>
                       </div>
@@ -948,6 +953,64 @@ function PostDetail() {
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+            </div>
+
+            {/* 사이드바 */}
+            <div className="lg:col-span-1">
+              <div className="space-y-6 sticky top-8">
+                {/* 인기 게시글 */}
+                <div className="bg-white rounded-lg shadow-sm p-6">
+                  <h3 className="text-xl font-bold mb-4 text-gray-800 flex items-center">
+                    <i className="fas fa-fire text-red-500 mr-2"></i>
+                    인기 게시글
+                  </h3>
+                  <div className="space-y-3">
+                    {popularPosts.length > 0 ? (
+                      popularPosts.slice(0, 3).map(post => (
+                        <div key={post.post_id} className="border-b border-gray-100 pb-3 last:border-b-0">
+                          <Link to={`/post/${post.post_id}`}>
+                            <h4 className="text-sm font-semibold text-gray-800 mb-1 line-clamp-1 flex items-center hover:text-primary transition-colors">
+                              {post.title}
+                              {post.has_attachments && (
+                                <i className="fas fa-paperclip ml-1 text-red-400 text-xs" title="첨부파일 있음"></i>
+                              )}
+                            </h4>
+                          </Link>
+                          <div className="flex items-center text-xs text-gray-500">
+                            <span>{post.is_anonymous ? '익명' : post.author_name}</span>
+                            <span className="mx-2">•</span>
+                            <span>{post.views}회</span>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="text-gray-500 text-sm text-center py-4">
+                        인기 게시글을 불러오는 중...
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* 커뮤니티 바로가기 */}
+                <div className="bg-white rounded-lg shadow-sm p-6">
+                  <h3 className="text-xl font-bold mb-4 text-gray-800 flex items-center">
+                    <i className="fas fa-users text-green-500 mr-2"></i>
+                    커뮤니티
+                  </h3>
+                  <div className="space-y-3">
+                    <Link to="/community" className="block p-3 bg-primary text-white rounded-lg hover:bg-blue-800 transition-colors text-center">
+                      <i className="fas fa-list mr-2"></i>
+                      전체 게시글 보기
+                    </Link>
+                    <Link to="/community-form" className="block p-3 bg-secondary text-white rounded-lg hover:bg-orange-600 transition-colors text-center">
+                      <i className="fas fa-pen mr-2"></i>
+                      새 글 작성하기
+                    </Link>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
