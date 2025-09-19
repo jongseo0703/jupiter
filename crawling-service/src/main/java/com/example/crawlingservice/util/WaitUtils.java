@@ -53,4 +53,53 @@ public class WaitUtils {
             return false;
         }
     }
+
+    /**
+     * URL 변경 후 안전화될 때까지 대기하는 메서드
+     * @param driver 사용중인 Chrom Driver
+     * @param url 변경 할 URL
+     * @param maxWaitSeconds 최대 대기 시간
+     * @return 최종적으로 변경된 URL
+     */
+    public static String waitForUrlStabilization(WebDriver driver, String url, int maxWaitSeconds){
+        String currentUrl = url;
+        //최종적으로 반환할 URL 초기화
+        String finalUrl = null;
+        //URL이 안전적으로 유지한 횟수 변수 초기화
+        int stableCount = 0;
+        //최종적으로 3번 연속 유지하면 안전화로 판단
+        final int STABLE_THRESHOLD = 3;
+        try {
+            //최대시간 동안 반복하되 URL이 연속으로 유지될 시 안전화로 판단
+            for (int i = 0; i < maxWaitSeconds && stableCount < STABLE_THRESHOLD; i++) {
+                Thread.sleep(1000); // 1초 대기
+
+                //1초마다 반환 할 URL과 현재 URL를 일치여부 확인
+                finalUrl = currentUrl;
+                currentUrl = driver.getCurrentUrl();
+                if (currentUrl.equals(finalUrl)) {
+                    // 같은 URL이면 카운트 증가
+                    stableCount++;
+                } else {
+                    // URL이 변경되면 카운트 리셋
+                    stableCount = 0;
+                }
+            }
+            //반복문 이후 임계치 도달 확인
+            if (stableCount >= STABLE_THRESHOLD) {
+                log.debug("URL 안정화 완료: {}", currentUrl);
+            } else {
+                log.warn("URL 안정화 시간 초과. 마지막 URL 사용: {}", currentUrl);
+            }
+
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            log.warn("URL 안정화 대기 중 인터럽트 발생");
+        } catch (Exception e) {
+            log.error("URL 안정화 대기 중 오류: {}", e.getMessage());
+        }
+        //최종 URL 반환
+        return finalUrl;
+    }
+
 }
