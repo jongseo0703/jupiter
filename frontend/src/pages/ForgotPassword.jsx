@@ -7,7 +7,7 @@ const ForgotPassword = () => {
   const [isEmailSent, setIsEmailSent] = useState(false);
   const [error, setError] = useState('');
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
 
@@ -24,25 +24,51 @@ const ForgotPassword = () => {
 
     setIsLoading(true);
 
-    // 비밀번호 재설정 이메일 발송 로직 (실제 구현 시 API 호출)
-    console.log('비밀번호 재설정 이메일 발송:', email);
+    try {
+      const response = await fetch('http://localhost:8080/auth/api/v1/auth/forgot-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email }),
+      });
 
-    // 임시로 3초 후 이메일 발송 완료
-    setTimeout(() => {
+      if (response.ok) {
+        setIsEmailSent(true);
+      } else {
+        const errorData = await response.json();
+        setError(errorData.message || '비밀번호 재설정 요청에 실패했습니다.');
+      }
+    } catch (error) {
+      setError('서버에 연결할 수 없습니다. 잠시 후 다시 시도해주세요.');
+    } finally {
       setIsLoading(false);
-      setIsEmailSent(true);
-    }, 3000);
+    }
   };
 
-  const handleResendEmail = () => {
+  const handleResendEmail = async () => {
     setIsLoading(true);
 
-    // 이메일 재발송 로직
-    console.log('이메일 재발송:', email);
+    try {
+      const response = await fetch('http://localhost:8080/auth/api/v1/auth/forgot-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email }),
+      });
 
-    setTimeout(() => {
+      if (!response.ok) {
+        const errorData = await response.json();
+        setError(errorData.message || '이메일 재발송에 실패했습니다.');
+        setIsEmailSent(false);
+      }
+    } catch (error) {
+      setError('서버에 연결할 수 없습니다. 잠시 후 다시 시도해주세요.');
+      setIsEmailSent(false);
+    } finally {
       setIsLoading(false);
-    }, 2000);
+    }
   };
 
   if (isEmailSent) {

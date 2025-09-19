@@ -10,18 +10,26 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 
+import com.example.authservice.admin.service.AdminNotificationService;
+import com.example.authservice.auth.dto.ForgotPasswordRequest;
+import com.example.authservice.auth.dto.ForgotPasswordResponse;
 import com.example.authservice.auth.dto.LoginRequest;
 import com.example.authservice.auth.dto.LoginResponse;
+import com.example.authservice.auth.dto.PhoneVerificationConfirmRequest;
+import com.example.authservice.auth.dto.PhoneVerificationRequest;
 import com.example.authservice.auth.dto.RegisterRequest;
 import com.example.authservice.auth.security.JwtTokenProvider;
 import com.example.authservice.auth.service.AuthService;
+import com.example.authservice.auth.service.SmsService;
 import com.example.authservice.auth.token.BlacklistTokenService;
 import com.example.authservice.auth.token.RefreshToken;
 import com.example.authservice.auth.token.RefreshTokenRepository;
 import com.example.authservice.auth.token.RefreshTokenService;
 import com.example.authservice.global.common.ApiResponse;
 import com.example.authservice.global.exception.BusinessException;
+import com.example.authservice.user.dto.PasswordChangeRequest;
 import com.example.authservice.user.dto.UserResponse;
+import com.example.authservice.user.dto.UserUpdateRequest;
 import com.example.authservice.user.entity.User;
 import com.example.authservice.user.service.UserService;
 
@@ -44,6 +52,8 @@ public class AuthController {
   private final BlacklistTokenService blacklistTokenService;
   private final JwtTokenProvider jwtTokenProvider;
   private final UserService userService;
+  private final SmsService smsService;
+  private final AdminNotificationService adminNotificationService;
 
   // 회원가입을 처리하는 매핑임.
   @Operation(summary = "Register user", description = "Register a new user")
@@ -52,6 +62,11 @@ public class AuthController {
       @Valid @RequestBody RegisterRequest request) {
     try {
       UserResponse userResponse = authService.register(request);
+
+      // 관리자에게 회원가입 알림 생성
+      adminNotificationService.createUserRegistrationNotification(
+          userResponse.id(), userResponse.username());
+
       return ResponseEntity.status(HttpStatus.CREATED)
           .body(ApiResponse.success("User registered successfully", userResponse));
     } catch (Exception e) {
@@ -153,6 +168,77 @@ public class AuthController {
       return ResponseEntity.ok(ApiResponse.success("User information retrieved", userResponse));
     } catch (Exception e) {
       log.error("Failed to get current user: ", e);
+      throw e;
+    }
+  }
+
+  @Operation(summary = "비밀번호 찾기", description = "이메일로 임시 비밀번호를 발송합니다")
+  @PostMapping("/forgot-password")
+  public ResponseEntity<ApiResponse<ForgotPasswordResponse>> forgotPassword(
+      @Valid @RequestBody ForgotPasswordRequest request) {
+    try {
+      ForgotPasswordResponse response = authService.forgotPassword(request);
+      return ResponseEntity.ok(ApiResponse.success("임시 비밀번호 발송 완료", response));
+    } catch (Exception e) {
+      log.error("비밀번호 찾기 실패: ", e);
+      throw e;
+    }
+  }
+
+  @Operation(summary = "프로필 업데이트", description = "현재 사용자의 프로필 정보를 업데이트합니다")
+  @PutMapping("/profile")
+  public ResponseEntity<ApiResponse<UserResponse>> updateProfile(
+      @Valid @RequestBody UserUpdateRequest request) {
+    try {
+      User currentUser = userService.getCurrentUser();
+      UserResponse userResponse = userService.updateCurrentUser(currentUser.getId(), request);
+      return ResponseEntity.ok(ApiResponse.success("프로필이 성공적으로 업데이트되었습니다", userResponse));
+    } catch (Exception e) {
+      log.error("프로필 업데이트 실패: ", e);
+      throw e;
+    }
+  }
+
+  @Operation(summary = "비밀번호 변경", description = "현재 사용자의 비밀번호를 변경합니다")
+  @PutMapping("/change-password")
+  public ResponseEntity<ApiResponse<UserResponse>> changePassword(
+      @Valid @RequestBody PasswordChangeRequest request) {
+    try {
+      User currentUser = userService.getCurrentUser();
+      UserResponse userResponse = userService.changePassword(currentUser.getId(), request);
+      return ResponseEntity.ok(ApiResponse.success("비밀번호가 성공적으로 변경되었습니다", userResponse));
+    } catch (Exception e) {
+      log.error("비밀번호 변경 실패: ", e);
+      throw e;
+    }
+  }
+
+  @Operation(summary = "휴대폰 인증번호 발송", description = "휴대폰 번호로 인증번호를 발송합니다")
+  @PostMapping("/send-verification")
+  public ResponseEntity<ApiResponse<String>> sendVerificationCode(
+      @Valid @RequestBody PhoneVerificationRequest request) {
+    try {
+      smsService.sendVerificationCode(request);
+      return ResponseEntity.ok(ApiResponse.success("인증번호가 발송되었습니다", null));
+    } catch (Exception e) {
+      log.error("인증번호 발송 실패: ", e);
+      throw e;
+    }
+  }
+
+  @Operation(summary = "휴대폰 인증번호 확인", description = "휴대폰 인증번호를 확인합니다")
+  @PostMapping("/verify-phone")
+  public ResponseEntity<ApiResponse<String>> verifyPhoneNumber(
+      @Valid @RequestBody PhoneVerificationConfirmRequest request) {
+    try {
+      boolean verified = smsService.verifyCode(request);
+      if (verified) {
+        return ResponseEntity.ok(ApiResponse.success("인증이 완료되었습니다", null));
+      } else {
+        throw new BusinessException("인증에 실패했습니다", 400, "VERIFICATION_FAILED");
+      }
+    } catch (Exception e) {
+      log.error("휴대폰 인증 실패: ", e);
       throw e;
     }
   }

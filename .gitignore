@@ -28,6 +28,8 @@ out/
 
 application-dev.properties
 application-oauth.properties
+application-mail.properties
+application-sms.properties
 
 ### NetBeans ###
 /nbproject/private/
@@ -38,3 +40,9 @@ application-oauth.properties
 
 ### VS Code ###
 .vscode/
+
+# macOS system files
+.DS_Store
+
+# uploads folder
+uploads/
