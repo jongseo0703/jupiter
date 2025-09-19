@@ -10,6 +10,7 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 
+import com.example.authservice.admin.service.AdminNotificationService;
 import com.example.authservice.auth.dto.ForgotPasswordRequest;
 import com.example.authservice.auth.dto.ForgotPasswordResponse;
 import com.example.authservice.auth.dto.LoginRequest;
@@ -52,6 +53,7 @@ public class AuthController {
   private final JwtTokenProvider jwtTokenProvider;
   private final UserService userService;
   private final SmsService smsService;
+  private final AdminNotificationService adminNotificationService;
 
   // 회원가입을 처리하는 매핑임.
   @Operation(summary = "Register user", description = "Register a new user")
@@ -60,6 +62,11 @@ public class AuthController {
       @Valid @RequestBody RegisterRequest request) {
     try {
       UserResponse userResponse = authService.register(request);
+
+      // 관리자에게 회원가입 알림 생성
+      adminNotificationService.createUserRegistrationNotification(
+          userResponse.id(), userResponse.username());
+
       return ResponseEntity.status(HttpStatus.CREATED)
           .body(ApiResponse.success("User registered successfully", userResponse));
     } catch (Exception e) {
