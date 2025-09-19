@@ -15,6 +15,12 @@ import java.util.Set;
 @Component
 @Slf4j
 public class FinalUrlResolver {
+    // 초기 페이지 로딩 최대 대기시간
+    private static final int INITIAL_PAGE_LOAD_TIMEOUT = 40;
+    // URL 안정화 최대 대기시간
+    private static final int URL_STABILIZATION_TIMEOUT = 20;
+    // 리다이렉션 감지를 위한 추가 대기시간
+    private static final int REDIRECTION_WAIT_TIME = 3;
     /**
      * 상세페이지에서 얻은 구매링크를 로딩페이지 없이 최종 구매사이트 링크를 추출하는 메서드
      * @param url 상세페이지에서 가져온 링크
