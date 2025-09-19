@@ -60,7 +60,7 @@ public class FinalUrlResolver {
             //구매사이트 탭으로 이동
             driver.switchTo().window(newTab);
             //페이지 로딩 시간 제한(10초) 오버 시 에러
-            driver.manage().timeouts().pageLoadTimeout(Duration.ofSeconds(10));
+            driver.manage().timeouts().pageLoadTimeout(Duration.ofSeconds(25));
             //사이트에 팝업이 있을 경우 무시하고 경로 가져오기
             finalUrl = withOutPopup(driver, url);
 
@@ -159,7 +159,7 @@ public class FinalUrlResolver {
         try {
             //구매상세 페이지 로드하고 잠시 대기
             driver.get(url);
-            WebDriverWait wait1 = new WebDriverWait(driver, Duration.ofSeconds(15));
+            WebDriverWait wait1 = new WebDriverWait(driver, Duration.ofSeconds(25));
             wait1.until(d -> "complete".equals(
                     ((JavascriptExecutor) d).executeScript("return document.readyState")));
 
@@ -167,15 +167,15 @@ public class FinalUrlResolver {
             String currentUrl = driver.getCurrentUrl();
 
             //리다이렉션이 있을 수 있으므로 짧은 시간 더 대기
-            WebDriverWait wait2 = new WebDriverWait(driver, Duration.ofSeconds(5));
+            WebDriverWait wait2 = new WebDriverWait(driver, Duration.ofSeconds(12));
 
             // URL 변경 감지 (리다이렉션 처리)
             wait2.until(ExpectedConditions.not(ExpectedConditions.urlToBe(currentUrl)));
             finalUrl = driver.getCurrentUrl();
 
             // URL 안정화 확인(3번) (추가 리다이렉션 대기)
-            for (int i = 0; i < 3; i++) {
-                Thread.sleep(800);
+            for (int i = 0; i < 6; i++) {
+                Thread.sleep(1000);
                 String newUrl = driver.getCurrentUrl();
                 if (finalUrl != null&&!finalUrl.equals(newUrl)) {
                     //URL 변경이 있을 경우 잠시 대기
