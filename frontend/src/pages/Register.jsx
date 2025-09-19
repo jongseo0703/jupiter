@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import authService from '../services/authService';
+import apiService from '../services/api';
 
 const Register = () => {
     // sessionStorage에서 저장된 폼 데이터 복원
@@ -30,6 +31,13 @@ const Register = () => {
     const [errors, setErrors] = useState({});
     const [successMessage, setSuccessMessage] = useState('');
     const [showRestoredMessage, setShowRestoredMessage] = useState(false);
+    const [phoneVerification, setPhoneVerification] = useState({
+        isVerified: false,
+        isSending: false,
+        isVerifying: false,
+        verificationCode: '',
+        countdown: 0
+    });
     const navigate = useNavigate();
 
     // 폼 데이터가 변경될 때마다 sessionStorage에 저장
@@ -110,8 +118,90 @@ const Register = () => {
             newErrors.agreePrivacy = '개인정보처리방침에 동의해주세요.';
         }
 
+        if (!phoneVerification.isVerified) {
+            newErrors.phoneVerification = '휴대폰 인증을 완료해주세요.';
+        }
+
         setErrors(newErrors);
         return Object.keys(newErrors).length === 0;
+    };
+
+    // 휴대폰 인증번호 발송
+    const handleSendVerification = async () => {
+        if (!formData.phone.trim()) {
+            setErrors({ phone: '휴대폰 번호를 입력해주세요.' });
+            return;
+        }
+
+        if (!/^01[0-9]-?[0-9]{4}-?[0-9]{4}$/.test(formData.phone)) {
+            setErrors({ phone: '올바른 휴대폰 번호 형식이 아닙니다.' });
+            return;
+        }
+
+        setPhoneVerification(prev => ({ ...prev, isSending: true }));
+
+        try {
+            const response = await apiService.post('/auth/api/v1/auth/send-verification', {
+                phoneNumber: formData.phone
+            });
+
+            // apiService는 성공 시 JSON을 반환하므로 별도 체크 불필요
+
+            setPhoneVerification(prev => ({ ...prev, countdown: 300 })); // 5분 카운트다운
+            startCountdown();
+
+            setSuccessMessage('인증번호가 발송되었습니다. (5분간 유효)');
+            setTimeout(() => setSuccessMessage(''), 3000);
+        } catch (error) {
+            setErrors({ phone: error.message });
+        } finally {
+            setPhoneVerification(prev => ({ ...prev, isSending: false }));
+        }
+    };
+
+    // 카운트다운 시작
+    const startCountdown = () => {
+        const timer = setInterval(() => {
+            setPhoneVerification(prev => {
+                if (prev.countdown <= 1) {
+                    clearInterval(timer);
+                    return { ...prev, countdown: 0 };
+                }
+                return { ...prev, countdown: prev.countdown - 1 };
+            });
+        }, 1000);
+    };
+
+    // 휴대폰 인증번호 확인
+    const handleVerifyCode = async () => {
+        if (!phoneVerification.verificationCode.trim()) {
+            setErrors({ verificationCode: '인증번호를 입력해주세요.' });
+            return;
+        }
+
+        setPhoneVerification(prev => ({ ...prev, isVerifying: true }));
+
+        try {
+            const response = await apiService.post('/auth/api/v1/auth/verify-phone', {
+                phoneNumber: formData.phone,
+                verificationCode: phoneVerification.verificationCode
+            });
+
+            // apiService는 성공 시 JSON을 반환하므로 별도 체크 불필요
+
+            setPhoneVerification(prev => ({
+                ...prev,
+                isVerified: true,
+                countdown: 0
+            }));
+
+            setSuccessMessage('휴대폰 인증이 완료되었습니다.');
+            setTimeout(() => setSuccessMessage(''), 3000);
+        } catch (error) {
+            setErrors({ verificationCode: error.message });
+        } finally {
+            setPhoneVerification(prev => ({ ...prev, isVerifying: false }));
+        }
     };
 
     const handleSubmit = async (e) => {
@@ -125,7 +215,15 @@ const Register = () => {
         setErrors({});
 
         try {
-            await authService.register(formData);
+            // formData의 name을 username으로 매핑하여 전송
+            const registerData = {
+                name: formData.name, // authService에서 username으로 변환됨
+                email: formData.email,
+                password: formData.password,
+                phone: formData.phone
+            };
+
+            await authService.register(registerData);
             setSuccessMessage('회원가입이 완료되었습니다. 로그인해주세요.');
 
             // 회원가입 성공 시 저장된 폼 데이터 삭제
@@ -308,7 +406,7 @@ const Register = () => {
                             <label htmlFor="phone" className="block text-sm font-medium text-gray-700">
                                 휴대폰 번호 *
                             </label>
-                            <div className="mt-1">
+                            <div className="mt-1 flex space-x-2">
                                 <input
                                     id="phone"
                                     name="phone"
@@ -316,14 +414,68 @@ const Register = () => {
                                     autoComplete="tel"
                                     required
                                     value={formData.phone}
-                                    onChange={handleInputChange}
-                                    className={`appearance-none block w-full px-3 py-2 border rounded-md placeholder-gray-400 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm ${
-                                        errors.phone ? 'border-red-300' : 'border-gray-300'
+                                    onChange={(e) => {
+                                        handleInputChange(e);
+                                        // 휴대폰 번호 변경 시 인증 상태 초기화
+                                        if (phoneVerification.isVerified) {
+                                            setPhoneVerification(prev => ({ ...prev, isVerified: false }));
+                                        }
+                                    }}
+                                    disabled={phoneVerification.isVerified}
+                                    className={`flex-1 appearance-none block px-3 py-2 border rounded-md placeholder-gray-400 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm ${
+                                        errors.phone ? 'border-red-300' :
+                                        phoneVerification.isVerified ? 'border-green-300 bg-green-50' :
+                                        'border-gray-300'
                                     }`}
                                     placeholder="010-1234-5678"
                                 />
-                                {errors.phone && <p className="mt-1 text-sm text-red-600">{errors.phone}</p>}
+                                <button
+                                    type="button"
+                                    onClick={handleSendVerification}
+                                    disabled={phoneVerification.isSending || phoneVerification.countdown > 0 || phoneVerification.isVerified}
+                                    className="px-4 py-2 text-sm font-medium rounded-md border border-transparent bg-primary text-white hover:bg-blue-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    {phoneVerification.isSending ? '발송중...' :
+                                     phoneVerification.countdown > 0 ? `${Math.floor(phoneVerification.countdown / 60)}:${String(phoneVerification.countdown % 60).padStart(2, '0')}` :
+                                     phoneVerification.isVerified ? '인증완료' : '인증번호'}
+                                </button>
                             </div>
+                            {errors.phone && <p className="mt-1 text-sm text-red-600">{errors.phone}</p>}
+
+                            {/* 인증번호 입력 필드 */}
+                            {phoneVerification.countdown > 0 && !phoneVerification.isVerified && (
+                                <div className="mt-2">
+                                    <div className="flex space-x-2">
+                                        <input
+                                            type="text"
+                                            placeholder="인증번호 6자리"
+                                            maxLength="6"
+                                            value={phoneVerification.verificationCode}
+                                            onChange={(e) => setPhoneVerification(prev => ({ ...prev, verificationCode: e.target.value }))}
+                                            className="flex-1 appearance-none block px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm"
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={handleVerifyCode}
+                                            disabled={phoneVerification.isVerifying || !phoneVerification.verificationCode.trim()}
+                                            className="px-4 py-2 text-sm font-medium rounded-md border border-transparent bg-green-600 text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                                        >
+                                            {phoneVerification.isVerifying ? '확인중...' : '확인'}
+                                        </button>
+                                    </div>
+                                    {errors.verificationCode && <p className="mt-1 text-sm text-red-600">{errors.verificationCode}</p>}
+                                </div>
+                            )}
+
+                            {/* 인증 완료 표시 */}
+                            {phoneVerification.isVerified && (
+                                <div className="mt-2 flex items-center text-green-600">
+                                    <i className="fas fa-check-circle mr-2"></i>
+                                    <span className="text-sm">휴대폰 인증이 완료되었습니다.</span>
+                                </div>
+                            )}
+
+                            {errors.phoneVerification && <p className="mt-1 text-sm text-red-600">{errors.phoneVerification}</p>}
                         </div>
 
                         {/* 약관 동의 */}

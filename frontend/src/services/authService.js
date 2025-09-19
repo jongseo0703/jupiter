@@ -46,9 +46,10 @@ class AuthService {
   async register(userData) {
     try {
       const response = await apiService.post('/auth/api/v1/auth/register', {
-        username: userData.name,
+        username: userData.username || userData.name,
         email: userData.email,
         password: userData.password,
+        phone: userData.phone,
       });
 
       if (response.result === 'SUCCESS') {
@@ -113,6 +114,7 @@ class AuthService {
       const response = await apiService.put('/auth/api/v1/auth/profile', {
         username: profileData.username,
         email: profileData.email,
+        phone: profileData.phone,
       });
 
       if (response.result === 'SUCCESS') {

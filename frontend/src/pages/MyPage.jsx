@@ -9,7 +9,8 @@ const MyPage = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [editFormData, setEditFormData] = useState({
     username: '',
-    email: ''
+    email: '',
+    phone: ''
   });
   const [isSaving, setIsSaving] = useState(false);
   const [showPasswordChange, setShowPasswordChange] = useState(false);
@@ -35,7 +36,8 @@ const MyPage = () => {
         setUser(userData);
         setEditFormData({
           username: userData.username || userData.name || '',
-          email: userData.email || ''
+          email: userData.email || '',
+          phone: userData.phone || ''
         });
       } catch (error) {
         console.error('Failed to load user info:', error);
@@ -62,7 +64,8 @@ const MyPage = () => {
       // 편집 취소 시 원래 데이터로 복원
       setEditFormData({
         username: user?.username || user?.name || '',
-        email: user?.email || ''
+        email: user?.email || '',
+        phone: user?.phone || ''
       });
     }
     setIsEditing(!isEditing);
@@ -283,6 +286,25 @@ const MyPage = () => {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
+                    휴대폰 번호
+                  </label>
+                  {isEditing ? (
+                    <input
+                      type="tel"
+                      name="phone"
+                      value={editFormData.phone}
+                      onChange={handleInputChange}
+                      className="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
+                      placeholder="휴대폰 번호를 입력하세요"
+                    />
+                  ) : (
+                    <div className="bg-gray-50 p-3 rounded-md">
+                      {user?.phone || '정보 없음'}
+                    </div>
+                  )}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
                     가입일
                   </label>
                   <div className="bg-gray-50 p-3 rounded-md">
@@ -353,7 +375,10 @@ const MyPage = () => {
                   <span className="text-sm text-gray-600 text-center">계정 비밀번호 수정</span>
                 </button>
 
-                <button className="flex flex-col items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                <button
+                  onClick={() => navigate('/notification-settings')}
+                  className="flex flex-col items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                >
                   <i className="fas fa-bell text-primary text-2xl mb-2"></i>
                   <span className="font-medium">알림 설정</span>
                   <span className="text-sm text-gray-600 text-center">푸시 알림 및 이메일 설정</span>

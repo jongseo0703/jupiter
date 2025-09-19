@@ -225,6 +225,10 @@ const Settings = () => {
 
               <div className="space-y-3 text-sm">
                 <div className="flex justify-between">
+                  <span className="text-gray-600">휴대폰</span>
+                  <span className="text-gray-900">{userInfo.phone || '정보 없음'}</span>
+                </div>
+                <div className="flex justify-between">
                   <span className="text-gray-600">가입일</span>
                   <span className="text-gray-900">
                     {userInfo.createdAt
