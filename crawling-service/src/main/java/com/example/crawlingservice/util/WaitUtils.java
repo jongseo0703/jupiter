@@ -8,6 +8,7 @@ import org.openqa.selenium.support.ui.WebDriverWait;
 import org.springframework.stereotype.Component;
 
 import java.time.Duration;
+import java.util.Set;
 
 @Component
 @Slf4j
@@ -102,4 +103,45 @@ public class WaitUtils {
         return finalUrl;
     }
 
+    /**
+     * 새 탭이 완전히 로드될 때까지 대기하는 메서드
+     * @param driver 사용중이 Chrom Driver
+     * @param expectedTabCount 예상중인 탭 수
+     * @param timeoutSeconds //최대 대기 시간
+     * @return 새로 생성된 탭 핸들
+     */
+    public static String waitForNewTab(WebDriver driver, int expectedTabCount, int timeoutSeconds){
+        try {
+            // 새 탭이 생성될 때까지 대기
+            WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(timeoutSeconds));
+            //열린 탭이 예상치 이상이 될 때까지 대기
+            wait.until(d -> d.getWindowHandles().size() >= expectedTabCount);
+
+            // 모든 탭 핸들 가져오기
+            Set<String> allTabs = driver.getWindowHandles();
+            //현재 탭 핸들
+            String currentTab = driver.getWindowHandle();
+
+            // 현재 탭이 아닌 새로운 탭 찾기
+            for (String tab : allTabs) {
+                if (!tab.equals(currentTab)) {
+                    // 새 탭으로 전환
+                    driver.switchTo().window(tab);
+
+                    // 새 탭의 페이지 로딩 완료까지 대기
+                    if (waitForPageLoad(driver, timeoutSeconds)) {
+                        log.debug("새 탭 로딩 완료: {}", tab);
+                        return tab;
+                    }
+                }
+            }
+
+        } catch (TimeoutException e) {
+            log.warn("새 탭 생성 시간 초과: {}초", timeoutSeconds);
+        } catch (Exception e) {
+            log.error("새 탭 대기 중 오류: {}", e.getMessage());
+        }
+
+        return null;
+    }
 }
