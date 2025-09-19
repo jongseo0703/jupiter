@@ -310,6 +310,8 @@ function PostDetail() {
         anonymous_pwd: '',
         is_anonymous: false
       });
+      // 성공 알림
+      alert('댓글이 성공적으로 등록되었습니다.');
     },
     onError: (err, variables, context) => {
       // 에러 시 롤백
@@ -360,6 +362,8 @@ function PostDetail() {
       setEditingComment(null);
       setEditCommentContent('');
       setAuthenticatedAnonymousComment(null);
+      // 성공 알림
+      alert('댓글이 성공적으로 수정되었습니다.');
     },
     onError: (err, variables, context) => {
       // 에러 시 롤백
@@ -396,6 +400,10 @@ function PostDetail() {
       });
 
       return { previousPost };
+    },
+    onSuccess: () => {
+      // 성공 알림
+      alert('댓글이 성공적으로 삭제되었습니다.');
     },
     onError: (err, variables, context) => {
       // 에러 시 롤백
@@ -449,6 +457,8 @@ function PostDetail() {
   const deletePostMutation = useMutation({
     mutationFn: deletePostAPI,
     onSuccess: () => {
+      // 성공 알림
+      alert('게시글이 성공적으로 삭제되었습니다.');
       // 삭제 성공 시 커뮤니티 페이지로 이동
       navigate('/community');
     },
