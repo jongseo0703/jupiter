@@ -36,11 +36,17 @@ public class AuthServiceImpl implements AuthService {
   private final RefreshTokenService refreshTokenService;
   private final EmailService emailService;
   private final PasswordGenerator passwordGenerator;
+  private final SmsService smsService;
 
   @Override
   @Transactional
   public UserResponse register(RegisterRequest request) {
     log.info("Registering new user with username: {}", request.username());
+
+    // 휴대폰 인증 완료 확인
+    if (!smsService.isPhoneVerified(request.phone())) {
+      throw new BusinessException("휴대폰 인증이 완료되지 않았습니다", 400, "PHONE_NOT_VERIFIED");
+    }
 
     // 이미 있는 이메일인지 확인
     if (userRepository.existsByEmail(request.email())) {
@@ -52,6 +58,7 @@ public class AuthServiceImpl implements AuthService {
             .username(request.username())
             .email(request.email())
             .password(passwordEncoder.encode(request.password()))
+            .phone(request.phone())
             .role(Role.USER)
             .enabled(true)
             .accountNonExpired(true)
@@ -60,6 +67,10 @@ public class AuthServiceImpl implements AuthService {
             .build();
 
     User savedUser = userRepository.save(user);
+
+    // 휴대폰 인증 사용 완료 처리
+    smsService.markVerificationAsUsed(request.phone());
+
     log.info("User registered successfully with ID: {}", savedUser.getId());
 
     return UserResponse.from(savedUser);
