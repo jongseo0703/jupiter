@@ -1,85 +1,31 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { getKoreanCategory, getEnglishCategory, KOREAN_CATEGORIES } from '../utils/categoryUtils';
+import { useQuery } from '@tanstack/react-query';
+import { KOREAN_CATEGORIES } from '../utils/categoryUtils';
+import { fetchPosts } from '../services/api';
 
 function Community() {
   const [selectedCategory, setSelectedCategory] = useState('전체');
   const [currentPage, setCurrentPage] = useState(1);
-  const [loading, setLoading] = useState(false);
-  const [totalPages, setTotalPages] = useState(1);
-
-  const [posts, setPosts] = useState([]);
 
   const categories = ['전체', ...KOREAN_CATEGORIES];
 
-  // 게시글 목록 조회 API 호출
-  useEffect(() => {
-    const fetchPosts = async () => {
-      setLoading(true);
-      try {
-        const queryParams = new URLSearchParams();
+  // React Query를 사용하여 게시글 목록 조회
+  const { data, isLoading: loading, isError, error } = useQuery({
+    queryKey: ['posts', selectedCategory, currentPage],
+    queryFn: fetchPosts,
+    keepPreviousData: true, // 페이지 변경 시 이전 데이터를 유지하여 UX 개선
+  });
 
-        if (selectedCategory !== '전체') {
-          const englishCategory = getEnglishCategory(selectedCategory);
-          if (englishCategory) {
-            queryParams.append('category', englishCategory);
-          }
-        }
+  const posts = data?.posts || [];
+  const totalPages = data?.totalPages || 1;
 
-        queryParams.append('page', (currentPage - 1).toString());
-        queryParams.append('size', '20');
+  if (isError) {
+    console.error('Failed to fetch posts:', error);
+    // 사용자에게 에러를 알리는 UI를 여기에 추가할 수 있습니다.
+  }
 
-        const response = await fetch(`http://localhost:8080/community/api/posts?${queryParams.toString()}`);
-        const result = await response.json();
-        const pageData = result.data;
-
-        // 백엔드 응답 데이터를 프론트엔드 형식으로 변환
-        /**
-         * JSX 파일에서 객체 속성을 인식하지 못해서 발생하는 경고 방지
-         * @typedef {Object} PostData
-         * @property {number} postId
-         * @property {string} title
-         * @property {string} content
-         * @property {string} authorName
-         * @property {string} category
-         * @property {string} createdAt
-         * @property {number} views
-         * @property {number} commentsCount
-         * @property {number} likes
-         * @property {string} tags
-         * @property {boolean} isAnonymous
-         */
-
-        const transformedPosts = pageData.content.map(
-          /** @param {PostData} post */
-          post => ({
-          post_id: post.postId,
-          title: post.title,
-          content: post.content,
-          author_name: post.authorName,
-          category: getKoreanCategory(post.category),
-          created_at: new Date(post.createdAt).toLocaleDateString('ko-KR'),
-          views: post.views || 0,
-          comments_count: post.commentsCount || 0,
-          likes: post.likes || 0,
-          tags: post.tags,
-          is_anonymous: post.isAnonymous
-        }));
-
-        setPosts(transformedPosts);
-        setTotalPages(pageData.totalPages);
-      } catch (error) {
-        console.error('Failed to fetch posts:', error);
-        alert('게시글을 불러오는데 실패했습니다.');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchPosts();
-  }, [selectedCategory, currentPage]);
-
-  const filteredPosts = posts; // 서버에서 이미 필터링됨
+  const filteredPosts = posts; // 이름 일관성을 위해 유지 (서버에서 이미 필터링됨)
 
   return (
     <div className="py-16 bg-gray-50">

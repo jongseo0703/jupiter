@@ -1,13 +1,13 @@
 import { useState, useEffect } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
-import { getKoreanCategory } from '../utils/categoryUtils';
+import { useQuery } from '@tanstack/react-query';
+import { fetchPost } from '../services/api';
 import { categorizeAttachments } from '../utils/fileUtils';
 
 function PostDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const [post, setPost] = useState(null);
-  const [comments, setComments] = useState([]);
+
   const [commentForm, setCommentForm] = useState({
     content: '',
     author_name: '',
@@ -25,18 +25,10 @@ function PostDetail() {
     commentId: null,
     comment: null
   });
-  const [loading, setLoading] = useState(true);
   const [currentIconIndex, setCurrentIconIndex] = useState(0);
 
   const alcoholIcons = [
-    '🍷', // 와인잔
-    '🍺', // 맥주잔
-    '🍾', // 샴페인병
-    '🍶', // 소주병
-    '🥃', // 위스키잔
-    '🍻', // 맥주 건배
-    '🥂', // 샴페인 건배
-    '🍸'  // 칵테일
+    '🍷', '🍺', '🍾', '🍶', '🥃', '🍻', '🥂', '🍸'
   ];
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [authForm, setAuthForm] = useState({
@@ -51,6 +43,19 @@ function PostDetail() {
     is_logged_in: true // 임시상태
   }); // MOCK DATA - 실제로는 useAuth() hook에서 가져옴
 
+  // React Query를 사용하여 게시글 상세 정보 조회
+  const { data: post, isLoading: loading, isError, error } = useQuery({
+    queryKey: ['post', id],
+    queryFn: fetchPost
+  });
+
+  // 댓글 상태 분리
+  const [comments, setComments] = useState([]);
+  useEffect(() => {
+    if (post?.comments) {
+      setComments(post.comments);
+    }
+  }, [post]);
 
   // 아이콘 회전 애니메이션
   useEffect(() => {
@@ -63,62 +68,14 @@ function PostDetail() {
     return () => clearInterval(interval);
   }, [loading, alcoholIcons.length]);
 
-  useEffect(() => {
-    const fetchPost = async () => {
-      setLoading(true);
-      try {
-        // 테스트를 위한 인위적 지연 (실제 배포 시 제거)
-        await new Promise(resolve => setTimeout(resolve, 800));
-        // 게시글 상세 조회
-        const postResponse = await fetch(`http://localhost:8080/community/api/posts/${id}`);
-        const postResult = await postResponse.json();
+  if (isError) {
+    console.error('Failed to fetch post:', error);
+    alert('게시글을 불러오는데 실패했습니다.');
+    // 에러 발생 시 커뮤니티 페이지로 리디렉션
+    navigate('/community');
+    return null;
+  }
 
-        if (!postResponse.ok) {
-          console.error('Failed to fetch post:', postResponse.status);
-          alert('게시글을 찾을 수 없습니다.');
-          return;
-        }
-
-        const postData = postResult.data;
-
-        // 백엔드 데이터를 프론트엔드 형식으로 변환
-        const transformedPost = {
-          post_id: postData.postId,
-          title: postData.title,
-          content: postData.content,
-          author_name: postData.authorName,
-          category: getKoreanCategory(postData.category),
-          created_at: new Date(postData.createdAt).toLocaleString('ko-KR'),
-          updated_at: new Date(postData.updatedAt).toLocaleString('ko-KR'),
-          views: postData.views || 0,
-          likes: postData.likes || 0,
-          tags: postData.tags,
-          is_anonymous: postData.isAnonymous,
-          attachments: postData.attachments || []
-        };
-
-        // 댓글은 게시글 상세에 포함되어 있음
-        const transformedComments = postData.comments ? postData.comments.map(comment => ({
-          comment_id: comment.commentId,
-          post_id: comment.postId,
-          content: comment.content,
-          author_name: comment.authorName,
-          created_at: new Date(comment.createdAt).toLocaleString('ko-KR'),
-          is_anonymous: comment.isAnonymous
-        })) : [];
-
-        setPost(transformedPost);
-        setComments(transformedComments);
-      } catch (error) {
-        console.error('Failed to fetch post:', error);
-        alert('게시글을 불러오는데 실패했습니다.');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchPost().catch(console.error);
-  }, [id]);
 
   const handleCommentInputChange = (e) => {
     const { name, value, type, checked } = e.target;

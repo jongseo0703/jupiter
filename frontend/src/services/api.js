@@ -129,3 +129,98 @@ class ApiService {
 }
 
 export default new ApiService();
+
+// --- React Query를 위한 API 함수들 ---
+
+import { getKoreanCategory, getEnglishCategory } from '../utils/categoryUtils';
+
+const COMMUNITY_API_URL = 'http://localhost:8080/community/api';
+
+// API 응답을 처리하는 헬퍼 함수
+const handleQueryApiResponse = async (response) => {
+  if (!response.ok) {
+    const errorBody = await response.text();
+    throw new Error(`API Error: ${response.status} ${response.statusText} - ${errorBody}`);
+  }
+  const result = await response.json();
+  if (!result.success) {
+    throw new Error(result.message || 'API request failed');
+  }
+  return result.data;
+};
+
+/**
+ * 게시물 목록을 조회하는 API 함수 (React Query용)
+ * @param {object} queryKey - React Query에서 제공하는 쿼리 키
+ * @returns {Promise<Object>} - 변환된 게시물 목록과 페이지 정보
+ */
+export const fetchPosts = async ({ queryKey }) => {
+  const [_key, category, page] = queryKey;
+
+  const queryParams = new URLSearchParams();
+  if (category !== '전체') {
+    const englishCategory = getEnglishCategory(category);
+    if (englishCategory) {
+      queryParams.append('category', englishCategory);
+    }
+  }
+  queryParams.append('page', (page - 1).toString());
+  queryParams.append('size', '20');
+
+  const response = await fetch(`${COMMUNITY_API_URL}/posts?${queryParams.toString()}`);
+  const pageData = await handleQueryApiResponse(response);
+
+  const transformedPosts = pageData.content.map(post => ({
+    post_id: post.postId,
+    title: post.title,
+    content: post.content,
+    author_name: post.authorName,
+    category: getKoreanCategory(post.category),
+    created_at: new Date(post.createdAt).toLocaleDateString('ko-KR'),
+    views: post.views || 0,
+    comments_count: post.commentsCount || 0,
+    likes: post.likes || 0,
+    tags: post.tags,
+    is_anonymous: post.isAnonymous
+  }));
+
+  return { posts: transformedPosts, totalPages: pageData.totalPages };
+};
+
+/**
+ * 게시물 상세 정보를 조회하는 API 함수 (React Query용)
+ * @param {object} queryKey - React Query에서 제공하는 쿼리 키
+ * @returns {Promise<Object>} - 변환된 게시물 상세 정보
+ */
+export const fetchPost = async ({ queryKey }) => {
+  const [_key, postId] = queryKey;
+
+  const response = await fetch(`${COMMUNITY_API_URL}/posts/${postId}`);
+  const postData = await handleQueryApiResponse(response);
+
+  const transformedPost = {
+    post_id: postData.postId,
+    title: postData.title,
+    content: postData.content,
+    author_name: postData.authorName,
+    category: getKoreanCategory(postData.category),
+    created_at: new Date(postData.createdAt).toLocaleString('ko-KR'),
+    updated_at: new Date(postData.updatedAt).toLocaleString('ko-KR'),
+    views: postData.views || 0,
+    likes: postData.likes || 0,
+    tags: postData.tags,
+    is_anonymous: postData.isAnonymous,
+    attachments: postData.attachments || []
+  };
+
+  const transformedComments = postData.comments ? postData.comments.map(comment => ({
+    comment_id: comment.commentId,
+    post_id: comment.postId,
+    content: comment.content,
+    author_name: comment.authorName,
+    created_at: new Date(comment.createdAt).toLocaleString('ko-KR'),
+    is_anonymous: comment.isAnonymous
+  })) : [];
+
+  return { ...transformedPost, comments: transformedComments };
+};
