@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import {fetchPost, likePost, createComment, updateComment, deleteComment, verifyAnonymousComment} from '../services/api';
+import {fetchPost, likePost, createComment, updateComment, deleteComment, verifyAnonymousComment, deletePost as deletePostAPI, verifyAnonymousPost} from '../services/api';
 import { categorizeAttachments } from '../utils/fileUtils';
 
 function PostDetail() {
@@ -435,70 +435,75 @@ function PostDetail() {
     }
   });
 
-  // 일반 회원 게시글 삭제
-  const deletePost = async () => {
-    try {
-      const requestData = {
-        authorName: currentUser.author_name
-      };
-
-      const response = await fetch(`http://localhost:8080/community/api/posts/${id}`, {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(requestData)
-      });
-
-      if (!response.ok) {
-        console.error('게시글 삭제 실패:', response.status);
-        alert('게시글 삭제에 실패했습니다.');
-        return;
-      }
-
-      alert('게시글이 삭제되었습니다.');
+  // 게시글 삭제 mutation
+  const deletePostMutation = useMutation({
+    mutationFn: deletePostAPI,
+    onSuccess: () => {
+      // 삭제 성공 시 커뮤니티 페이지로 이동
       navigate('/community');
-    } catch (error) {
+    },
+    onError: (error) => {
       console.error('Failed to delete post:', error);
-      alert('게시글 삭제에 실패했습니다.');
+      if (error.message.includes('403')) {
+        alert('삭제 권한이 없습니다.');
+      } else {
+        alert('게시글 삭제에 실패했습니다.');
+      }
     }
+  });
+
+  // 익명 게시글 인증 mutation
+  const verifyAnonymousPostMutation = useMutation({
+    mutationFn: verifyAnonymousPost,
+    onError: (error) => {
+      console.error('Failed to verify anonymous post:', error);
+      if (error.message.includes('403')) {
+        alert('이메일 또는 비밀번호가 일치하지 않습니다.');
+      } else {
+        alert('인증에 실패했습니다.');
+      }
+    }
+  });
+
+  // 일반 회원 게시글 삭제
+  const handleDeletePost = () => {
+    if (!window.confirm('정말로 게시글을 삭제하시겠습니까?')) {
+      return;
+    }
+
+    const requestData = {
+      authorName: currentUser.author_name
+    };
+
+    deletePostMutation.mutate({ postId: id, requestData });
   };
 
   // 익명 게시글 삭제
-  const deletePostWithAuth = async (email, password) => {
-    try {
-      const requestData = {
-        anonymousEmail: email,
-        anonymousPassword: password,
-        isAnonymous: true
-      };
-
-      const response = await fetch(`http://localhost:8080/community/api/posts/${id}`, {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(requestData)
-      });
-
-      if (!response.ok) {
-        if (response.status === 403) {
-          alert('이메일 또는 비밀번호가 일치하지 않습니다.');
-          return;
-        }
-        console.error('게시글 삭제 실패:', response.status);
-        alert('게시글 삭제에 실패했습니다.');
-        return;
-      }
-
-      setShowAuthModal(false);
-      setAuthForm({ email: '', password: '', action: '' });
-      alert('게시글이 삭제되었습니다.');
-      navigate('/community');
-    } catch (error) {
-      console.error('Failed to delete post:', error);
-      alert('게시글 삭제에 실패했습니다.');
+  const handleDeletePostWithAuth = (email, password) => {
+    if (!window.confirm('정말로 게시글을 삭제하시겠습니까?')) {
+      return;
     }
+
+    const requestData = {
+      anonymousEmail: email,
+      anonymousPassword: password,
+      isAnonymous: true
+    };
+
+    deletePostMutation.mutate(
+      { postId: id, requestData },
+      {
+        onSuccess: () => {
+          setShowAuthModal(false);
+          setAuthForm({ email: '', password: '', action: '' });
+        },
+        onError: (error) => {
+          if (error.message.includes('403')) {
+            alert('이메일 또는 비밀번호가 일치하지 않습니다.');
+          }
+        }
+      }
+    );
   };
 
   const canEditPost = () => {
@@ -530,9 +535,7 @@ function PostDetail() {
       setAuthForm({ email: '', password: '', action: 'delete' });
       setShowAuthModal(true);
     } else if (currentUser.is_logged_in && currentUser.author_name === post.author_name) {
-      if (window.confirm('정말로 삭제하시겠습니까?')) {
-        await deletePost();
-      }
+      handleDeletePost();
     } else {
       alert('작성자만 삭제할 수 있습니다.');
     }
@@ -543,60 +546,30 @@ function PostDetail() {
 
     if (authForm.action === 'edit') {
       // 수정의 경우 인증 확인 후 PostEdit 페이지로 이동
-      try {
-        const requestData = {
-          anonymousEmail: authForm.email,
-          anonymousPassword: authForm.password
-        };
+      const authData = {
+        anonymousEmail: authForm.email,
+        anonymousPassword: authForm.password
+      };
 
-        // 새로운 인증 전용 API 사용
-        console.log('인증 요청 데이터:', requestData);
-        console.log('요청 URL:', `http://localhost:8080/community/api/posts/${post.post_id}/verify`);
-
-        const response = await fetch(`http://localhost:8080/community/api/posts/${post.post_id}/verify`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(requestData)
-        });
-
-        console.log('응답 상태:', response.status);
-        console.log('응답 헤더:', response.headers);
-
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.log('에러 응답:', errorText);
-          if (response.status === 403) {
-            alert('이메일 또는 비밀번호가 일치하지 않습니다.');
-            return;
+      verifyAnonymousPostMutation.mutate(
+        { postId: post.post_id, authData },
+        {
+          onSuccess: () => {
+            // 인증 성공 시 수정 페이지로 이동 (인증 정보와 함께)
+            navigate(`/post/edit/${post.post_id}`, {
+              state: {
+                anonymousEmail: authForm.email,
+                anonymousPassword: authForm.password
+              }
+            });
+            setShowAuthModal(false);
+            setAuthForm({ email: '', password: '', action: '' });
           }
-          console.error('Authentication failed:', response.status, errorText);
-          alert('인증에 실패했습니다. 다시 시도해주세요.');
-          return;
         }
-
-        const responseData = await response.json();
-        console.log('인증 성공 응답:', responseData);
-
-        // 인증 성공 시 수정 페이지로 이동 (인증 정보와 함께)
-        console.log('수정 페이지로 이동:', `/post/edit/${post.post_id}`);
-        navigate(`/post/edit/${post.post_id}`, {
-          state: {
-            anonymousEmail: authForm.email,
-            anonymousPassword: authForm.password
-          }
-        });
-        setShowAuthModal(false);
-        setAuthForm({ email: '', password: '', action: '' });
-        alert('인증 성공! 수정 페이지로 이동합니다.');
-      } catch (error) {
-        console.error('Failed to authenticate post:', error);
-        alert('인증에 실패했습니다.');
-      }
+      );
     } else if (authForm.action === 'delete') {
       // 삭제의 경우 바로 실행
-      await deletePostWithAuth(authForm.email, authForm.password);
+      handleDeletePostWithAuth(authForm.email, authForm.password);
     }
   };
 

@@ -336,3 +336,35 @@ export const verifyAnonymousComment = async ({ commentId, authData }) => {
   });
   return handleQueryApiResponse(response);
 };
+
+/**
+ * 게시글을 삭제하는 API 함수
+ * @param {object} param - 게시글 ID와 인증 데이터
+ * @returns {Promise<object>} 삭제 성공 응답
+ */
+export const deletePost = async ({ postId, requestData }) => {
+  const response = await fetch(`${COMMUNITY_API_URL}/posts/${postId}`, {
+    method: 'DELETE',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(requestData),
+  });
+  return handleQueryApiResponse(response);
+};
+
+/**
+ * 익명 게시글 인증을 확인하는 API 함수
+ * @param {object} param - 게시글 ID와 인증 데이터
+ * @returns {Promise<object>} 인증 성공 응답
+ */
+export const verifyAnonymousPost = async ({ postId, authData }) => {
+  const response = await fetch(`${COMMUNITY_API_URL}/posts/${postId}/verify`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(authData),
+  });
+  return handleQueryApiResponse(response);
+};
