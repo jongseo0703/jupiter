@@ -55,13 +55,13 @@ public class PostsService {
   }
 
   // 게시글 상세 조회 (조회수 증가 + 댓글 목록 포함)
-  @Transactional
+  @Transactional(readOnly = false)
   public PostsResponseDTO getPost(Long postId) {
     Posts post =
         postsRepository.findById(postId).orElseThrow(() -> new PostNotFoundException(postId));
 
-    // 조회수 증가
-    postsRepository.incrementViews(postId);
+    // 엔티티의 조회수 증가 메서드 호출 (JPA의 변경 감지 기능으로 DB에 자동 반영)
+    post.increaseViews();
 
     // 댓글 목록 조회
     List<CommentsResponseDTO> comments =
