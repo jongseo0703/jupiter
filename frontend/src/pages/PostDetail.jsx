@@ -26,6 +26,9 @@ function PostDetail() {
     commentId: null,
     comment: null
   });
+
+  // 익명 댓글 수정을 위한 인증 정보 저장
+  const [authenticatedAnonymousComment, setAuthenticatedAnonymousComment] = useState(null);
   const [currentIconIndex, setCurrentIconIndex] = useState(0);
 
   const alcoholIcons = [
@@ -152,6 +155,8 @@ function PostDetail() {
   const cancelEditComment = () => {
     setEditingComment(null);
     setEditCommentContent('');
+    // 익명 댓글 인증 정보 초기화
+    setAuthenticatedAnonymousComment(null);
   };
 
   // 댓글 수정 제출
@@ -163,10 +168,10 @@ function PostDetail() {
         content: editCommentContent,
         authorName: comment.is_anonymous ? null : currentUser.author_name,
         isAnonymous: comment.is_anonymous,
-        // 익명 댓글의 경우 인증 정보가 필요할 수 있음 (실제로는 세션이나 토큰으로 처리)
-        ...(comment.is_anonymous && {
-          anonymousEmail: commentAuthForm.email,
-          anonymousPassword: commentAuthForm.password
+        // 익명 댓글의 경우 인증된 정보 사용
+        ...(comment.is_anonymous && authenticatedAnonymousComment && {
+          anonymousEmail: authenticatedAnonymousComment.email,
+          anonymousPassword: authenticatedAnonymousComment.password
         })
       };
 
@@ -200,6 +205,8 @@ function PostDetail() {
 
       setEditingComment(null);
       setEditCommentContent('');
+      // 익명 댓글 인증 정보 초기화
+      setAuthenticatedAnonymousComment(null);
       alert('댓글이 수정되었습니다.');
     } catch (error) {
       console.error('Failed to edit comment:', error);
@@ -302,6 +309,14 @@ function PostDetail() {
         // 인증 성공 시 편집 모드로 전환
         setEditingComment(commentAuthForm.commentId);
         setEditCommentContent(commentAuthForm.comment.content);
+
+        // 인증 정보를 저장하여 나중에 수정 시 사용
+        setAuthenticatedAnonymousComment({
+          commentId: commentAuthForm.commentId,
+          email: commentAuthForm.email,
+          password: commentAuthForm.password
+        });
+
         setShowCommentAuthModal(false);
         setCommentAuthForm({
           email: '',
