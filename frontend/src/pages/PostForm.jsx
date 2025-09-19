@@ -8,7 +8,6 @@ function PostForm() {
     category: '',
     title: '',
     content: '',
-    author_name: '',
     anonymous_email: '',
     anonymous_pwd: '',
     tags: '',
@@ -16,7 +15,6 @@ function PostForm() {
     attachments: []
   });
 
-  const [previewImages, setPreviewImages] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const categories = KOREAN_CATEGORIES;
@@ -29,32 +27,6 @@ function PostForm() {
     }));
   };
 
-  const handleFileUpload = (e) => {
-    const files = Array.from(e.target.files);
-    if (files.length + previewImages.length > 5) {
-      alert('최대 5개의 파일까지 업로드 가능합니다.');
-      return;
-    }
-
-    const newPreviews = files.map(file => ({
-      file,
-      url: file.type.startsWith('image/') ? URL.createObjectURL(file) : null,
-      id: Date.now() + Math.random(),
-      name: file.name,
-      size: file.size,
-      type: file.type
-    }));
-
-    setPreviewImages(prev => [...prev, ...newPreviews]);
-    setFormData(prev => ({
-      ...prev,
-      attachments: [...prev.attachments, ...files]
-    }));
-  };
-
-  const removeImage = (id) => {
-    setPreviewImages(prev => prev.filter(img => img.id !== id));
-  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -71,7 +43,8 @@ function PostForm() {
         content: formData.content,
         tags: formData.tags,
         isAnonymous: formData.is_anonymous,
-        authorName: formData.author_name,
+        // TODO: 실제 로그인된 사용자 정보로 교체
+        authorName: formData.is_anonymous ? '익명' : '현재사용자',
         anonymousEmail: formData.is_anonymous ? formData.anonymous_email : null,
         anonymousPassword: formData.is_anonymous ? formData.anonymous_pwd : null
       };
@@ -280,7 +253,7 @@ function PostForm() {
                       )}
                       <button
                         type="button"
-                        onClick={() => removeImage(file.id)}
+                        onClick={() => removeFile(file.id)}
                         className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs hover:bg-red-600"
                       >
                         ×
@@ -345,19 +318,15 @@ function PostForm() {
                     </div>
                   </div>
                 ) : (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      닉네임 *
-                    </label>
-                    <input
-                      type="text"
-                      name="author_name"
-                      value={formData.author_name}
-                      onChange={handleInputChange}
-                      placeholder="닉네임을 입력하세요"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                      required={!formData.is_anonymous}
-                    />
+                  <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+                    <h4 className="text-sm font-medium text-blue-800 mb-2">로그인된 사용자</h4>
+                    <p className="text-blue-700">
+                      <strong>사용자명:</strong> {/* TODO: 실제 로그인된 사용자 정보로 교체 */}
+                      현재사용자
+                    </p>
+                    <p className="text-xs text-blue-600 mt-1">
+                      * 로그인된 사용자 정보로 게시글이 작성됩니다.
+                    </p>
                   </div>
                 )}
               </div>
