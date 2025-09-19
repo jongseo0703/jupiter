@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import authService from '../services/authService';
 import adminService from '../services/adminService';
+import adminNotificationService from '../services/adminNotificationService';
 
 const AdminPanel = () => {
   const navigate = useNavigate();
@@ -57,11 +58,20 @@ const AdminPanel = () => {
       setRecentUsers(usersList);
       setRecentProducts(products.slice(0, 5));
 
+      // 읽지 않은 알림 수 조회
+      let unreadCount = 0;
+      try {
+        unreadCount = await adminNotificationService.getUnreadCount();
+      } catch (error) {
+        console.log('Admin notifications not available yet, using fallback');
+        unreadCount = 0;
+      }
+
       setStats({
         totalUsers: totalUsers,
         totalProducts: products.length,
         activeProducts: products.filter(p => p.isActive).length,
-        notifications: Math.floor(Math.random() * 5) + 1
+        notifications: unreadCount
       });
     } catch (error) {
       console.error('Failed to load dashboard data:', error);
@@ -259,14 +269,14 @@ const AdminPanel = () => {
           </button>
 
           <button
-            onClick={() => navigate('/notification-settings')}
+            onClick={() => navigate('/admin/notifications')}
             className="bg-white rounded-lg shadow-sm p-6 hover:shadow-md transition-shadow text-center group"
           >
             <div className="w-12 h-12 bg-yellow-100 rounded-lg mx-auto mb-4 flex items-center justify-center group-hover:bg-yellow-200 transition-colors">
               <i className="fas fa-bell text-yellow-600 text-xl"></i>
             </div>
             <h3 className="font-semibold text-gray-900 mb-2">알림 관리</h3>
-            <p className="text-sm text-gray-600">시스템 알림 설정</p>
+            <p className="text-sm text-gray-600">관리자 알림 확인</p>
           </button>
 
           <button
