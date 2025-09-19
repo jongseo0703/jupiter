@@ -65,8 +65,8 @@ public class FinalUrlResolver {
 
             //구매사이트 탭으로 이동
             driver.switchTo().window(newTab);
-            //페이지 로딩 시간 제한(10초) 오버 시 에러
-            driver.manage().timeouts().pageLoadTimeout(Duration.ofSeconds(25));
+            //페이지 로딩 시간 제한(45초) 오버 시 에러
+            driver.manage().timeouts().pageLoadTimeout(Duration.ofSeconds(45));
             //사이트에 팝업이 있을 경우 무시하고 경로 가져오기
             finalUrl = withOutPopup(driver, url);
 
