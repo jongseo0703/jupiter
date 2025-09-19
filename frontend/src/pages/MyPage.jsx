@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import authService from '../services/authService';
+import apiService from '../services/api';
 
 const MyPage = () => {
   const navigate = useNavigate();
@@ -23,6 +24,14 @@ const MyPage = () => {
   });
   const [isPasswordSaving, setIsPasswordSaving] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
+  const [phoneVerification, setPhoneVerification] = useState({
+    isRequested: false,
+    verificationCode: '',
+    timeLeft: 0,
+    isVerified: false
+  });
+  const [isSendingSms, setIsSendingSms] = useState(false);
+  const [isVerifyingSms, setIsVerifyingSms] = useState(false);
 
   useEffect(() => {
     const loadUserInfo = async () => {
@@ -88,6 +97,16 @@ const MyPage = () => {
       ...prev,
       [name]: value
     }));
+
+    // 휴대폰 번호가 변경되면 인증 상태 초기화
+    if (name === 'phone' && value !== user?.phone) {
+      setPhoneVerification({
+        isRequested: false,
+        verificationCode: '',
+        timeLeft: 0,
+        isVerified: false
+      });
+    }
   };
 
   const handleSave = async () => {
@@ -95,12 +114,26 @@ const MyPage = () => {
       setIsSaving(true);
       setError('');
 
+      // 휴대폰 번호가 변경된 경우 인증 확인
+      if (editFormData.phone && editFormData.phone !== user?.phone && !phoneVerification.isVerified) {
+        setError('휴대폰 번호가 변경된 경우 SMS 인증을 완료해주세요.');
+        return;
+      }
+
       // 백엔드에 프로필 업데이트 요청
       const updatedUser = await authService.updateProfile(editFormData);
 
       // 성공 시 사용자 정보 업데이트
       setUser(updatedUser);
       setIsEditing(false);
+
+      // 인증 상태 초기화
+      setPhoneVerification({
+        isRequested: false,
+        verificationCode: '',
+        timeLeft: 0,
+        isVerified: false
+      });
 
       // 성공 메시지 표시
       setSuccessMessage('프로필이 성공적으로 업데이트되었습니다.');
@@ -162,6 +195,98 @@ const MyPage = () => {
     } finally {
       setIsPasswordSaving(false);
     }
+  };
+
+  const sendSmsVerification = async () => {
+    if (!editFormData.phone) {
+      setError('휴대폰 번호를 입력해주세요.');
+      return;
+    }
+
+    if (editFormData.phone === user?.phone) {
+      setError('현재 등록된 휴대폰 번호와 동일합니다.');
+      return;
+    }
+
+    try {
+      setIsSendingSms(true);
+      setError('');
+
+      const response = await apiService.post('/auth/api/v1/auth/send-verification', {
+        phoneNumber: editFormData.phone
+      });
+
+      setPhoneVerification(prev => ({
+        ...prev,
+        isRequested: true,
+        timeLeft: 300, // 5분
+        isVerified: false
+      }));
+
+      // 타이머 시작
+      const timer = setInterval(() => {
+        setPhoneVerification(prev => {
+          if (prev.timeLeft <= 1) {
+            clearInterval(timer);
+            return {
+              ...prev,
+              timeLeft: 0,
+              isRequested: false
+            };
+          }
+          return {
+            ...prev,
+            timeLeft: prev.timeLeft - 1
+          };
+        });
+      }, 1000);
+
+      setSuccessMessage('인증번호가 발송되었습니다.');
+      setTimeout(() => setSuccessMessage(''), 3000);
+
+    } catch (error) {
+      console.error('SMS send failed:', error);
+      setError(error.message || 'SMS 발송에 실패했습니다.');
+    } finally {
+      setIsSendingSms(false);
+    }
+  };
+
+  const verifySmsCode = async () => {
+    if (!phoneVerification.verificationCode) {
+      setError('인증번호를 입력해주세요.');
+      return;
+    }
+
+    try {
+      setIsVerifyingSms(true);
+      setError('');
+
+      const response = await apiService.post('/auth/api/v1/auth/verify-phone', {
+        phoneNumber: editFormData.phone,
+        verificationCode: phoneVerification.verificationCode
+      });
+
+      setPhoneVerification(prev => ({
+        ...prev,
+        isVerified: true
+      }));
+
+      setSuccessMessage('휴대폰 인증이 완료되었습니다.');
+      setTimeout(() => setSuccessMessage(''), 3000);
+
+    } catch (error) {
+      console.error('SMS verification failed:', error);
+      setError(error.message || 'SMS 인증에 실패했습니다.');
+    } finally {
+      setIsVerifyingSms(false);
+    }
+  };
+
+  const formatTime = (seconds) => {
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
   };
 
   if (isLoading) {
@@ -299,14 +424,83 @@ const MyPage = () => {
                     휴대폰 번호
                   </label>
                   {isEditing ? (
-                    <input
-                      type="tel"
-                      name="phone"
-                      value={editFormData.phone}
-                      onChange={handleInputChange}
-                      className="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
-                      placeholder="휴대폰 번호를 입력하세요"
-                    />
+                    <div className="space-y-3">
+                      <div className="flex space-x-2">
+                        <input
+                          type="tel"
+                          name="phone"
+                          value={editFormData.phone}
+                          onChange={handleInputChange}
+                          className="flex-1 p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
+                          placeholder="휴대폰 번호를 입력하세요"
+                        />
+                        <button
+                          type="button"
+                          onClick={sendSmsVerification}
+                          disabled={!editFormData.phone || editFormData.phone === user?.phone || phoneVerification.isRequested || isSendingSms}
+                          className="px-4 py-3 bg-primary text-white text-sm rounded-md hover:bg-blue-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                        >
+                          {isSendingSms ? (
+                            <div className="flex items-center">
+                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-1"></div>
+                              발송 중
+                            </div>
+                          ) : phoneVerification.isRequested ? (
+                            `재발송 (${formatTime(phoneVerification.timeLeft)})`
+                          ) : (
+                            '인증번호 발송'
+                          )}
+                        </button>
+                      </div>
+
+                      {phoneVerification.isRequested && (
+                        <div className="flex space-x-2">
+                          <input
+                            type="text"
+                            value={phoneVerification.verificationCode}
+                            onChange={(e) => setPhoneVerification(prev => ({ ...prev, verificationCode: e.target.value }))}
+                            className="flex-1 p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
+                            placeholder="인증번호 6자리를 입력하세요"
+                            maxLength={6}
+                            disabled={phoneVerification.isVerified}
+                          />
+                          <button
+                            type="button"
+                            onClick={verifySmsCode}
+                            disabled={!phoneVerification.verificationCode || phoneVerification.isVerified || isVerifyingSms}
+                            className="px-4 py-3 bg-green-500 text-white text-sm rounded-md hover:bg-green-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                          >
+                            {isVerifyingSms ? (
+                              <div className="flex items-center">
+                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-1"></div>
+                                확인 중
+                              </div>
+                            ) : phoneVerification.isVerified ? (
+                              <div className="flex items-center">
+                                <i className="fas fa-check mr-1"></i>
+                                인증완료
+                              </div>
+                            ) : (
+                              '인증확인'
+                            )}
+                          </button>
+                        </div>
+                      )}
+
+                      {phoneVerification.isVerified && (
+                        <div className="text-green-600 text-sm flex items-center">
+                          <i className="fas fa-check-circle mr-2"></i>
+                          휴대폰 인증이 완료되었습니다.
+                        </div>
+                      )}
+
+                      {editFormData.phone && editFormData.phone !== user?.phone && !phoneVerification.isVerified && (
+                        <div className="text-amber-600 text-sm flex items-center">
+                          <i className="fas fa-exclamation-triangle mr-2"></i>
+                          휴대폰 번호가 변경되었습니다. SMS 인증을 완료해주세요.
+                        </div>
+                      )}
+                    </div>
                   ) : (
                     <div className="bg-gray-50 p-3 rounded-md">
                       {user?.phone || '정보 없음'}

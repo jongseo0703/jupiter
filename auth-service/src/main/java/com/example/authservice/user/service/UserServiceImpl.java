@@ -1,5 +1,7 @@
 package com.example.authservice.user.service;
 
+import java.util.Objects;
+
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -72,7 +74,7 @@ public class UserServiceImpl implements UserService {
 
           if (request.phone() != null && !request.phone().trim().isEmpty()) {
             // 기존 휴대폰 번호와 다른 경우에만 인증 확인
-            if (!user.getPhone().equals(request.phone())) {
+            if (!Objects.equals(user.getPhone(), request.phone())) {
               if (!smsService.isPhoneVerified(request.phone())) {
                 throw new BusinessException("휴대폰 인증이 완료되지 않았습니다", 400, "PHONE_NOT_VERIFIED");
               }
