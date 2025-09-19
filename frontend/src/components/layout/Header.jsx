@@ -155,6 +155,15 @@ const Header = () => {
 
               {isLoggedIn ? (
                 <div className="flex items-center space-x-3">
+                  {user?.role === 'ADMIN' && (
+                    <Link
+                      to="/admin"
+                      className="p-2 text-gray-700 hover:text-primary transition-colors"
+                      title="관리자 페이지"
+                    >
+                      <i className="fas fa-tachometer-alt text-xl"></i>
+                    </Link>
+                  )}
                   <Link
                     to="/settings"
                     className="p-2 text-gray-700 hover:text-primary transition-colors"
@@ -206,6 +215,9 @@ const Header = () => {
                 <Link to="/favorites" className="block text-gray-700 hover:text-primary font-medium" onClick={() => setIsMenuOpen(false)}>즐겨찾기</Link>
                 <Link to="/community-form" className="block text-gray-700 hover:text-primary font-medium" onClick={() => setIsMenuOpen(false)}>글쓰기</Link>
                 <Link to="/about" className="block text-gray-700 hover:text-primary font-medium" onClick={() => setIsMenuOpen(false)}>회사소개</Link>
+                {isLoggedIn && user?.role === 'ADMIN' && (
+                  <Link to="/admin" className="block text-gray-700 hover:text-primary font-medium" onClick={() => setIsMenuOpen(false)}>관리자 페이지</Link>
+                )}
                 {isLoggedIn && (
                   <Link to="/settings" className="block text-gray-700 hover:text-primary font-medium" onClick={() => setIsMenuOpen(false)}>설정</Link>
                 )}
