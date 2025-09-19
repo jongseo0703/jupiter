@@ -144,4 +144,22 @@ public class WaitUtils {
 
         return null;
     }
+
+    /**
+     * 페이지 이동 안전화를 위한 대기 메서드
+     * @param driver 사용중인 Chrom Driver
+     * @param timeoutSeconds 최대 대기 시간
+     */
+    public static void waitAfterNavigation(WebDriver driver, int timeoutSeconds){
+        // 페이지 로딩 완료 대기
+        waitForPageLoad(driver, timeoutSeconds);
+
+        // 추가 안정화 대기 (동적 콘텐츠 로딩 등을 위해)
+        try {
+            // 2초 추가 대기
+            Thread.sleep(2000);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+    }
 }
