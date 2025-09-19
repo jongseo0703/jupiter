@@ -177,55 +177,15 @@ function PostDetail() {
 
     if (commentAuthForm.action === 'edit') {
       // 수정의 경우 인증 확인 API를 사용하여 편집 모드로 전환
-      try {
-        const requestData = {
-          anonymousEmail: commentAuthForm.email,
-          anonymousPassword: commentAuthForm.password
-        };
+      const authData = {
+        anonymousEmail: commentAuthForm.email,
+        anonymousPassword: commentAuthForm.password
+      };
 
-        // 새로운 인증 전용 API 사용
-        const response = await fetch(`http://localhost:8080/community/api/comments/${commentAuthForm.commentId}/verify`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(requestData)
-        });
-
-        if (!response.ok) {
-          if (response.status === 403) {
-            alert('이메일 또는 비밀번호가 일치하지 않습니다.');
-            return;
-          }
-          console.error('인증 실패:', response.status);
-          alert('인증에 실패했습니다.');
-          return;
-        }
-
-        // 인증 성공 시 편집 모드로 전환
-        setEditingComment(commentAuthForm.commentId);
-        setEditCommentContent(commentAuthForm.comment.content);
-
-        // 인증 정보를 저장하여 나중에 수정 시 사용
-        setAuthenticatedAnonymousComment({
-          commentId: commentAuthForm.commentId,
-          email: commentAuthForm.email,
-          password: commentAuthForm.password
-        });
-
-        setShowCommentAuthModal(false);
-        setCommentAuthForm({
-          email: '',
-          password: '',
-          action: '',
-          commentId: null,
-          comment: null
-        });
-        alert('인증 완료! 댓글을 수정할 수 있습니다.');
-      } catch (error) {
-        console.error('Failed to authenticate comment:', error);
-        alert('인증에 실패했습니다.');
-      }
+      verifyAnonymousCommentMutation.mutate({
+        commentId: commentAuthForm.commentId,
+        authData
+      });
     } else if (commentAuthForm.action === 'delete') {
       // 삭제의 경우 바로 실행
       const requestData = {
@@ -331,7 +291,7 @@ function PostDetail() {
 
       return { previousPost };
     },
-    onSuccess: (createdComment) => {
+    onSuccess: () => {
       // 댓글 폼 초기화
       setCommentForm({
         content: '',
@@ -438,6 +398,40 @@ function PostDetail() {
     onSettled: () => {
       // 서버와 동기화
       queryClient.invalidateQueries({ queryKey: ['post', id] });
+    }
+  });
+
+  // 익명 댓글 인증 mutation
+  const verifyAnonymousCommentMutation = useMutation({
+    mutationFn: verifyAnonymousComment,
+    onSuccess: () => {
+      // 인증 성공 시 편집 모드로 전환
+      setEditingComment(commentAuthForm.commentId);
+      setEditCommentContent(commentAuthForm.comment.content);
+
+      // 인증 정보를 저장하여 나중에 수정 시 사용
+      setAuthenticatedAnonymousComment({
+        commentId: commentAuthForm.commentId,
+        email: commentAuthForm.email,
+        password: commentAuthForm.password
+      });
+
+      setShowCommentAuthModal(false);
+      setCommentAuthForm({
+        email: '',
+        password: '',
+        action: '',
+        commentId: null,
+        comment: null
+      });
+    },
+    onError: (error) => {
+      console.error('Failed to authenticate comment:', error);
+      if (error.message.includes('403')) {
+        alert('이메일 또는 비밀번호가 일치하지 않습니다.');
+      } else {
+        alert('인증에 실패했습니다.');
+      }
     }
   });
 
