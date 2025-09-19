@@ -224,3 +224,39 @@ export const fetchPost = async ({ queryKey }) => {
 
   return { ...transformedPost, comments: transformedComments };
 };
+
+/**
+ * 게시물을 생성하고, 파일이 있는 경우 이어서 업로드하는 함수
+ * @param {{postData: object, files: File[]}} payload - 게시물 데이터와 파일 목록
+ * @returns {Promise<object>} 생성된 게시물 정보
+ */
+export const createPostWithFiles = async ({ postData, files }) => {
+  // 1. 게시글 생성 API 호출
+  const createPostResponse = await fetch(`${COMMUNITY_API_URL}/posts`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(postData),
+  });
+  const createdPost = await handleQueryApiResponse(createPostResponse);
+
+  // 2. 파일이 있다면 업로드
+  if (files.length > 0) {
+    const fileFormData = new FormData();
+    files.forEach(file => {
+      fileFormData.append('files', file);
+    });
+
+    const fileResponse = await fetch(`${COMMUNITY_API_URL}/posts/${createdPost.postId}/attachments`, {
+      method: 'POST',
+      body: fileFormData,
+    });
+    // 파일 업로드 실패 시 에러를 발생시켜 React Query의 onError에서 처리하도록 함
+    if (!fileResponse.ok) {
+      throw new Error('게시글은 작성되었지만 파일 업로드에 실패했습니다.');
+    }
+  }
+
+  return createdPost;
+};

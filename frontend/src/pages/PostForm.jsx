@@ -1,10 +1,13 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { getEnglishCategory, KOREAN_CATEGORIES } from '../utils/categoryUtils';
 import { useFileUpload } from '../hooks/useFileUpload';
+import { createPostWithFiles } from '../services/api';
 
 function PostForm() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [formData, setFormData] = useState({
     category: '',
     title: '',
@@ -16,12 +19,24 @@ function PostForm() {
     attachments: []
   });
 
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
   // 파일 업로드 훅 사용
-  const { previewImages, setPreviewImages, handleFileUpload, removeFile } = useFileUpload(formData, setFormData);
+  const { previewImages, handleFileUpload, removeFile } = useFileUpload(formData, setFormData);
 
   const categories = KOREAN_CATEGORIES;
+
+  const { mutate, isLoading: isSubmitting } = useMutation({
+    mutationFn: createPostWithFiles,
+    onSuccess: (data) => {
+      // 'posts' 쿼리를 무효화하여 목록 페이지가 최신 데이터를 다시 불러오도록 함
+      queryClient.invalidateQueries({ queryKey: ['posts'] });
+      alert('게시글이 성공적으로 작성되었습니다!');
+      navigate(`/post/${data.postId}`);
+    },
+    onError: (error) => {
+      console.error('게시글 작성 실패:', error);
+      alert(`게시글 작성에 실패했습니다: ${error.message}`);
+    }
+  });
 
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -31,79 +46,22 @@ function PostForm() {
     }));
   };
 
-
-  const handleSubmit = async (e) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
-
     if (isSubmitting) return;
 
-    setIsSubmitting(true);
+    const postData = {
+      category: getEnglishCategory(formData.category),
+      title: formData.title,
+      content: formData.content,
+      tags: formData.tags,
+      isAnonymous: formData.is_anonymous,
+      authorName: formData.is_anonymous ? '익명' : '현재사용자', // TODO: 실제 로그인된 사용자 정보로 교체
+      anonymousEmail: formData.is_anonymous ? formData.anonymous_email : null,
+      anonymousPassword: formData.is_anonymous ? formData.anonymous_pwd : null
+    };
 
-    try {
-      // 게시글 데이터 준비
-      const postData = {
-        category: getEnglishCategory(formData.category),
-        title: formData.title,
-        content: formData.content,
-        tags: formData.tags,
-        isAnonymous: formData.is_anonymous,
-        // TODO: 실제 로그인된 사용자 정보로 교체
-        authorName: formData.is_anonymous ? '익명' : '현재사용자',
-        anonymousEmail: formData.is_anonymous ? formData.anonymous_email : null,
-        anonymousPassword: formData.is_anonymous ? formData.anonymous_pwd : null
-      };
-
-      // 게시글 생성 API 호출
-      const response = await fetch('http://localhost:8080/community/api/posts', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(postData)
-      });
-
-      if (!response.ok) {
-        console.error('Failed to create post:', response.status);
-        alert('게시글 작성에 실패했습니다. 다시 시도해주세요.');
-        return;
-      }
-
-      const result = await response.json();
-      const createdPost = result.data;
-
-      // 파일이 있다면 업로드
-      if (formData.attachments.length > 0) {
-        const fileFormData = new FormData();
-        formData.attachments.forEach(file => {
-          fileFormData.append('files', file);
-        });
-
-        try {
-          const fileResponse = await fetch(`http://localhost:8080/community/api/posts/${createdPost.postId}/attachments`, {
-            method: 'POST',
-            body: fileFormData
-          });
-
-          if (!fileResponse.ok) {
-            console.error('Failed to upload files:', fileResponse.status);
-            alert('게시글은 작성되었지만 파일 업로드에 실패했습니다.');
-            return;
-          }
-        } catch (fileError) {
-          console.error('파일 업로드 실패:', fileError);
-          alert('게시글은 작성되었지만 파일 업로드에 실패했습니다.');
-        }
-      }
-
-      alert('게시글이 성공적으로 작성되었습니다!');
-      navigate(`/post/${createdPost.postId}`);
-
-    } catch (error) {
-      console.error('게시글 작성 실패:', error);
-      alert('게시글 작성에 실패했습니다. 다시 시도해주세요.');
-    } finally {
-      setIsSubmitting(false);
-    }
+    mutate({ postData, files: formData.attachments });
   };
 
   return (
