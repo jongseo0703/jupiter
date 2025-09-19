@@ -111,4 +111,24 @@ public class FileUploadService {
     postAttachmentsRepository.delete(attachment);
     log.info("첨부파일 삭제 완료: {}", attachment.getOriginalFilename());
   }
+
+  /**
+   * 게시물에 연결된 모든 실제 파일을 삭제 (DB 레코드는 남김)
+   *
+   * @param post 게시물 엔티티
+   */
+  public void deletePhysicalFiles(Posts post) {
+    if (post.getAttachments() == null || post.getAttachments().isEmpty()) {
+      return;
+    }
+
+    for (PostAttachments attachment : post.getAttachments()) {
+      try {
+        fileManager.deleteFile(attachment.getFileUrl());
+      } catch (Exception e) {
+        log.warn("실제 파일 삭제 실패 (URL: {}): {}", attachment.getFileUrl(), e.getMessage());
+        // 하나의 파일 삭제 실패가 전체 프로세스를 중단하지 않도록 예외 처리
+      }
+    }
+  }
 }

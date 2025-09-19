@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { getEnglishCategory, KOREAN_CATEGORIES } from '../utils/categoryUtils';
+import { useFileUpload } from '../hooks/useFileUpload';
 
 function PostForm() {
   const navigate = useNavigate();
@@ -16,6 +17,9 @@ function PostForm() {
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // 파일 업로드 훅 사용
+  const { previewImages, setPreviewImages, handleFileUpload, removeFile } = useFileUpload(formData, setFormData);
 
   const categories = KOREAN_CATEGORIES;
 

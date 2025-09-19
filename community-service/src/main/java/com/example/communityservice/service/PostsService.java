@@ -26,8 +26,10 @@ import com.example.communityservice.repository.AuthorsRepository;
 import com.example.communityservice.repository.PostsRepository;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 // 게시글 관련 비즈니스 로직 처리 서비스
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -36,6 +38,7 @@ public class PostsService {
   private final PostsRepository postsRepository;
   private final AuthorsRepository authorsRepository;
   private final PasswordEncoder passwordEncoder;
+  private final FileUploadService fileUploadService;
 
   // 게시글 목록 조회 (카테고리별, 페이징)
   public Page<PostsSummaryDTO> getPosts(String category, Pageable pageable) {
@@ -117,6 +120,11 @@ public class PostsService {
     // 작성자 권한 체크
     validateAuthorPermission(post, requestDto);
 
+    // 1. 게시물에 연결된 실제 파일들을 먼저 삭제
+    fileUploadService.deletePhysicalFiles(post);
+
+    // 2. 게시물을 삭제
+    // Posts 엔티티의 cascade 설정에 따라 연결된 첨부파일, 댓글 등의 DB 레코드가 자동으로 삭제됩니다.
     postsRepository.delete(post);
   }
 

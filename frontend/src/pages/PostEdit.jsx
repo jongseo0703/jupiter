@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Link, useParams, useNavigate, useLocation } from 'react-router-dom';
 import { getKoreanCategory, getEnglishCategory, KOREAN_CATEGORIES } from '../utils/categoryUtils';
+import { useFileUpload } from '../hooks/useFileUpload';
+import { categorizeAttachments } from '../utils/fileUtils';
 
 function PostEdit() {
   const { id } = useParams();
@@ -15,8 +17,11 @@ function PostEdit() {
     attachments: []
   });
   const [originalPost, setOriginalPost] = useState(null);
-  const [previewImages, setPreviewImages] = useState([]);
   const [currentIconIndex, setCurrentIconIndex] = useState(0);
+  const [deletedAttachments, setDeletedAttachments] = useState([]); // 삭제된 첨부파일 ID 추적
+
+  // 파일 업로드 훅 사용
+  const { previewImages, setPreviewImages, handleFileUpload, removeFile } = useFileUpload(formData, setFormData);
 
   const alcoholIcons = [
     '🍷', // 와인잔
@@ -105,34 +110,11 @@ function PostEdit() {
     }));
   };
 
-  const handleFileUpload = (e) => {
-    // TODO: 파일 사이즈 제한, 파일 타입 검증 추가
-    // TODO: 이미지 미리보기 최적화 (원본 크기 유지)
-    const files = Array.from(e.target.files);
-    if (files.length + previewImages.length > 5) {
-      alert('최대 5개의 파일까지 업로드 가능합니다.');
-      return;
-    }
-
-    const newPreviews = files.map(file => ({
-      file,
-      url: file.type.startsWith('image/') ? URL.createObjectURL(file) : null,
-      id: Date.now() + Math.random(),
-      name: file.name,
-      size: file.size,
-      type: file.type
-    }));
-
-    setPreviewImages(prev => [...prev, ...newPreviews]);
-    setFormData(prev => ({
-      ...prev,
-      attachments: [...prev.attachments, ...files]
-    }));
+  // 기존 첨부파일 삭제
+  const handleDeleteExistingFile = (attachmentId) => {
+    setDeletedAttachments(prev => [...prev, attachmentId]);
   };
 
-  const removeFile = (id) => {
-    setPreviewImages(prev => prev.filter(file => file.id !== id));
-  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -169,6 +151,50 @@ function PostEdit() {
         console.error('Failed to update post:', response.status);
         alert('게시글 수정 중 오류가 발생했습니다.');
         return;
+      }
+
+      // 삭제된 파일들 처리 (개별 파일별로 삭제)
+      if (deletedAttachments.length > 0) {
+        try {
+          const deletePromises = deletedAttachments.map(attachmentId =>
+            fetch(`http://localhost:8080/community/api/posts/attachments/${attachmentId}`, {
+              method: 'DELETE'
+            })
+          );
+
+          const deleteResults = await Promise.all(deletePromises);
+
+          // 실패한 삭제가 있는지 확인
+          const failedDeletes = deleteResults.filter(response => !response.ok);
+          if (failedDeletes.length > 0) {
+            console.error('Some files failed to delete:', failedDeletes.length);
+          }
+        } catch (error) {
+          console.error('Failed to delete files:', error);
+        }
+      }
+
+      // 새 파일들 업로드
+      if (formData.attachments && formData.attachments.length > 0) {
+        try {
+          const uploadFormData = new FormData();
+          formData.attachments.forEach(file => {
+            uploadFormData.append('files', file);
+          });
+
+          const uploadResponse = await fetch(`http://localhost:8080/community/api/posts/${id}/attachments`, {
+            method: 'POST',
+            body: uploadFormData
+          });
+
+          if (!uploadResponse.ok) {
+            console.error('Failed to upload new files:', uploadResponse.status);
+            alert('게시글은 수정되었지만 새 파일 업로드에 실패했습니다.');
+          }
+        } catch (error) {
+          console.error('Failed to upload new files:', error);
+          alert('게시글은 수정되었지만 새 파일 업로드에 실패했습니다.');
+        }
       }
 
       alert('게시글이 성공적으로 수정되었습니다!');
@@ -347,6 +373,70 @@ function PostEdit() {
                 <i className="fas fa-camera text-primary mr-3"></i>
                 파일 첨부 (선택)
               </h2>
+
+              {/* 기존 첨부파일 */}
+              {originalPost?.attachments && originalPost.attachments.length > 0 && (
+                <div className="mb-6">
+                  <h3 className="text-lg font-semibold text-gray-700 mb-4">기존 첨부파일</h3>
+                  {(() => {
+                    // 이미지와 일반 파일 분리 (삭제된 파일 제외)
+                    const { images, files } = categorizeAttachments(originalPost.attachments, deletedAttachments);
+
+                    return (
+                      <div className="space-y-4">
+                        {/* 기존 이미지들 - 가로로 나열 */}
+                        {images.length > 0 && (
+                          <div className="flex flex-wrap gap-3">
+                            {images.map((file) => (
+                              <div key={file.index} className="relative group">
+                                <img
+                                  src={`http://localhost:8080${file.fileUrl}`}
+                                  alt={file.originalFilename}
+                                  className="w-24 h-24 object-cover rounded-lg cursor-pointer hover:opacity-80 transition-opacity"
+                                  onClick={() => window.open(`http://localhost:8080${file.fileUrl}`, '_blank')}
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteExistingFile(file.postAttachmentId)}
+                                  className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs hover:bg-red-600 transition-colors"
+                                  title="파일 삭제"
+                                >
+                                  ×
+                                </button>
+                                <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 text-white text-xs px-1 py-0.5 rounded-b-lg opacity-0 group-hover:opacity-100 transition-opacity">
+                                  {file.fileSize}KB
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* 기존 일반 파일들 - 세로로 길게 */}
+                        {files.map((file) => (
+                          <div
+                            key={file.index}
+                            className="bg-blue-50 rounded-lg p-3 cursor-pointer hover:bg-blue-100 transition-colors"
+                            onClick={() => window.open(`http://localhost:8080${file.fileUrl}`, '_blank')}
+                          >
+                            <div className="flex items-center space-x-3">
+                              <div className="w-10 h-10 bg-blue-200 rounded-lg flex items-center justify-center flex-shrink-0">
+                                <i className="fas fa-file text-blue-600 text-sm"></i>
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm text-blue-800 font-medium truncate">{file.originalFilename}</p>
+                                <p className="text-xs text-blue-600">{file.fileSize}KB</p>
+                              </div>
+                              <div className="flex-shrink-0">
+                                <i className="fas fa-external-link-alt text-blue-500 text-xs"></i>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })()}
+                </div>
+              )}
 
               <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
                 <input
