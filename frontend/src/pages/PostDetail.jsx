@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import {fetchPost, likePost} from '../services/api';
+import {fetchPost, likePost, createComment, updateComment, deleteComment, verifyAnonymousComment} from '../services/api';
 import { categorizeAttachments } from '../utils/fileUtils';
 
 function PostDetail() {
@@ -53,13 +53,8 @@ function PostDetail() {
     queryFn: fetchPost
   });
 
-  // 댓글 상태 분리
-  const [comments, setComments] = useState([]);
-  useEffect(() => {
-    if (post?.comments) {
-      setComments(post.comments);
-    }
-  }, [post]);
+  // React Query에서 댓글 데이터 직접 사용
+  const comments = post?.comments || [];
 
   // 아이콘 회전 애니메이션
   useEffect(() => {
@@ -89,60 +84,19 @@ function PostDetail() {
     }));
   };
 
-  const handleCommentSubmit = async (e) => {
+  const handleCommentSubmit = (e) => {
     e.preventDefault();
 
-    try {
-      const commentData = {
-        postId: parseInt(id),
-        content: commentForm.content,
-        isAnonymous: commentForm.is_anonymous,
-        authorName: commentForm.author_name,
-        anonymousEmail: commentForm.is_anonymous ? commentForm.anonymous_email : null,
-        anonymousPassword: commentForm.is_anonymous ? commentForm.anonymous_pwd : null
-      };
+    const commentData = {
+      postId: parseInt(id),
+      content: commentForm.content,
+      isAnonymous: commentForm.is_anonymous,
+      authorName: commentForm.author_name,
+      anonymousEmail: commentForm.is_anonymous ? commentForm.anonymous_email : null,
+      anonymousPassword: commentForm.is_anonymous ? commentForm.anonymous_pwd : null
+    };
 
-      const response = await fetch('http://localhost:8080/community/api/comments', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(commentData)
-      });
-
-      if (!response.ok) {
-        console.error('댓글 등록 실패:', response.status);
-        alert('댓글 등록에 실패했습니다.');
-        return;
-      }
-
-      const result = await response.json();
-      const newComment = result.data;
-
-      // 백엔드 응답을 프론트엔드 형식으로 변환
-      const transformedComment = {
-        comment_id: newComment.commentId,
-        post_id: newComment.postId,
-        content: newComment.content,
-        author_name: newComment.authorName,
-        created_at: new Date(newComment.createdAt).toLocaleString('ko-KR'),
-        is_anonymous: newComment.isAnonymous
-      };
-
-      setComments(prev => [...prev, transformedComment]);
-      setCommentForm({
-        content: '',
-        author_name: '',
-        anonymous_email: '',
-        anonymous_pwd: '',
-        is_anonymous: false
-      });
-
-      alert('댓글이 등록되었습니다!');
-    } catch (error) {
-      console.error('Failed to create comment:', error);
-      alert('댓글 등록에 실패했습니다.');
-    }
+    createCommentMutation.mutate(commentData);
   };
 
   // 댓글 수정 시작
@@ -415,6 +369,61 @@ function PostDetail() {
       // 성공/실패 여부와 관계없이, 서버와 클라이언트의 상태를 동기화하기 위해 쿼리를 다시 실행
       queryClient.invalidateQueries({ queryKey: ['post', id] });
     },
+  });
+
+  // 댓글 작성 mutation
+  const createCommentMutation = useMutation({
+    mutationFn: createComment,
+    onMutate: async (newCommentData) => {
+      // 진행중인 쿼리 취소
+      await queryClient.cancelQueries({ queryKey: ['post', id] });
+
+      // 현재 데이터 스냅샷
+      const previousPost = queryClient.getQueryData(['post', id]);
+
+      // 낙관적 업데이트 - 새 댓글 추가
+      queryClient.setQueryData(['post', id], (oldData) => {
+        if (!oldData) return oldData;
+
+        const newComment = {
+          comment_id: Date.now(), // 임시 ID
+          post_id: parseInt(id),
+          content: newCommentData.content,
+          author_name: newCommentData.authorName,
+          created_at: new Date().toLocaleString('ko-KR'),
+          is_anonymous: newCommentData.isAnonymous
+        };
+
+        return {
+          ...oldData,
+          comments: [...(oldData.comments || []), newComment]
+        };
+      });
+
+      return { previousPost };
+    },
+    onSuccess: (createdComment) => {
+      // 댓글 폼 초기화
+      setCommentForm({
+        content: '',
+        author_name: '',
+        anonymous_email: '',
+        anonymous_pwd: '',
+        is_anonymous: false
+      });
+    },
+    onError: (err, variables, context) => {
+      // 에러 시 롤백
+      if (context?.previousPost) {
+        queryClient.setQueryData(['post', id], context.previousPost);
+      }
+      console.error('Failed to create comment:', err);
+      alert('댓글 등록에 실패했습니다.');
+    },
+    onSettled: () => {
+      // 서버와 동기화
+      queryClient.invalidateQueries({ queryKey: ['post', id] });
+    }
   });
 
   // 일반 회원 게시글 삭제

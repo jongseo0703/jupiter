@@ -272,3 +272,67 @@ export const likePost = async (postId) => {
   });
   return handleQueryApiResponse(response);
 };
+
+/**
+ * 새로운 댓글을 생성하는 API 함수
+ * @param {object} commentData - 생성할 댓글 데이터
+ * @returns {Promise<object>} 생성된 댓글 정보
+ */
+export const createComment = async (commentData) => {
+  const response = await fetch(`${COMMUNITY_API_URL}/comments`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(commentData),
+  });
+  return handleQueryApiResponse(response);
+};
+
+/**
+ * 댓글을 수정하는 API 함수
+ * @param {object} param - 댓글 ID와 수정할 데이터
+ * @returns {Promise<object>} 수정된 댓글 정보
+ */
+export const updateComment = async ({ commentId, commentData }) => {
+  const response = await fetch(`${COMMUNITY_API_URL}/comments/${commentId}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(commentData),
+  });
+  return handleQueryApiResponse(response);
+};
+
+/**
+ * 댓글을 삭제하는 API 함수
+ * @param {object} param - 댓글 ID와 인증 데이터
+ * @returns {Promise<object>} 삭제 성공 응답
+ */
+export const deleteComment = async ({ commentId, requestData }) => {
+  const response = await fetch(`${COMMUNITY_API_URL}/comments/${commentId}`, {
+    method: 'DELETE',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(requestData),
+  });
+  return handleQueryApiResponse(response);
+};
+
+/**
+ * 익명 댓글 인증을 확인하는 API 함수
+ * @param {object} param - 댓글 ID와 인증 데이터
+ * @returns {Promise<object>} 인증 성공 응답
+ */
+export const verifyAnonymousComment = async ({ commentId, authData }) => {
+  const response = await fetch(`${COMMUNITY_API_URL}/comments/${commentId}/verify`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(authData),
+  });
+  return handleQueryApiResponse(response);
+};
