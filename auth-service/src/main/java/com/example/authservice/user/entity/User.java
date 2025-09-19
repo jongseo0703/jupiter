@@ -53,8 +53,7 @@ public class User extends BaseEntity implements UserDetails {
   private String password;
 
   // phone number
-  @Column(nullable = false)
-  @NotBlank(message = "phone number is required")
+  @Column(nullable = true)
   @Size(min = 8, message = "Phone number must be at least 8 characters long")
   private String phone;
 
