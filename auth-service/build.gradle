@@ -2,14 +2,12 @@ plugins {
     id 'java'
     id 'org.springframework.boot' version '3.5.5'
     id 'io.spring.dependency-management' version '1.1.7'
-}
-ext {
-    springCloudVersion = "2025.0.0"
+    id 'com.diffplug.spotless' version '7.0.4'           // 코드 포매터(Spotless)
 }
 
 group = 'com.example'
 version = '0.0.1-SNAPSHOT'
-description = 'auth-service'
+description = 'usertemplate'
 
 java {
     toolchain {
@@ -29,19 +27,60 @@ repositories {
 
 dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-web'
-    implementation 'org.springframework.cloud:spring-cloud-starter-netflix-eureka-client'
-    compileOnly 'org.projectlombok:lombok'
     developmentOnly 'org.springframework.boot:spring-boot-devtools'
+
+    // Authentication
+    implementation 'org.springframework.boot:spring-boot-starter-security'
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+    implementation 'org.springframework.boot:spring-boot-starter-oauth2-client'
+
+    // Lombok
+    compileOnly 'org.projectlombok:lombok'
     annotationProcessor 'org.projectlombok:lombok'
+
+    // Swagger/OpenAPI - UI 포함 통합 의존성
+    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.0'
+    // commons-lang3 CVE-2025-48924 취약점 해결을 위해 버전을 3.18.0으로 명시
+    implementation 'org.apache.commons:commons-lang3:3.18.0'
+
+    // JWT
+    implementation 'io.jsonwebtoken:jjwt-api:0.12.3'
+    implementation 'io.jsonwebtoken:jjwt-impl:0.12.3'
+    implementation 'io.jsonwebtoken:jjwt-jackson:0.12.3'
+
+    // Database
+    runtimeOnly 'com.mysql:mysql-connector-j'
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+    implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+
+    // Test
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.springframework.security:spring-security-test'
+    developmentOnly 'com.h2database:h2'
+    testRuntimeOnly 'com.h2database:h2'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
-}
-dependencyManagement {
-    imports {
-        mavenBom "org.springframework.cloud:spring-cloud-dependencies:$springCloudVersion"
-    }
 }
 
 tasks.named('test') {
     useJUnitPlatform()
+}
+
+// 컴파일 전 코드 정리
+tasks.named('compileJava'){
+    dependsOn 'spotlessApply'
+}
+
+spotless {
+    java {
+        //Google JAVA Format 적용
+        googleJavaFormat()
+        // 아래 순서로 import 문 정렬
+        importOrder('java', 'javax', 'jakarta', 'org', 'com')
+        // 사용하지 않는 import 제거
+        removeUnusedImports()
+        // 각 라인 끝에 있는 공백을 제거
+        trimTrailingWhitespace()
+        // 파일 끝에 새로운 라인 추가
+        endWithNewline()
+    }
 }

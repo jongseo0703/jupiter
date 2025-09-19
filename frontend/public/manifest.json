@@ -1,0 +1,15 @@
+{
+  "short_name": "Jupiter",
+  "name": "Jupiter - 주류 가격비교 사이트",
+  "icons": [
+    {
+      "src": "favicon.ico",
+      "sizes": "64x64 32x32 24x24 16x16",
+      "type": "image/x-icon"
+    }
+  ],
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#1e40af",
+  "background_color": "#ffffff"
+}
