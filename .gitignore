@@ -38,3 +38,9 @@ application-oauth.properties
 
 ### VS Code ###
 .vscode/
+
+# macOS system files
+.DS_Store
+
+# uploads folder
+uploads/
