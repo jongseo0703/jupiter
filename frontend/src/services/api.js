@@ -260,3 +260,15 @@ export const createPostWithFiles = async ({ postData, files }) => {
 
   return createdPost;
 };
+
+/**
+ * 게시물에 좋아요를 추가하는 API 함수
+ * @param {string} postId - 게시물 ID
+ * @returns {Promise<object>} 성공 응답
+ */
+export const likePost = async (postId) => {
+  const response = await fetch(`${COMMUNITY_API_URL}/posts/${postId}/likes`, {
+    method: 'POST',
+  });
+  return handleQueryApiResponse(response);
+};

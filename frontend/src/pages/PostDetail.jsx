@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
-import { fetchPost } from '../services/api';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import {fetchPost, likePost} from '../services/api';
 import { categorizeAttachments } from '../utils/fileUtils';
 
 function PostDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   const [commentForm, setCommentForm] = useState({
     content: '',
@@ -37,11 +38,11 @@ function PostDetail() {
     action: '' // 'edit' or 'delete'
   });
   // TODO: 실제 로그인 상태를 가져오는 hook 또는 context 사용
-  const [currentUser, setCurrentUser] = useState({
+  const currentUser = {
     user_id: 1,
     author_name: '위스키러버',
     is_logged_in: true // 임시상태
-  }); // MOCK DATA - 실제로는 useAuth() hook에서 가져옴
+  }; // MOCK DATA - 실제로는 useAuth() hook에서 가져옴
 
   // React Query를 사용하여 게시글 상세 정보 조회
   const { data: post, isLoading: loading, isError, error } = useQuery({
@@ -369,35 +370,37 @@ function PostDetail() {
     }));
   };
 
-  const handleLike = async () => {
-    try {
-      const response = await fetch(`http://localhost:8080/community/api/posts/${id}/likes`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      });
+  const { mutate: likeMutate } = useMutation({
+    mutationFn: () => likePost(id),
+    onMutate: async () => {
+      // 진행중인 'post' 쿼리를 취소하여 이전 데이터와 충돌하지 않도록 함
+      await queryClient.cancelQueries({ queryKey: ['post', id] });
 
-      if (!response.ok) {
-        console.error('좋아요 추가 실패:', response.status);
-        alert('좋아요 추가에 실패했습니다.');
-        return;
-      }
+      // 현재 캐시된 데이터의 스냅샷을 만듬
+      const previousPost = queryClient.getQueryData(['post', id]);
 
-      const result = await response.json();
-
-      // 좋아요 수 증가
-      setPost(prev => ({
-        ...prev,
-        likes: prev.likes + 1
+      // UI를 즉시 업데이트 (낙관적 업데이트)
+      queryClient.setQueryData(['post', id], (oldData) => ({
+        ...oldData,
+        likes: oldData.likes + 1,
       }));
 
-      // 성공 메시지는 표시하지 않음 (UX 개선)
-    } catch (error) {
-      console.error('Failed to like post:', error);
+      // 스냅샷을 반환하여 에러 발생 시 롤백에 사용
+      return { previousPost };
+    },
+    onError: (err, variables, context) => {
+      // 에러 발생 시 onMutate에서 만든 스냅샷으로 데이터 롤백
+      if (context.previousPost) {
+        queryClient.setQueryData(['post', id], context.previousPost);
+      }
+      console.error('Failed to like post:', err);
       alert('좋아요 처리에 실패했습니다.');
-    }
-  };
+    },
+    onSettled: () => {
+      // 성공/실패 여부와 관계없이, 서버와 클라이언트의 상태를 동기화하기 위해 쿼리를 다시 실행
+      queryClient.invalidateQueries({ queryKey: ['post', id] });
+    },
+  });
 
   // 일반 회원 게시글 삭제
   const deletePost = async () => {
@@ -572,9 +575,6 @@ function PostDetail() {
     }));
   };
 
-  const handleLoadingComplete = () => {
-    setLoading(false);
-  };
 
   if (loading) {
     return (
@@ -686,7 +686,7 @@ function PostDetail() {
                 </div>
 
                 <button
-                  onClick={handleLike}
+                  onClick={() => likeMutate()}
                   className="flex items-center space-x-2 text-red-500 hover:text-red-600 transition-colors"
                 >
                   <i className="fas fa-heart"></i>
