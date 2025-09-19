@@ -45,8 +45,20 @@ const Header = () => {
       }
     };
 
+    // 프로필 업데이트 이벤트 리스너 등록
+    const handleProfileUpdate = () => {
+      loadUserInfo();
+    };
+
+    authService.addListener(handleProfileUpdate);
+
     handleOAuthCallback();
     loadUserInfo();
+
+    // 클린업 함수로 이벤트 리스너 제거
+    return () => {
+      authService.removeListener(handleProfileUpdate);
+    };
   }, [location]);
 
   const handleLogout = async () => {
@@ -143,6 +155,22 @@ const Header = () => {
 
               {isLoggedIn ? (
                 <div className="flex items-center space-x-3">
+                  {user?.role === 'ADMIN' && (
+                    <Link
+                      to="/admin"
+                      className="p-2 text-gray-700 hover:text-primary transition-colors"
+                      title="관리자 페이지"
+                    >
+                      <i className="fas fa-tachometer-alt text-xl"></i>
+                    </Link>
+                  )}
+                  <Link
+                    to="/settings"
+                    className="p-2 text-gray-700 hover:text-primary transition-colors"
+                    title="설정"
+                  >
+                    <i className="fas fa-cog text-xl"></i>
+                  </Link>
                   <Link
                     to="/mypage"
                     className="text-gray-700 font-medium hover:text-primary transition-colors cursor-pointer"
@@ -187,6 +215,12 @@ const Header = () => {
                 <Link to="/favorites" className="block text-gray-700 hover:text-primary font-medium" onClick={() => setIsMenuOpen(false)}>즐겨찾기</Link>
                 <Link to="/community-form" className="block text-gray-700 hover:text-primary font-medium" onClick={() => setIsMenuOpen(false)}>글쓰기</Link>
                 <Link to="/about" className="block text-gray-700 hover:text-primary font-medium" onClick={() => setIsMenuOpen(false)}>회사소개</Link>
+                {isLoggedIn && user?.role === 'ADMIN' && (
+                  <Link to="/admin" className="block text-gray-700 hover:text-primary font-medium" onClick={() => setIsMenuOpen(false)}>관리자 페이지</Link>
+                )}
+                {isLoggedIn && (
+                  <Link to="/settings" className="block text-gray-700 hover:text-primary font-medium" onClick={() => setIsMenuOpen(false)}>설정</Link>
+                )}
                 {isLoggedIn ? (
                   <div className="space-y-2">
                     <Link

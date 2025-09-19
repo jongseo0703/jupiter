@@ -1,18 +1,53 @@
-import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import notificationService from '../services/notificationService';
+import authService from '../services/authService';
 
 const NotificationSettings = () => {
+  const navigate = useNavigate();
   const [settings, setSettings] = useState({
-    email: 'user@example.com',
-    phone: '010-1234-5678',
     emailNotifications: true,
     pushNotifications: true,
-    timeStart: '09:00',
-    timeEnd: '21:00',
+    notificationStartTime: '09:00',
+    notificationEndTime: '21:00',
     weekendNotifications: true,
     minDiscountPercent: 5,
     maxDailyNotifications: 10
   });
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    loadSettings();
+  }, []);
+
+  const loadSettings = async () => {
+    try {
+      if (!authService.isLoggedIn()) {
+        navigate('/login');
+        return;
+      }
+
+      const data = await notificationService.getSettings();
+      setSettings({
+        emailNotifications: data.emailNotifications ?? true,
+        pushNotifications: data.pushNotifications ?? true,
+        notificationStartTime: data.notificationStartTime || '09:00',
+        notificationEndTime: data.notificationEndTime || '21:00',
+        weekendNotifications: data.weekendNotifications ?? true,
+        minDiscountPercent: data.minDiscountPercent ?? 5,
+        maxDailyNotifications: data.maxDailyNotifications ?? 10
+      });
+    } catch (error) {
+      console.error('Failed to load notification settings:', error);
+      // 404인 경우 기본 설정 사용 (아직 설정이 없는 경우)
+      if (error.response?.status !== 404) {
+        alert('알림 설정을 불러오는데 실패했습니다.');
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -22,20 +57,50 @@ const NotificationSettings = () => {
     }));
   };
 
-  const handleSave = () => {
-    // 실제로는 API 호출하여 설정 저장
-    console.log('알림 설정 저장:', settings);
-    alert('설정이 저장되었습니다.');
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+      // 먼저 업데이트를 시도
+      await notificationService.updateSettings(settings);
+      alert('설정이 저장되었습니다.');
+    } catch (error) {
+      console.error('Failed to update notification settings:', error);
+      // 404 에러인 경우 설정이 없으므로 새로 생성
+      if (error.message?.includes('404') || error.message?.includes('알림 설정을 찾을 수 없습니다')) {
+        try {
+          await notificationService.createSettings(settings);
+          alert('설정이 저장되었습니다.');
+        } catch (createError) {
+          console.error('Failed to create notification settings:', createError);
+          alert('설정 생성에 실패했습니다: ' + createError.message);
+        }
+      } else {
+        alert('설정 저장에 실패했습니다: ' + error.message);
+      }
+    } finally {
+      setIsSaving(false);
+    }
   };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <i className="fas fa-spinner fa-spin text-4xl text-primary mb-4"></i>
+          <p className="text-gray-600">알림 설정을 불러오는 중...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 py-12">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* 헤더 */}
         <div className="mb-8">
-          <Link to="/favorites" className="inline-flex items-center text-primary hover:text-blue-800 mb-4">
+          <Link to="/settings" className="inline-flex items-center text-primary hover:text-blue-800 mb-4">
             <i className="fas fa-arrow-left mr-2"></i>
-            즐겨찾기로 돌아가기
+            설정으로 돌아가기
           </Link>
           <h1 className="text-3xl font-bold text-gray-900 mb-4">
             <i className="fas fa-bell mr-3 text-primary"></i>
@@ -51,43 +116,6 @@ const NotificationSettings = () => {
           <div className="lg:col-span-2">
             <div className="bg-white rounded-lg shadow-sm p-6 space-y-8">
 
-              {/* 연락처 정보 */}
-              <div>
-                <h2 className="text-xl font-semibold text-gray-900 mb-4">
-                  <i className="fas fa-address-book mr-2 text-primary"></i>
-                  연락처 정보
-                </h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-                      이메일 주소
-                    </label>
-                    <input
-                      type="email"
-                      id="email"
-                      name="email"
-                      value={settings.email}
-                      onChange={handleInputChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
-                      placeholder="이메일을 입력하세요"
-                    />
-                  </div>
-                  <div>
-                    <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-2">
-                      휴대폰 번호
-                    </label>
-                    <input
-                      type="tel"
-                      id="phone"
-                      name="phone"
-                      value={settings.phone}
-                      onChange={handleInputChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
-                      placeholder="010-0000-0000"
-                    />
-                  </div>
-                </div>
-              </div>
 
               {/* 알림 방법 */}
               <div>
@@ -147,27 +175,27 @@ const NotificationSettings = () => {
                 <div className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label htmlFor="timeStart" className="block text-sm font-medium text-gray-700 mb-2">
+                      <label htmlFor="notificationStartTime" className="block text-sm font-medium text-gray-700 mb-2">
                         알림 시작 시간
                       </label>
                       <input
                         type="time"
-                        id="timeStart"
-                        name="timeStart"
-                        value={settings.timeStart}
+                        id="notificationStartTime"
+                        name="notificationStartTime"
+                        value={settings.notificationStartTime}
                         onChange={handleInputChange}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
                       />
                     </div>
                     <div>
-                      <label htmlFor="timeEnd" className="block text-sm font-medium text-gray-700 mb-2">
+                      <label htmlFor="notificationEndTime" className="block text-sm font-medium text-gray-700 mb-2">
                         알림 종료 시간
                       </label>
                       <input
                         type="time"
-                        id="timeEnd"
-                        name="timeEnd"
-                        value={settings.timeEnd}
+                        id="notificationEndTime"
+                        name="notificationEndTime"
+                        value={settings.notificationEndTime}
                         onChange={handleInputChange}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
                       />
@@ -246,10 +274,20 @@ const NotificationSettings = () => {
               <div className="pt-6 border-t border-gray-200">
                 <button
                   onClick={handleSave}
-                  className="w-full bg-primary text-white py-3 px-6 rounded-lg hover:bg-blue-800 transition-colors font-semibold flex items-center justify-center"
+                  disabled={isSaving}
+                  className="w-full bg-primary text-white py-3 px-6 rounded-lg hover:bg-blue-800 transition-colors font-semibold flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <i className="fas fa-save mr-2"></i>
-                  설정 저장
+                  {isSaving ? (
+                    <>
+                      <i className="fas fa-spinner fa-spin mr-2"></i>
+                      저장 중...
+                    </>
+                  ) : (
+                    <>
+                      <i className="fas fa-save mr-2"></i>
+                      설정 저장
+                    </>
+                  )}
                 </button>
               </div>
             </div>

@@ -12,6 +12,7 @@ public class GatewayConfig {
     public RouteLocator customRouteLocator(RouteLocatorBuilder builder) {
         return builder.routes()
                 .route("auth-service", r -> r.path("/auth/**")
+                  .filters(f -> f.stripPrefix(1))
                         .uri("http://localhost:8081"))
                 .route("gpt-service", r -> r.path("/gpt/**")
                         .filters(f -> f.stripPrefix(1))
@@ -19,6 +20,9 @@ public class GatewayConfig {
                 .route("crawling-service", r -> r.path("/crawling/**")
                         .uri("http://localhost:8083"))
                 .route("community-service", r -> r.path("/community/**")
+                        .filters(f -> f.stripPrefix(1))
+                        .uri("http://localhost:8084"))
+                .route("community-uploads", r -> r.path("/uploads/**")
                         .uri("http://localhost:8084"))
                 .build();
     }

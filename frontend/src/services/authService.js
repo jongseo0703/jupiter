@@ -1,6 +1,25 @@
 import apiService from './api';
 
 class AuthService {
+  constructor() {
+    this.listeners = [];
+  }
+
+  // 이벤트 리스너 추가
+  addListener(callback) {
+    this.listeners.push(callback);
+  }
+
+  // 이벤트 리스너 제거
+  removeListener(callback) {
+    this.listeners = this.listeners.filter(listener => listener !== callback);
+  }
+
+  // 이벤트 발생 (프로필 업데이트 시)
+  notifyListeners() {
+    this.listeners.forEach(callback => callback());
+  }
+
   // 일반 로그인
   async login(email, password, rememberMe = false) {
     try {
@@ -27,9 +46,10 @@ class AuthService {
   async register(userData) {
     try {
       const response = await apiService.post('/auth/api/v1/auth/register', {
-        username: userData.name,
+        username: userData.username || userData.name,
         email: userData.email,
         password: userData.password,
+        phone: userData.phone,
       });
 
       if (response.result === 'SUCCESS') {
@@ -94,15 +114,37 @@ class AuthService {
       const response = await apiService.put('/auth/api/v1/auth/profile', {
         username: profileData.username,
         email: profileData.email,
+        phone: profileData.phone,
       });
 
       if (response.result === 'SUCCESS') {
+        // 프로필 업데이트 성공 시 헤더에 알림
+        this.notifyListeners();
         return response.data;
       } else {
         throw new Error(response.message || '프로필 업데이트에 실패했습니다.');
       }
     } catch (error) {
       console.error('Update profile error:', error);
+      throw error;
+    }
+  }
+
+  // 비밀번호 변경
+  async changePassword(passwordData) {
+    try {
+      const response = await apiService.put('/auth/api/v1/auth/change-password', {
+        currentPassword: passwordData.currentPassword,
+        newPassword: passwordData.newPassword,
+      });
+
+      if (response.result === 'SUCCESS') {
+        return response.data;
+      } else {
+        throw new Error(response.message || '비밀번호 변경에 실패했습니다.');
+      }
+    } catch (error) {
+      console.error('Change password error:', error);
       throw error;
     }
   }

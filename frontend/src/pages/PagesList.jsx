@@ -10,8 +10,10 @@ const PagesList = () => {
         { name: "상품 상세", path: "/product/1", description: "상품 상세 정보 페이지" },
         { name: "즐겨찾기", path: "/favorites", description: "관심 상품 가격 추적" },
         { name: "알림 설정", path: "/notification-settings", description: "가격 하락 알림 설정 관리" },
-        { name: "커뮤니티", path: "/board", description: "게시판 페이지" },
-        { name: "글쓰기", path: "/community-form", description: "커뮤니티 글 작성" },
+        { name: "커뮤니티", path: "/community", description: "커뮤니티 게시판 페이지" },
+        { name: "글쓰기", path: "/post-form", description: "커뮤니티 글 작성" },
+        { name: "게시글 상세", path: "/post/1", description: "게시글 상세보기 및 댓글" },
+        { name: "게시글 수정", path: "/post/edit/1", description: "게시글 수정 페이지" },
         { name: "회사소개", path: "/about", description: "회사 소개 페이지" }
       ]
     },
@@ -126,6 +128,11 @@ const PagesList = () => {
                 <li>• 이용약관 및 개인정보처리방침 페이지</li>
                 <li>• 404 에러 페이지 및 비밀번호 찾기</li>
                 <li>• Footer 링크 연동</li>
+                <li>• 커뮤니티 게시판 (CRUD 기능)</li>
+                <li>• 게시글 상세보기 및 댓글 시스템</li>
+                <li>• 익명/회원 통합 작성자 관리</li>
+                <li>• 게시글 수정/삭제 권한 관리</li>
+                <li>• 술병 회전 로딩 애니메이션</li>
               </ul>
             </div>
             <div>

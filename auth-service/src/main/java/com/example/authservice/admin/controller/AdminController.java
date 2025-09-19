@@ -9,6 +9,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import com.example.authservice.admin.dto.AdminNotificationResponse;
+import com.example.authservice.admin.service.AdminNotificationService;
 import com.example.authservice.admin.service.AdminService;
 import com.example.authservice.global.common.ApiResponse;
 import com.example.authservice.global.common.PageResponse;
@@ -32,6 +34,7 @@ import lombok.extern.slf4j.Slf4j;
 public class AdminController {
 
   private final AdminService adminService;
+  private final AdminNotificationService adminNotificationService;
 
   // 모든 유저를 가져오기 위한 매핑
   @GetMapping("/users")
@@ -97,6 +100,98 @@ public class AdminController {
       return ResponseEntity.ok(ApiResponse.success("User deleted successfully", null));
     } catch (Exception ex) {
       log.error("Admin: Failed to delete user: ", ex);
+      throw ex;
+    }
+  }
+
+  // 관리자 알림 조회
+  @GetMapping("/notifications")
+  @Operation(
+      summary = "Get admin notifications",
+      description = "Get all admin notifications with pagination")
+  public ResponseEntity<ApiResponse<PageResponse<AdminNotificationResponse>>> getNotifications(
+      @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "10") int size) {
+    try {
+      log.info("Admin: Getting notifications - page: {}, size: {}", page, size);
+
+      Sort sort = Sort.by("createdAt").descending();
+      Pageable pageable = PageRequest.of(page, size, sort);
+
+      var notifications = adminNotificationService.getAllNotifications(pageable);
+
+      PageResponse<AdminNotificationResponse> pageResponse =
+          PageResponse.of(
+              notifications.getContent(),
+              notifications.getNumber(),
+              notifications.getSize(),
+              notifications.getTotalElements());
+
+      return ResponseEntity.ok(
+          ApiResponse.success("Notifications retrieved successfully", pageResponse));
+    } catch (Exception ex) {
+      log.error("Admin: Failed to get notifications: ", ex);
+      throw ex;
+    }
+  }
+
+  // 읽지 않은 알림 수 조회
+  @GetMapping("/notifications/unread-count")
+  @Operation(
+      summary = "Get unread notification count",
+      description = "Get count of unread admin notifications")
+  public ResponseEntity<ApiResponse<Long>> getUnreadNotificationCount() {
+    try {
+      long count = adminNotificationService.getUnreadCount();
+      return ResponseEntity.ok(ApiResponse.success("Unread count retrieved successfully", count));
+    } catch (Exception ex) {
+      log.error("Admin: Failed to get unread notification count: ", ex);
+      throw ex;
+    }
+  }
+
+  // 알림 읽음 처리
+  @PutMapping("/notifications/{id}/read")
+  @Operation(
+      summary = "Mark notification as read",
+      description = "Mark a specific notification as read")
+  public ResponseEntity<ApiResponse<AdminNotificationResponse>> markNotificationAsRead(
+      @PathVariable Long id) {
+    try {
+      log.info("Admin: Marking notification as read: {}", id);
+      AdminNotificationResponse notification = adminNotificationService.markAsRead(id);
+      return ResponseEntity.ok(ApiResponse.success("Notification marked as read", notification));
+    } catch (Exception ex) {
+      log.error("Admin: Failed to mark notification as read: ", ex);
+      throw ex;
+    }
+  }
+
+  // 모든 알림 읽음 처리
+  @PutMapping("/notifications/read-all")
+  @Operation(
+      summary = "Mark all notifications as read",
+      description = "Mark all notifications as read")
+  public ResponseEntity<ApiResponse<Void>> markAllNotificationsAsRead() {
+    try {
+      log.info("Admin: Marking all notifications as read");
+      adminNotificationService.markAllAsRead();
+      return ResponseEntity.ok(ApiResponse.success("All notifications marked as read", null));
+    } catch (Exception ex) {
+      log.error("Admin: Failed to mark all notifications as read: ", ex);
+      throw ex;
+    }
+  }
+
+  // 알림 삭제
+  @DeleteMapping("/notifications/{id}")
+  @Operation(summary = "Delete notification", description = "Delete a specific notification")
+  public ResponseEntity<ApiResponse<Void>> deleteNotification(@PathVariable Long id) {
+    try {
+      log.info("Admin: Deleting notification: {}", id);
+      adminNotificationService.deleteNotification(id);
+      return ResponseEntity.ok(ApiResponse.success("Notification deleted successfully", null));
+    } catch (Exception ex) {
+      log.error("Admin: Failed to delete notification: ", ex);
       throw ex;
     }
   }
