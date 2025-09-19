@@ -9,6 +9,7 @@ import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.example.authservice.admin.service.AdminNotificationService;
 import com.example.authservice.auth.dto.LoginResponse;
 import com.example.authservice.auth.oauth.dto.OAuthUserInfo;
 import com.example.authservice.auth.security.JwtTokenProvider;
@@ -28,6 +29,7 @@ public class OAuthService {
   private final UserRepository userRepository;
   private final JwtTokenProvider jwtTokenProvider;
   private final RefreshTokenService refreshTokenService;
+  private final AdminNotificationService adminNotificationService;
 
   @Transactional
   public LoginResponse processOAuthLogin(OAuth2User oAuth2User, String provider) {
@@ -117,6 +119,11 @@ public class OAuthService {
 
     User savedUser = userRepository.save(newUser);
     log.info("Created new OAuth user: {}", savedUser.getUsername());
+
+    // 관리자에게 OAuth 회원가입 알림 생성
+    adminNotificationService.createUserRegistrationNotification(
+        savedUser.getId(), savedUser.getUsername());
+
     return savedUser;
   }
 
@@ -127,11 +134,27 @@ public class OAuthService {
             ? name.replaceAll("\\s+", "").toLowerCase()
             : email.split("@")[0];
 
+    if (baseUsername.length() < 3) {
+      baseUsername = "user" + baseUsername;
+    }
+
+    if (baseUsername.length() > 50) {
+      baseUsername = baseUsername.substring(0, 50);
+    }
+
     // 중복 확인 및 처리
     String username = baseUsername;
     int counter = 1;
     while (userRepository.existsByUsername(username)) {
-      username = baseUsername + counter;
+      // 카운터 추가 시에도 50자 제한 확인
+      String candidateUsername = baseUsername + counter;
+      if (candidateUsername.length() > 50) {
+        // 기본 이름을 줄여서 카운터 공간 확보
+        int maxBaseLength = 50 - String.valueOf(counter).length();
+        candidateUsername = baseUsername.substring(0, maxBaseLength) + counter;
+      }
+      username = candidateUsername;
+
       counter++;
     }
 

@@ -1,5 +1,6 @@
 package com.example.authservice.user.service;
 
+import com.example.authservice.user.dto.PasswordChangeRequest;
 import com.example.authservice.user.dto.UserResponse;
 import com.example.authservice.user.dto.UserUpdateRequest;
 import com.example.authservice.user.entity.User;
@@ -24,4 +25,7 @@ public interface UserService {
 
   // 현재 인증된 사용자를 가져옴.
   User getCurrentUser();
+
+  // 현재 사용자의 비밀번호를 변경함.
+  UserResponse changePassword(Long userId, PasswordChangeRequest request);
 }

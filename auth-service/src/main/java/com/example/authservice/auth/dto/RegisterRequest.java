@@ -15,7 +15,11 @@ public record RegisterRequest(
     // password는 최소 8자 이상이어야 함.
     @NotBlank(message = "Password is required")
         @Size(min = 8, message = "Password must be at least 8 characters long")
-        String password) {
+        String password,
+    // phone number는 최소 8자 이상이어야 함.
+    @NotBlank(message = "Phone number is required")
+        @Size(min = 8, message = "Phone number must be at least 8 characters long")
+        String phone) {
   public RegisterRequest {
     // username에 공백이 있으면
     if (username != null && username.trim().isEmpty()) {
@@ -28,6 +32,10 @@ public record RegisterRequest(
     // password에 공백이 있으면
     if (password != null && password.trim().isEmpty()) {
       throw new IllegalArgumentException("Password cannot be blank");
+    }
+    // phone에 공백이 있으면
+    if (phone != null && phone.trim().isEmpty()) {
+      throw new IllegalArgumentException("Phone cannot be blank");
     }
   }
 }

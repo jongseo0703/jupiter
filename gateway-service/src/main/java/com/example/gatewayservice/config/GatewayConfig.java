@@ -12,6 +12,7 @@ public class GatewayConfig {
     public RouteLocator customRouteLocator(RouteLocatorBuilder builder) {
         return builder.routes()
                 .route("auth-service", r -> r.path("/auth/**")
+                  .filters(f -> f.stripPrefix(1))
                         .uri("http://localhost:8081"))
                 .route("gpt-service", r -> r.path("/gpt/**")
                         .filters(f -> f.stripPrefix(1))
