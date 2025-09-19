@@ -114,94 +114,36 @@ function PostDetail() {
   };
 
   // 댓글 수정 제출
-  const handleEditComment = async (commentId) => {
-    try {
-      const comment = comments.find(c => c.comment_id === commentId);
-      const requestData = {
-        postId: parseInt(id),
-        content: editCommentContent,
-        authorName: comment.is_anonymous ? null : currentUser.author_name,
-        isAnonymous: comment.is_anonymous,
-        // 익명 댓글의 경우 인증된 정보 사용
-        ...(comment.is_anonymous && authenticatedAnonymousComment && {
-          anonymousEmail: authenticatedAnonymousComment.email,
-          anonymousPassword: authenticatedAnonymousComment.password
-        })
-      };
+  const handleEditComment = (commentId) => {
+    const comment = comments.find(c => c.comment_id === commentId);
+    const commentData = {
+      postId: parseInt(id),
+      content: editCommentContent,
+      authorName: comment.is_anonymous ? null : currentUser.author_name,
+      isAnonymous: comment.is_anonymous,
+      // 익명 댓글의 경우 인증된 정보 사용
+      ...(comment.is_anonymous && authenticatedAnonymousComment && {
+        anonymousEmail: authenticatedAnonymousComment.email,
+        anonymousPassword: authenticatedAnonymousComment.password
+      })
+    };
 
-      const response = await fetch(`http://localhost:8080/community/api/comments/${commentId}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(requestData)
-      });
-
-      if (!response.ok) {
-        console.error('댓글 수정 실패:', response.status);
-        alert('댓글 수정에 실패했습니다.');
-        return;
-      }
-
-      const result = await response.json();
-      const updatedComment = result.data;
-
-      // 댓글 목록 업데이트
-      setComments(prev => prev.map(comment =>
-        comment.comment_id === commentId
-          ? {
-              ...comment,
-              content: updatedComment.content,
-              created_at: new Date(updatedComment.createdAt).toLocaleString('ko-KR')
-            }
-          : comment
-      ));
-
-      setEditingComment(null);
-      setEditCommentContent('');
-      // 익명 댓글 인증 정보 초기화
-      setAuthenticatedAnonymousComment(null);
-      alert('댓글이 수정되었습니다.');
-    } catch (error) {
-      console.error('Failed to edit comment:', error);
-      alert('댓글 수정에 실패했습니다.');
-    }
+    updateCommentMutation.mutate({ commentId, commentData });
   };
 
   // 댓글 삭제
-  const handleDeleteComment = async (commentId) => {
+  const handleDeleteComment = (commentId) => {
     if (!window.confirm('정말로 댓글을 삭제하시겠습니까?')) {
       return;
     }
 
-    try {
-      const requestData = {
-        postId: parseInt(id),
-        authorName: currentUser.author_name, // 임시로 현재 사용자 이름 사용
-        isAnonymous: false
-      };
+    const requestData = {
+      postId: parseInt(id),
+      authorName: currentUser.author_name, // 임시로 현재 사용자 이름 사용
+      isAnonymous: false
+    };
 
-      const response = await fetch(`http://localhost:8080/community/api/comments/${commentId}`, {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(requestData)
-      });
-
-      if (!response.ok) {
-        console.error('댓글 삭제 실패:', response.status);
-        alert('댓글 삭제에 실패했습니다.');
-        return;
-      }
-
-      // 댓글 목록에서 제거
-      setComments(prev => prev.filter(comment => comment.comment_id !== commentId));
-      alert('댓글이 삭제되었습니다.');
-    } catch (error) {
-      console.error('Failed to delete comment:', error);
-      alert('댓글 삭제에 실패했습니다.');
-    }
+    deleteCommentMutation.mutate({ commentId, requestData });
   };
 
   // 익명 댓글 수정 시작
@@ -286,47 +228,34 @@ function PostDetail() {
       }
     } else if (commentAuthForm.action === 'delete') {
       // 삭제의 경우 바로 실행
-      try {
-        const requestData = {
-          postId: parseInt(id),
-          anonymousEmail: commentAuthForm.email,
-          anonymousPassword: commentAuthForm.password,
-          isAnonymous: true
-        };
+      const requestData = {
+        postId: parseInt(id),
+        anonymousEmail: commentAuthForm.email,
+        anonymousPassword: commentAuthForm.password,
+        isAnonymous: true
+      };
 
-        const response = await fetch(`http://localhost:8080/community/api/comments/${commentAuthForm.commentId}`, {
-          method: 'DELETE',
-          headers: {
-            'Content-Type': 'application/json'
+      // 성공 시 모달 닫기를 위한 콜백 설정
+      deleteCommentMutation.mutate(
+        { commentId: commentAuthForm.commentId, requestData },
+        {
+          onSuccess: () => {
+            setShowCommentAuthModal(false);
+            setCommentAuthForm({
+              email: '',
+              password: '',
+              action: '',
+              commentId: null,
+              comment: null
+            });
           },
-          body: JSON.stringify(requestData)
-        });
-
-        if (!response.ok) {
-          if (response.status === 403) {
-            alert('이메일 또는 비밀번호가 일치하지 않습니다.');
-            return;
+          onError: (error) => {
+            if (error.message.includes('403')) {
+              alert('이메일 또는 비밀번호가 일치하지 않습니다.');
+            }
           }
-          console.error('댓글 삭제 실패:', response.status);
-          alert('댓글 삭제에 실패했습니다.');
-          return;
         }
-
-        // 댓글 목록에서 제거
-        setComments(prev => prev.filter(comment => comment.comment_id !== commentAuthForm.commentId));
-        setShowCommentAuthModal(false);
-        setCommentAuthForm({
-          email: '',
-          password: '',
-          action: '',
-          commentId: null,
-          comment: null
-        });
-        alert('댓글이 삭제되었습니다.');
-      } catch (error) {
-        console.error('Failed to delete anonymous comment:', error);
-        alert('댓글 삭제에 실패했습니다.');
-      }
+      );
     }
   };
 
@@ -419,6 +348,92 @@ function PostDetail() {
       }
       console.error('Failed to create comment:', err);
       alert('댓글 등록에 실패했습니다.');
+    },
+    onSettled: () => {
+      // 서버와 동기화
+      queryClient.invalidateQueries({ queryKey: ['post', id] });
+    }
+  });
+
+  // 댓글 수정 mutation
+  const updateCommentMutation = useMutation({
+    mutationFn: updateComment,
+    onMutate: async ({ commentId, commentData }) => {
+      // 진행중인 쿼리 취소
+      await queryClient.cancelQueries({ queryKey: ['post', id] });
+
+      // 현재 데이터 스냅샷
+      const previousPost = queryClient.getQueryData(['post', id]);
+
+      // 낙관적 업데이트 - 댓글 수정
+      queryClient.setQueryData(['post', id], (oldData) => {
+        if (!oldData) return oldData;
+
+        return {
+          ...oldData,
+          comments: oldData.comments.map(comment =>
+            comment.comment_id === commentId
+              ? {
+                  ...comment,
+                  content: commentData.content,
+                  created_at: new Date().toLocaleString('ko-KR')
+                }
+              : comment
+          )
+        };
+      });
+
+      return { previousPost };
+    },
+    onSuccess: () => {
+      // 편집 상태 초기화
+      setEditingComment(null);
+      setEditCommentContent('');
+      setAuthenticatedAnonymousComment(null);
+    },
+    onError: (err, variables, context) => {
+      // 에러 시 롤백
+      if (context?.previousPost) {
+        queryClient.setQueryData(['post', id], context.previousPost);
+      }
+      console.error('Failed to update comment:', err);
+      alert('댓글 수정에 실패했습니다.');
+    },
+    onSettled: () => {
+      // 서버와 동기화
+      queryClient.invalidateQueries({ queryKey: ['post', id] });
+    }
+  });
+
+  // 댓글 삭제 mutation
+  const deleteCommentMutation = useMutation({
+    mutationFn: deleteComment,
+    onMutate: async ({ commentId }) => {
+      // 진행중인 쿼리 취소
+      await queryClient.cancelQueries({ queryKey: ['post', id] });
+
+      // 현재 데이터 스냅샷
+      const previousPost = queryClient.getQueryData(['post', id]);
+
+      // 낙관적 업데이트 - 댓글 삭제
+      queryClient.setQueryData(['post', id], (oldData) => {
+        if (!oldData) return oldData;
+
+        return {
+          ...oldData,
+          comments: oldData.comments.filter(comment => comment.comment_id !== commentId)
+        };
+      });
+
+      return { previousPost };
+    },
+    onError: (err, variables, context) => {
+      // 에러 시 롤백
+      if (context?.previousPost) {
+        queryClient.setQueryData(['post', id], context.previousPost);
+      }
+      console.error('Failed to delete comment:', err);
+      alert('댓글 삭제에 실패했습니다.');
     },
     onSettled: () => {
       // 서버와 동기화
