@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { KOREAN_CATEGORIES } from '../utils/categoryUtils';
+import { KOREAN_CATEGORIES, getCategoryStyle } from '../utils/categoryUtils';
 import { fetchPosts, fetchPopularPosts } from '../services/api';
 
 function Community() {
@@ -64,22 +64,33 @@ function Community() {
             <div className="bg-white rounded-lg shadow-sm p-6">
               <h3 className="text-xl font-bold mb-4 text-gray-800">카테고리</h3>
               <div className="space-y-2">
-                {categories.map(category => (
-                  <button
-                    key={category}
-                    onClick={() => {
-                      setSelectedCategory(category);
-                      setCurrentPage(1); // 카테고리 변경 시 페이지를 1로 리셋
-                    }}
-                    className={`w-full text-left px-3 py-2 rounded-lg transition-colors ${
-                      selectedCategory === category
-                        ? 'bg-primary text-white'
-                        : 'text-gray-700 hover:bg-gray-100'
-                    }`}
-                  >
-                    {category}
-                  </button>
-                ))}
+                {categories.map(category => {
+                  const categoryStyle = category === '전체' ? null : getCategoryStyle(category);
+                  const isSelected = selectedCategory === category;
+
+                  return (
+                    <button
+                      key={category}
+                      onClick={() => {
+                        setSelectedCategory(category);
+                        setCurrentPage(1); // 카테고리 변경 시 페이지를 1로 리셋
+                      }}
+                      className={`w-full text-left px-3 py-2 rounded-lg transition-colors flex items-center space-x-2 ${
+                        isSelected
+                          ? 'bg-primary text-white'
+                          : category === '전체'
+                          ? 'text-gray-700 hover:bg-gray-100'
+                          : `${categoryStyle?.bgColor} ${categoryStyle?.textColor} hover:opacity-80 border ${categoryStyle?.borderColor}`
+                      }`}
+                    >
+                      {categoryStyle && (
+                        <i className={`${categoryStyle.icon} ${isSelected ? 'text-white' : categoryStyle.iconColor}`}></i>
+                      )}
+                      {category === '전체' && <i className="fas fa-list text-gray-600"></i>}
+                      <span>{category}</span>
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
@@ -153,9 +164,15 @@ function Community() {
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
                         <div className="flex items-center space-x-2 mb-2">
-                          <span className="bg-secondary text-white text-xs px-2 py-1 rounded-full">
-                            {post.category}
-                          </span>
+                          {(() => {
+                            const categoryStyle = getCategoryStyle(post.category);
+                            return (
+                              <span className={`${categoryStyle.bgColor} ${categoryStyle.textColor} text-xs px-2 py-1 rounded-full flex items-center space-x-1 border ${categoryStyle.borderColor}`}>
+                                <i className={`${categoryStyle.icon} ${categoryStyle.iconColor} text-xs`}></i>
+                                <span>{post.category}</span>
+                              </span>
+                            );
+                          })()}
                           <span className="text-sm text-gray-500">{post.created_at}</span>
                         </div>
 

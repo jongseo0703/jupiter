@@ -3,6 +3,7 @@ import { Link, useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {fetchPost, fetchPopularPosts, likePost, createComment, updateComment, deleteComment, verifyAnonymousComment, deletePost as deletePostAPI, verifyAnonymousPost} from '../services/api';
 import { categorizeAttachments } from '../utils/fileUtils';
+import { getCategoryStyle } from '../utils/categoryUtils';
 
 function PostDetail() {
   const { id } = useParams();
@@ -669,9 +670,15 @@ function PostDetail() {
             {/* 게시글 헤더 */}
             <div className="p-6 border-b border-gray-200">
               <div className="flex items-center space-x-2 mb-4">
-                <span className="bg-secondary text-white text-sm px-3 py-1 rounded-full">
-                  {post.category}
-                </span>
+                {(() => {
+                  const categoryStyle = getCategoryStyle(post.category);
+                  return (
+                    <span className={`${categoryStyle.bgColor} ${categoryStyle.textColor} text-sm px-3 py-1 rounded-full flex items-center space-x-2 border ${categoryStyle.borderColor}`}>
+                      <i className={`${categoryStyle.icon} ${categoryStyle.iconColor}`}></i>
+                      <span>{post.category}</span>
+                    </span>
+                  );
+                })()}
                 <span className="text-sm text-gray-500">{post.created_at}</span>
               </div>
 
