@@ -14,9 +14,12 @@ import com.example.authservice.auth.dto.ForgotPasswordRequest;
 import com.example.authservice.auth.dto.ForgotPasswordResponse;
 import com.example.authservice.auth.dto.LoginRequest;
 import com.example.authservice.auth.dto.LoginResponse;
+import com.example.authservice.auth.dto.PhoneVerificationConfirmRequest;
+import com.example.authservice.auth.dto.PhoneVerificationRequest;
 import com.example.authservice.auth.dto.RegisterRequest;
 import com.example.authservice.auth.security.JwtTokenProvider;
 import com.example.authservice.auth.service.AuthService;
+import com.example.authservice.auth.service.SmsService;
 import com.example.authservice.auth.token.BlacklistTokenService;
 import com.example.authservice.auth.token.RefreshToken;
 import com.example.authservice.auth.token.RefreshTokenRepository;
@@ -48,6 +51,7 @@ public class AuthController {
   private final BlacklistTokenService blacklistTokenService;
   private final JwtTokenProvider jwtTokenProvider;
   private final UserService userService;
+  private final SmsService smsService;
 
   // 회원가입을 처리하는 매핑임.
   @Operation(summary = "Register user", description = "Register a new user")
@@ -198,6 +202,36 @@ public class AuthController {
       return ResponseEntity.ok(ApiResponse.success("비밀번호가 성공적으로 변경되었습니다", userResponse));
     } catch (Exception e) {
       log.error("비밀번호 변경 실패: ", e);
+      throw e;
+    }
+  }
+
+  @Operation(summary = "휴대폰 인증번호 발송", description = "휴대폰 번호로 인증번호를 발송합니다")
+  @PostMapping("/send-verification")
+  public ResponseEntity<ApiResponse<String>> sendVerificationCode(
+      @Valid @RequestBody PhoneVerificationRequest request) {
+    try {
+      smsService.sendVerificationCode(request);
+      return ResponseEntity.ok(ApiResponse.success("인증번호가 발송되었습니다", null));
+    } catch (Exception e) {
+      log.error("인증번호 발송 실패: ", e);
+      throw e;
+    }
+  }
+
+  @Operation(summary = "휴대폰 인증번호 확인", description = "휴대폰 인증번호를 확인합니다")
+  @PostMapping("/verify-phone")
+  public ResponseEntity<ApiResponse<String>> verifyPhoneNumber(
+      @Valid @RequestBody PhoneVerificationConfirmRequest request) {
+    try {
+      boolean verified = smsService.verifyCode(request);
+      if (verified) {
+        return ResponseEntity.ok(ApiResponse.success("인증이 완료되었습니다", null));
+      } else {
+        throw new BusinessException("인증에 실패했습니다", 400, "VERIFICATION_FAILED");
+      }
+    } catch (Exception e) {
+      log.error("휴대폰 인증 실패: ", e);
       throw e;
     }
   }
