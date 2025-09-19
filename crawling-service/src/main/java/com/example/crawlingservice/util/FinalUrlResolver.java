@@ -163,69 +163,66 @@ public class FinalUrlResolver {
     public String withOutPopup(WebDriver driver, String url) {
         String finalUrl = url;
         try {
-            //구매상세 페이지 로드하고 잠시 대기
+            log.debug("WaitUtils를 사용한 페이지 로딩 시작: {}", url);
+
+            // 페이지 로드
             driver.get(url);
-            WebDriverWait wait1 = new WebDriverWait(driver, Duration.ofSeconds(25));
-            wait1.until(d -> "complete".equals(
-                    ((JavascriptExecutor) d).executeScript("return document.readyState")));
 
-            //현재 페이지 상태 확인
-            String currentUrl = driver.getCurrentUrl();
+            // 페이지가 완전히 로드되는지 확인
+            boolean loadSuccess = WaitUtils.waitForPageLoad(driver, INITIAL_PAGE_LOAD_TIMEOUT);
 
-            //리다이렉션이 있을 수 있으므로 짧은 시간 더 대기
-            WebDriverWait wait2 = new WebDriverWait(driver, Duration.ofSeconds(12));
+            if (!loadSuccess) {
+                log.warn("페이지 로딩 시간 초과, 현재 상태로 진행");
+            } else {
+                log.debug("페이지 로딩 완료 확인");
+            }
 
-            // URL 변경 감지 (리다이렉션 처리)
-            wait2.until(ExpectedConditions.not(ExpectedConditions.urlToBe(currentUrl)));
-            finalUrl = driver.getCurrentUrl();
+            //초기 URL 추출
+            String initialUrl = getSafeCurrentUrl(driver, url);
 
-            // URL 안정화 확인(3번) (추가 리다이렉션 대기)
-            for (int i = 0; i < 6; i++) {
-                Thread.sleep(1000);
-                String newUrl = driver.getCurrentUrl();
-                if (finalUrl != null&&!finalUrl.equals(newUrl)) {
-                    //URL 변경이 있을 경우 잠시 대기
-                    finalUrl = newUrl;
-                } else {
-                    break; // URL이 안정화됨
-                }
-            }
-        }catch (InterruptedException e){
-            log.debug("팝업 무시 중 스레드 중단");
-            Thread.currentThread().interrupt();
             try {
-                finalUrl=driver.getCurrentUrl();
-            } catch (Exception ex) {
-                log.debug("중단 후 URL 추출 실패");
-                finalUrl=url;
+                //라디렉션 감지를 위한 대기
+                Thread.sleep(REDIRECTION_WAIT_TIME * 1000);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                //현재 URL를 안전하게 추출
+                return getSafeCurrentUrl(driver, url);
             }
-        }catch (TimeoutException e){
-            log.debug("페이지 로딩 시간초과로 스레드 중단");
-            try {
-                finalUrl = driver.getCurrentUrl();
-            } catch (Exception ex) {
-                log.debug("시간 초과 후 URL 확득 실패");
-                finalUrl=url;
+
+            // 현재 URL를 안전하게 추출
+            String currentUrl = getSafeCurrentUrl(driver, initialUrl);
+            //최종 URL를 안전화가 된 후 추출
+            finalUrl = WaitUtils.waitForUrlStabilization(driver, currentUrl, URL_STABILIZATION_TIMEOUT);
+
+            // 안정화된 URL이 null인 경우 현재 URL 사용
+            if (finalUrl == null) {
+                finalUrl = getSafeCurrentUrl(driver, url);
+                log.warn("URL 안정화 실패, 현재 URL 사용: {}", finalUrl);
             }
-        }catch (WebDriverException e){
-            log.debug("WebDriver 예외 발색 {}",e.getMessage());
-            try {
-                finalUrl = driver.getCurrentUrl();
-            } catch (Exception ex) {
-                log.debug("예외 후 URL 획득 실패");
-                finalUrl = url;
+
+            // 페이지를 안전하게 이동하기 위해 10초 대기
+            WaitUtils.waitAfterNavigation(driver, 10);
+
+            // 최종 URL 한 번 더 확인
+            String verifiedUrl = getSafeCurrentUrl(driver, finalUrl);
+            if (!verifiedUrl.equals(finalUrl)) {
+                finalUrl = verifiedUrl;
             }
-        }catch (Exception e) {
-            log.error("예기치 못한 오류 발생 {}",e.getMessage());
-            try {
-                //팝업창이 없을 경우 그대로 추출
-                finalUrl = driver.getCurrentUrl();
-            } catch (Exception ex) {
-                log.error("구매사이트를 찾을 수 없음");
-                finalUrl = url;
-            }
+
+            log.debug("최종 완료 URL: {}", finalUrl);
+
+        } catch (TimeoutException e) {
+            log.debug("페이지 로딩 시간초과 발생 - 현재 URL로 대체");
+            finalUrl = getSafeCurrentUrl(driver, url);
+        } catch (WebDriverException e) {
+            log.debug("WebDriver 예외 발생: {}", e.getMessage());
+            finalUrl = getSafeCurrentUrl(driver, url);
+        } catch (Exception e) {
+            log.error("예기치 못한 오류 발생: {}", e.getMessage());
+            finalUrl = getSafeCurrentUrl(driver, url);
         }
-        return  finalUrl;
+
+        return finalUrl;
     }
 
     /**
