@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import { Link, useParams, useNavigate, useLocation } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { getKoreanCategory, getEnglishCategory, KOREAN_CATEGORIES } from '../utils/categoryUtils';
 import { useFileUpload } from '../hooks/useFileUpload';
 import { categorizeAttachments } from '../utils/fileUtils';
+import { fetchPosts } from '../services/api';
 
 function PostEdit() {
   const { id } = useParams();
@@ -33,6 +35,15 @@ function PostEdit() {
     '🥂', // 샴페인 건배
     '🍸'  // 칵테일
   ];
+
+  // 인기 게시글 조회 (전체 카테고리, 첫 번째 페이지)
+  const { data: popularPostsData } = useQuery({
+    queryKey: ['posts', '전체', 1],
+    queryFn: fetchPosts,
+    staleTime: 5 * 60 * 1000, // 5분간 fresh 상태 유지
+  });
+
+  const popularPosts = popularPostsData?.posts || [];
 
   // TODO: 실제 로그인 상태를 가져오는 hook 또는 context 사용
   const currentUser = {
@@ -271,8 +282,11 @@ function PostEdit() {
           <span className="text-primary font-medium">게시글 수정</span>
         </div>
 
-        <div className="max-w-4xl mx-auto">
-          <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow-sm p-8">
+        <div className="max-w-7xl mx-auto">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            {/* 메인 콘텐츠 영역 */}
+            <div className="lg:col-span-2">
+              <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow-sm p-8">
             {/* 작성자 정보 표시 (수정 불가) */}
             <div className="mb-8 p-4 bg-blue-50 rounded-lg border border-blue-200">
               <h3 className="text-lg font-semibold text-blue-800 mb-2 flex items-center">
@@ -502,6 +516,90 @@ function PostEdit() {
               </button>
             </div>
           </form>
+            </div>
+
+            {/* 사이드바 */}
+            <div className="lg:col-span-1">
+              <div className="space-y-6 sticky top-8">
+                {/* 인기 게시글 */}
+                <div className="bg-white rounded-lg shadow-sm p-6">
+                  <h3 className="text-xl font-bold mb-4 text-gray-800 flex items-center">
+                    <i className="fas fa-fire text-red-500 mr-2"></i>
+                    인기 게시글
+                  </h3>
+                  <div className="space-y-3">
+                    {popularPosts.length > 0 ? (
+                      popularPosts.slice(0, 3).map(post => (
+                        <div key={post.post_id} className="border-b border-gray-100 pb-3 last:border-b-0">
+                          <Link to={`/post/${post.post_id}`}>
+                            <h4 className="text-sm font-semibold text-gray-800 mb-1 line-clamp-1 flex items-center hover:text-primary transition-colors">
+                              {post.title}
+                              {post.has_attachments && (
+                                <i className="fas fa-paperclip ml-1 text-red-400 text-xs" title="첨부파일 있음"></i>
+                              )}
+                            </h4>
+                          </Link>
+                          <div className="flex items-center text-xs text-gray-500">
+                            <span>{post.is_anonymous ? '익명' : post.author_name}</span>
+                            <span className="mx-2">•</span>
+                            <span>{post.views}회</span>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="text-gray-500 text-sm text-center py-4">
+                        인기 게시글을 불러오는 중...
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* 수정 도움말 */}
+                <div className="bg-white rounded-lg shadow-sm p-6">
+                  <h3 className="text-xl font-bold mb-4 text-gray-800 flex items-center">
+                    <i className="fas fa-edit text-blue-500 mr-2"></i>
+                    수정 도움말
+                  </h3>
+                  <div className="space-y-3 text-sm text-gray-600">
+                    <div className="flex items-start space-x-2">
+                      <i className="fas fa-info-circle text-blue-500 mt-1 text-xs"></i>
+                      <span>제목과 내용을 자유롭게 수정할 수 있습니다</span>
+                    </div>
+                    <div className="flex items-start space-x-2">
+                      <i className="fas fa-info-circle text-blue-500 mt-1 text-xs"></i>
+                      <span>카테고리와 태그도 변경 가능합니다</span>
+                    </div>
+                    <div className="flex items-start space-x-2">
+                      <i className="fas fa-paperclip text-orange-500 mt-1 text-xs"></i>
+                      <span>새 파일 추가 시 기존 파일이 교체됩니다</span>
+                    </div>
+                    <div className="flex items-start space-x-2">
+                      <i className="fas fa-trash text-red-500 mt-1 text-xs"></i>
+                      <span>개별 첨부파일 삭제는 X 버튼을 클릭하세요</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 커뮤니티 바로가기 */}
+                <div className="bg-white rounded-lg shadow-sm p-6">
+                  <h3 className="text-xl font-bold mb-4 text-gray-800 flex items-center">
+                    <i className="fas fa-users text-green-500 mr-2"></i>
+                    커뮤니티
+                  </h3>
+                  <div className="space-y-3">
+                    <Link to="/community" className="block p-3 bg-primary text-white rounded-lg hover:bg-blue-800 transition-colors text-center">
+                      <i className="fas fa-list mr-2"></i>
+                      전체 게시글 보기
+                    </Link>
+                    <Link to={`/post/${id}`} className="block p-3 bg-secondary text-white rounded-lg hover:bg-orange-600 transition-colors text-center">
+                      <i className="fas fa-eye mr-2"></i>
+                      수정 취소하고 보기
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
