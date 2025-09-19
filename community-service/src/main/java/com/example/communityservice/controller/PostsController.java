@@ -10,6 +10,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import com.example.communityservice.dto.auth.AnonymousAuthRequestDTO;
 import com.example.communityservice.dto.posts.PostAttachmentsResponseDTO;
 import com.example.communityservice.dto.posts.PostsRequestDTO;
 import com.example.communityservice.dto.posts.PostsResponseDTO;
@@ -142,6 +143,22 @@ public class PostsController {
       @Parameter(description = "게시글 ID") @PathVariable Long id) {
     postsService.removeLike(id);
     return ResponseEntity.ok(ApiResponseDTO.success("좋아요가 취소되었습니다.", null));
+  }
+
+  // 익명 게시글 인증 확인
+  // POST /api/posts/{id}/verify
+  @Operation(summary = "익명 게시글 인증 확인", description = "익명 게시글의 이메일과 비밀번호를 확인합니다.")
+  @ApiResponses({
+    @ApiResponse(responseCode = "200", description = "인증 성공"),
+    @ApiResponse(responseCode = "403", description = "인증 실패"),
+    @ApiResponse(responseCode = "404", description = "게시글을 찾을 수 없음")
+  })
+  @PostMapping("/{id}/verify")
+  public ResponseEntity<ApiResponseDTO<Void>> verifyAnonymousPost(
+      @Parameter(description = "게시글 ID") @PathVariable Long id,
+      @Parameter(description = "인증 정보") @Valid @RequestBody AnonymousAuthRequestDTO requestDto) {
+    postsService.verifyAnonymousPost(id, requestDto);
+    return ResponseEntity.ok(ApiResponseDTO.success("인증이 성공했습니다.", null));
   }
 
   // === 첨부파일 관련 API ===

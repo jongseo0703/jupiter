@@ -10,6 +10,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.example.communityservice.dto.auth.AnonymousAuthRequestDTO;
 import com.example.communityservice.dto.comments.CommentsResponseDTO;
 import com.example.communityservice.dto.posts.PostsRequestDTO;
 import com.example.communityservice.dto.posts.PostsResponseDTO;
@@ -153,6 +154,25 @@ public class PostsService {
       return authorsRepository
           .findById(requestDto.getAuthorId())
           .orElseThrow(() -> new AuthorNotFoundException(requestDto.getAuthorId()));
+    }
+  }
+
+  // 익명 게시글 인증 확인 (수정/삭제 전용)
+  public void verifyAnonymousPost(Long postId, AnonymousAuthRequestDTO requestDto) {
+    Posts post =
+        postsRepository.findById(postId).orElseThrow(() -> new PostNotFoundException(postId));
+
+    Authors postAuthor = post.getAuthors();
+
+    if (!postAuthor.getIsAnonymous()) {
+      throw new IllegalArgumentException("익명 게시글이 아닙니다.");
+    }
+
+    // 익명 사용자 검증: 이메일과 비밀번호 확인
+    if (!postAuthor.getAnonymousEmail().equals(requestDto.getAnonymousEmail())
+        || !passwordEncoder.matches(
+            requestDto.getAnonymousPassword(), postAuthor.getAnonymousPwd())) {
+      throw AccessDeniedException.forPost();
     }
   }
 

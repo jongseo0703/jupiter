@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
+import { getKoreanCategory } from '../utils/categoryUtils';
 
 function PostDetail() {
   const { id } = useParams();
@@ -12,6 +13,16 @@ function PostDetail() {
     anonymous_email: '',
     anonymous_pwd: '',
     is_anonymous: false
+  });
+  const [editingComment, setEditingComment] = useState(null);
+  const [editCommentContent, setEditCommentContent] = useState('');
+  const [showCommentAuthModal, setShowCommentAuthModal] = useState(false);
+  const [commentAuthForm, setCommentAuthForm] = useState({
+    email: '',
+    password: '',
+    action: '', // 'edit' or 'delete'
+    commentId: null,
+    comment: null
   });
   const [loading, setLoading] = useState(true);
   const [currentIconIndex, setCurrentIconIndex] = useState(0);
@@ -39,6 +50,7 @@ function PostDetail() {
     is_logged_in: true // 임시상태
   }); // MOCK DATA - 실제로는 useAuth() hook에서 가져옴
 
+
   // 아이콘 회전 애니메이션
   useEffect(() => {
     if (!loading) return;
@@ -51,81 +63,60 @@ function PostDetail() {
   }, [loading, alcoholIcons.length]);
 
   useEffect(() => {
-    // TODO: 실제 API 호출로 바꿀 것 - GET /api/posts/{id}
-    const mockPost = {
-      post_id: parseInt(id),
-      title: '조니워커 블루라벨 할인 정보 공유',
-      content: `쿠팡에서 조니워커 블루라벨이 20% 할인 중이에요!
+    const fetchPost = async () => {
+      setLoading(true);
+      try {
+        // 테스트를 위한 인위적 지연 (실제 배포 시 제거)
+        await new Promise(resolve => setTimeout(resolve, 800));
+        // 게시글 상세 조회
+        const postResponse = await fetch(`http://localhost:8080/community/api/posts/${id}`);
+        const postResult = await postResponse.json();
 
-평소에 너무 비싸서 구매를 망설였는데, 이번에 할인가로 구매했습니다.
-정말 부드럽고 깊은 맛이 인상적이네요.
+        if (!postResponse.ok) {
+          console.error('Failed to fetch post:', postResponse.status);
+          alert('게시글을 찾을 수 없습니다.');
+          return;
+        }
 
-할인 기간이 얼마 남지 않았으니 관심 있으신 분들은 서둘러주세요!
+        const postData = postResult.data;
 
-#위스키 #조니워커 #할인정보 #쿠팡`,
-      author_name: '익명',
-      category: '가격정보',
-      created_at: '2024-01-15 14:30:00',
-      updated_at: '2024-01-15 14:30:00',
-      views: 152,
-      likes: 23,
-      tags: '#위스키 #할인 #쿠팡',
-      is_anonymous: true,
-      anonymous_email: 'test@example.com',
-      anonymous_pwd: 'password123',
-      attachments: []
+        // 백엔드 데이터를 프론트엔드 형식으로 변환
+        const transformedPost = {
+          post_id: postData.postId,
+          title: postData.title,
+          content: postData.content,
+          author_name: postData.authorName,
+          category: getKoreanCategory(postData.category),
+          created_at: new Date(postData.createdAt).toLocaleString('ko-KR'),
+          updated_at: new Date(postData.updatedAt).toLocaleString('ko-KR'),
+          views: postData.views || 0,
+          likes: postData.likes || 0,
+          tags: postData.tags,
+          is_anonymous: postData.isAnonymous,
+          attachments: postData.attachments || []
+        };
+
+        // 댓글은 게시글 상세에 포함되어 있음
+        const transformedComments = postData.comments ? postData.comments.map(comment => ({
+          comment_id: comment.commentId,
+          post_id: comment.postId,
+          content: comment.content,
+          author_name: comment.authorName,
+          created_at: new Date(comment.createdAt).toLocaleString('ko-KR'),
+          is_anonymous: comment.isAnonymous
+        })) : [];
+
+        setPost(transformedPost);
+        setComments(transformedComments);
+      } catch (error) {
+        console.error('Failed to fetch post:', error);
+        alert('게시글을 불러오는데 실패했습니다.');
+      } finally {
+        setLoading(false);
+      }
     };
 
-    // TODO: 실제 API 호출로 바꿀 것 - GET /api/comments?post_id={id}
-    const mockComments = [
-      {
-        comment_id: 1,
-        post_id: parseInt(id),
-        content: '좋은 정보 감사합니다! 바로 주문했어요.',
-        author_name: '위스키초보',
-        created_at: '2024-01-15 15:00:00',
-        is_anonymous: false
-      },
-      {
-        comment_id: 2,
-        post_id: parseInt(id),
-        content: '가격이 정말 괜찮네요. 추천해주셔서 감사해요!',
-        author_name: '익명',
-        created_at: '2024-01-15 16:20:00',
-        is_anonymous: true
-      },
-      {
-        comment_id: 3,
-        post_id: parseInt(id),
-        content: '블루라벨은 정말 맛있죠. 특별한 날에 마시기 좋아요.',
-        author_name: '스카치러버',
-        created_at: '2024-01-15 18:45:00',
-        is_anonymous: false
-      }
-    ];
-
-    // TODO: 비동기 API 호출로 바꿀 것
-    // const fetchPost = async () => {
-    //   try {
-    //     const postResponse = await fetch(`/api/posts/${id}`);
-    //     const commentsResponse = await fetch(`/api/comments?post_id=${id}`);
-    //     const postData = await postResponse.json();
-    //     const commentsData = await commentsResponse.json();
-    //     setPost(postData);
-    //     setComments(commentsData);
-    //   } catch (error) {
-    //     console.error('Failed to fetch post:', error);
-    //   } finally {
-    //     setLoading(false);
-    //   }
-    // };
-    // fetchPost();
-
-    setTimeout(() => {
-      setPost(mockPost);
-      setComments(mockComments);
-      setLoading(false);
-    }, 500);
+    fetchPost().catch(console.error);
   }, [id]);
 
   const handleCommentInputChange = (e) => {
@@ -139,84 +130,391 @@ function PostDetail() {
   const handleCommentSubmit = async (e) => {
     e.preventDefault();
 
-    // TODO: 실제 API 호출로 바꿀 것 - POST /api/comments
-    // try {
-    //   const response = await fetch('/api/comments', {
-    //     method: 'POST',
-    //     headers: {
-    //       'Content-Type': 'application/json',
-    //       'Authorization': `Bearer ${token}` // 회원인 경우
-    //     },
-    //     body: JSON.stringify({
-    //       post_id: parseInt(id),
-    //       content: commentForm.content,
-    //       is_anonymous: commentForm.is_anonymous,
-    //       anonymous_email: commentForm.anonymous_email,
-    //       anonymous_pwd: commentForm.anonymous_pwd
-    //     })
-    //   });
-    //   const newComment = await response.json();
-    //   setComments(prev => [...prev, newComment]);
-    // } catch (error) {
-    //   console.error('Failed to create comment:', error);
-    //   alert('댓글 등록에 실패했습니다.');
-    //   return;
-    // }
+    try {
+      const commentData = {
+        postId: parseInt(id),
+        content: commentForm.content,
+        isAnonymous: commentForm.is_anonymous,
+        authorName: commentForm.author_name,
+        anonymousEmail: commentForm.is_anonymous ? commentForm.anonymous_email : null,
+        anonymousPassword: commentForm.is_anonymous ? commentForm.anonymous_pwd : null
+      };
 
-    const newComment = {
-      comment_id: comments.length + 1,
-      post_id: parseInt(id),
-      content: commentForm.content,
-      author_name: commentForm.is_anonymous ? '익명' : commentForm.author_name,
-      created_at: new Date().toLocaleString('ko-KR'),
-      is_anonymous: commentForm.is_anonymous
-    };
+      const response = await fetch('http://localhost:8080/community/api/comments', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(commentData)
+      });
 
-    setComments(prev => [...prev, newComment]);
-    setCommentForm({
-      content: '',
-      author_name: '',
-      anonymous_email: '',
-      anonymous_pwd: '',
-      is_anonymous: false
+      if (!response.ok) {
+        console.error('댓글 등록 실패:', response.status);
+        alert('댓글 등록에 실패했습니다.');
+        return;
+      }
+
+      const result = await response.json();
+      const newComment = result.data;
+
+      // 백엔드 응답을 프론트엔드 형식으로 변환
+      const transformedComment = {
+        comment_id: newComment.commentId,
+        post_id: newComment.postId,
+        content: newComment.content,
+        author_name: newComment.authorName,
+        created_at: new Date(newComment.createdAt).toLocaleString('ko-KR'),
+        is_anonymous: newComment.isAnonymous
+      };
+
+      setComments(prev => [...prev, transformedComment]);
+      setCommentForm({
+        content: '',
+        author_name: '',
+        anonymous_email: '',
+        anonymous_pwd: '',
+        is_anonymous: false
+      });
+
+      alert('댓글이 등록되었습니다!');
+    } catch (error) {
+      console.error('Failed to create comment:', error);
+      alert('댓글 등록에 실패했습니다.');
+    }
+  };
+
+  // 댓글 수정 시작
+  const startEditComment = (comment) => {
+    setEditingComment(comment.comment_id);
+    setEditCommentContent(comment.content);
+  };
+
+  // 댓글 수정 취소
+  const cancelEditComment = () => {
+    setEditingComment(null);
+    setEditCommentContent('');
+  };
+
+  // 댓글 수정 제출
+  const handleEditComment = async (commentId) => {
+    try {
+      const comment = comments.find(c => c.comment_id === commentId);
+      const requestData = {
+        postId: parseInt(id),
+        content: editCommentContent,
+        authorName: comment.is_anonymous ? null : currentUser.author_name,
+        isAnonymous: comment.is_anonymous,
+        // 익명 댓글의 경우 인증 정보가 필요할 수 있음 (실제로는 세션이나 토큰으로 처리)
+        ...(comment.is_anonymous && {
+          anonymousEmail: commentAuthForm.email,
+          anonymousPassword: commentAuthForm.password
+        })
+      };
+
+      const response = await fetch(`http://localhost:8080/community/api/comments/${commentId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(requestData)
+      });
+
+      if (!response.ok) {
+        console.error('댓글 수정 실패:', response.status);
+        alert('댓글 수정에 실패했습니다.');
+        return;
+      }
+
+      const result = await response.json();
+      const updatedComment = result.data;
+
+      // 댓글 목록 업데이트
+      setComments(prev => prev.map(comment =>
+        comment.comment_id === commentId
+          ? {
+              ...comment,
+              content: updatedComment.content,
+              created_at: new Date(updatedComment.createdAt).toLocaleString('ko-KR')
+            }
+          : comment
+      ));
+
+      setEditingComment(null);
+      setEditCommentContent('');
+      alert('댓글이 수정되었습니다.');
+    } catch (error) {
+      console.error('Failed to edit comment:', error);
+      alert('댓글 수정에 실패했습니다.');
+    }
+  };
+
+  // 댓글 삭제
+  const handleDeleteComment = async (commentId) => {
+    if (!window.confirm('정말로 댓글을 삭제하시겠습니까?')) {
+      return;
+    }
+
+    try {
+      const requestData = {
+        postId: parseInt(id),
+        authorName: currentUser.author_name, // 임시로 현재 사용자 이름 사용
+        isAnonymous: false
+      };
+
+      const response = await fetch(`http://localhost:8080/community/api/comments/${commentId}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(requestData)
+      });
+
+      if (!response.ok) {
+        console.error('댓글 삭제 실패:', response.status);
+        alert('댓글 삭제에 실패했습니다.');
+        return;
+      }
+
+      // 댓글 목록에서 제거
+      setComments(prev => prev.filter(comment => comment.comment_id !== commentId));
+      alert('댓글이 삭제되었습니다.');
+    } catch (error) {
+      console.error('Failed to delete comment:', error);
+      alert('댓글 삭제에 실패했습니다.');
+    }
+  };
+
+  // 익명 댓글 수정 시작
+  const handleAnonymousCommentEdit = (comment) => {
+    setCommentAuthForm({
+      email: '',
+      password: '',
+      action: 'edit',
+      commentId: comment.comment_id,
+      comment: comment
     });
+    setShowCommentAuthModal(true);
+  };
 
-    alert('댓글이 등록되었습니다!');
+  // 익명 댓글 삭제 시작
+  const handleAnonymousCommentDelete = (commentId) => {
+    const comment = comments.find(c => c.comment_id === commentId);
+    setCommentAuthForm({
+      email: '',
+      password: '',
+      action: 'delete',
+      commentId: commentId,
+      comment: comment
+    });
+    setShowCommentAuthModal(true);
+  };
+
+  // 익명 댓글 인증 처리
+  const handleCommentAuthSubmit = async (e) => {
+    e.preventDefault();
+
+    if (commentAuthForm.action === 'edit') {
+      // 수정의 경우 인증 확인 API를 사용하여 편집 모드로 전환
+      try {
+        const requestData = {
+          anonymousEmail: commentAuthForm.email,
+          anonymousPassword: commentAuthForm.password
+        };
+
+        // 새로운 인증 전용 API 사용
+        const response = await fetch(`http://localhost:8080/community/api/comments/${commentAuthForm.commentId}/verify`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(requestData)
+        });
+
+        if (!response.ok) {
+          if (response.status === 403) {
+            alert('이메일 또는 비밀번호가 일치하지 않습니다.');
+            return;
+          }
+          console.error('인증 실패:', response.status);
+          alert('인증에 실패했습니다.');
+          return;
+        }
+
+        // 인증 성공 시 편집 모드로 전환
+        setEditingComment(commentAuthForm.commentId);
+        setEditCommentContent(commentAuthForm.comment.content);
+        setShowCommentAuthModal(false);
+        setCommentAuthForm({
+          email: '',
+          password: '',
+          action: '',
+          commentId: null,
+          comment: null
+        });
+        alert('인증 완료! 댓글을 수정할 수 있습니다.');
+      } catch (error) {
+        console.error('Failed to authenticate comment:', error);
+        alert('인증에 실패했습니다.');
+      }
+    } else if (commentAuthForm.action === 'delete') {
+      // 삭제의 경우 바로 실행
+      try {
+        const requestData = {
+          postId: parseInt(id),
+          anonymousEmail: commentAuthForm.email,
+          anonymousPassword: commentAuthForm.password,
+          isAnonymous: true
+        };
+
+        const response = await fetch(`http://localhost:8080/community/api/comments/${commentAuthForm.commentId}`, {
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(requestData)
+        });
+
+        if (!response.ok) {
+          if (response.status === 403) {
+            alert('이메일 또는 비밀번호가 일치하지 않습니다.');
+            return;
+          }
+          console.error('댓글 삭제 실패:', response.status);
+          alert('댓글 삭제에 실패했습니다.');
+          return;
+        }
+
+        // 댓글 목록에서 제거
+        setComments(prev => prev.filter(comment => comment.comment_id !== commentAuthForm.commentId));
+        setShowCommentAuthModal(false);
+        setCommentAuthForm({
+          email: '',
+          password: '',
+          action: '',
+          commentId: null,
+          comment: null
+        });
+        alert('댓글이 삭제되었습니다.');
+      } catch (error) {
+        console.error('Failed to delete anonymous comment:', error);
+        alert('댓글 삭제에 실패했습니다.');
+      }
+    }
+  };
+
+  // 댓글 인증 폼 입력 처리
+  const handleCommentAuthInputChange = (e) => {
+    const { name, value } = e.target;
+    setCommentAuthForm(prev => ({
+      ...prev,
+      [name]: value
+    }));
   };
 
   const handleLike = async () => {
-    // TODO: 실제 API 호출로 바꿀 것 - POST /api/likes
-    // Redis를 사용하여 IP 기반 중복 방지 처리
-    // try {
-    //   const response = await fetch('/api/likes', {
-    //     method: 'POST',
-    //     headers: {
-    //       'Content-Type': 'application/json'
-    //     },
-    //     body: JSON.stringify({ post_id: parseInt(id) })
-    //   });
-    //   const result = await response.json();
-    //   if (result.success) {
-    //     setPost(prev => ({ ...prev, likes: result.newLikeCount }));
-    //   } else {
-    //     alert('이미 좋아요를 누르셨습니다.');
-    //   }
-    // } catch (error) {
-    //   console.error('Failed to like post:', error);
-    // }
+    try {
+      const response = await fetch(`http://localhost:8080/community/api/posts/${id}/likes`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
 
-    setPost(prev => ({
-      ...prev,
-      likes: prev.likes + 1
-    }));
+      if (!response.ok) {
+        console.error('좋아요 추가 실패:', response.status);
+        alert('좋아요 추가에 실패했습니다.');
+        return;
+      }
+
+      const result = await response.json();
+
+      // 좋아요 수 증가
+      setPost(prev => ({
+        ...prev,
+        likes: prev.likes + 1
+      }));
+
+      // 성공 메시지는 표시하지 않음 (UX 개선)
+    } catch (error) {
+      console.error('Failed to like post:', error);
+      alert('좋아요 처리에 실패했습니다.');
+    }
+  };
+
+  // 일반 회원 게시글 삭제
+  const deletePost = async () => {
+    try {
+      const requestData = {
+        authorName: currentUser.author_name
+      };
+
+      const response = await fetch(`http://localhost:8080/community/api/posts/${id}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(requestData)
+      });
+
+      if (!response.ok) {
+        console.error('게시글 삭제 실패:', response.status);
+        alert('게시글 삭제에 실패했습니다.');
+        return;
+      }
+
+      alert('게시글이 삭제되었습니다.');
+      navigate('/community');
+    } catch (error) {
+      console.error('Failed to delete post:', error);
+      alert('게시글 삭제에 실패했습니다.');
+    }
+  };
+
+  // 익명 게시글 삭제
+  const deletePostWithAuth = async (email, password) => {
+    try {
+      const requestData = {
+        anonymousEmail: email,
+        anonymousPassword: password,
+        isAnonymous: true
+      };
+
+      const response = await fetch(`http://localhost:8080/community/api/posts/${id}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(requestData)
+      });
+
+      if (!response.ok) {
+        if (response.status === 403) {
+          alert('이메일 또는 비밀번호가 일치하지 않습니다.');
+          return;
+        }
+        console.error('게시글 삭제 실패:', response.status);
+        alert('게시글 삭제에 실패했습니다.');
+        return;
+      }
+
+      setShowAuthModal(false);
+      setAuthForm({ email: '', password: '', action: '' });
+      alert('게시글이 삭제되었습니다.');
+      navigate('/community');
+    } catch (error) {
+      console.error('Failed to delete post:', error);
+      alert('게시글 삭제에 실패했습니다.');
+    }
   };
 
   const canEditPost = () => {
     if (!post) return false;
 
+    // 익명 게시글은 항상 수정/삭제 버튼을 표시 (인증 모달로 확인)
     if (post.is_anonymous) {
-      return true; // 익명 글은 인증 모달을 통해 확인
+      return true;
     } else {
+      // 일반 게시글은 로그인한 사용자가 작성자인 경우만
       return currentUser.is_logged_in && currentUser.author_name === post.author_name;
     }
   };
@@ -233,21 +531,13 @@ function PostDetail() {
     }
   };
 
-  const handleDeleteClick = () => {
+  const handleDeleteClick = async () => {
     if (post.is_anonymous) {
       setAuthForm({ email: '', password: '', action: 'delete' });
       setShowAuthModal(true);
     } else if (currentUser.is_logged_in && currentUser.author_name === post.author_name) {
       if (window.confirm('정말로 삭제하시겠습니까?')) {
-        // TODO: 실제 삭제 API 호출 - DELETE /api/posts/{id}
-        // try {
-        //   await fetch(`/api/posts/${id}`, { method: 'DELETE' });
-        //   navigate('/community');
-        // } catch (error) {
-        //   console.error('Failed to delete post:', error);
-        // }
-        alert('게시글이 삭제되었습니다.');
-        navigate('/community');
+        await deletePost();
       }
     } else {
       alert('작성자만 삭제할 수 있습니다.');
@@ -257,43 +547,62 @@ function PostDetail() {
   const handleAuthSubmit = async (e) => {
     e.preventDefault();
 
-    // TODO: 실제 익명 인증 API 호출 - POST /api/auth
-    // try {
-    //   const response = await fetch('/api/auth', {
-    //     method: 'POST',
-    //     headers: { 'Content-Type': 'application/json' },
-    //     body: JSON.stringify({
-    //       post_id: post.post_id,
-    //       email: authForm.email,
-    //       password: authForm.password
-    //     })
-    //   });
-    //   const result = await response.json();
-    //   if (!result.success) {
-    //     alert('이메일 또는 비밀번호가 일치하지 않습니다.');
-    //     return;
-    //   }
-    // } catch (error) {
-    //   console.error('Failed to authenticate:', error);
-    //   return;
-    // }
+    if (authForm.action === 'edit') {
+      // 수정의 경우 인증 확인 후 PostEdit 페이지로 이동
+      try {
+        const requestData = {
+          anonymousEmail: authForm.email,
+          anonymousPassword: authForm.password
+        };
 
-    // MOCK 인증 확인
-    if (authForm.email === post.anonymous_email && authForm.password === post.anonymous_pwd) {
-      if (authForm.action === 'edit') {
-        navigate(`/post/edit/${post.post_id}`);
-        alert('인증 완료! 수정 페이지로 이동합니다.');
-      } else if (authForm.action === 'delete') {
-        if (window.confirm('정말로 삭제하시겠습니까?')) {
-          // TODO: 실제 삭제 API 호출 - DELETE /api/posts/{id}
-          alert('게시글이 삭제되었습니다.');
-          navigate('/community');
+        // 새로운 인증 전용 API 사용
+        console.log('인증 요청 데이터:', requestData);
+        console.log('요청 URL:', `http://localhost:8080/community/api/posts/${post.post_id}/verify`);
+
+        const response = await fetch(`http://localhost:8080/community/api/posts/${post.post_id}/verify`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(requestData)
+        });
+
+        console.log('응답 상태:', response.status);
+        console.log('응답 헤더:', response.headers);
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.log('에러 응답:', errorText);
+          if (response.status === 403) {
+            alert('이메일 또는 비밀번호가 일치하지 않습니다.');
+            return;
+          }
+          console.error('Authentication failed:', response.status, errorText);
+          alert('인증에 실패했습니다. 다시 시도해주세요.');
+          return;
         }
+
+        const responseData = await response.json();
+        console.log('인증 성공 응답:', responseData);
+
+        // 인증 성공 시 수정 페이지로 이동 (인증 정보와 함께)
+        console.log('수정 페이지로 이동:', `/post/edit/${post.post_id}`);
+        navigate(`/post/edit/${post.post_id}`, {
+          state: {
+            anonymousEmail: authForm.email,
+            anonymousPassword: authForm.password
+          }
+        });
+        setShowAuthModal(false);
+        setAuthForm({ email: '', password: '', action: '' });
+        alert('인증 성공! 수정 페이지로 이동합니다.');
+      } catch (error) {
+        console.error('Failed to authenticate post:', error);
+        alert('인증에 실패했습니다.');
       }
-      setShowAuthModal(false);
-      setAuthForm({ email: '', password: '', action: '' });
-    } else {
-      alert('이메일 또는 비밀번호가 일치하지 않습니다.');
+    } else if (authForm.action === 'delete') {
+      // 삭제의 경우 바로 실행
+      await deletePostWithAuth(authForm.email, authForm.password);
     }
   };
 
@@ -515,8 +824,53 @@ function PostDetail() {
                         <p className="text-sm text-gray-500">{comment.created_at}</p>
                       </div>
                     </div>
+
+                    {/* 댓글 수정/삭제 버튼 */}
+                    {(comment.is_anonymous || (currentUser.is_logged_in && currentUser.author_name === comment.author_name)) && (
+                      <div className="flex space-x-2">
+                        <button
+                          onClick={() => comment.is_anonymous ? handleAnonymousCommentEdit(comment) : startEditComment(comment)}
+                          className="text-sm text-blue-600 hover:text-blue-800 transition-colors"
+                        >
+                          수정
+                        </button>
+                        <button
+                          onClick={() => comment.is_anonymous ? handleAnonymousCommentDelete(comment.comment_id) : handleDeleteComment(comment.comment_id)}
+                          className="text-sm text-red-600 hover:text-red-800 transition-colors"
+                        >
+                          삭제
+                        </button>
+                      </div>
+                    )}
                   </div>
-                  <p className="text-gray-700 ml-13">{comment.content}</p>
+
+                  {/* 댓글 내용 또는 수정 입력창 */}
+                  {editingComment === comment.comment_id ? (
+                    <div className="ml-13">
+                      <textarea
+                        value={editCommentContent}
+                        onChange={(e) => setEditCommentContent(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary resize-none"
+                        rows="3"
+                      />
+                      <div className="flex justify-end space-x-2 mt-2">
+                        <button
+                          onClick={cancelEditComment}
+                          className="px-3 py-1 text-sm text-gray-600 hover:text-gray-800 transition-colors"
+                        >
+                          취소
+                        </button>
+                        <button
+                          onClick={() => handleEditComment(comment.comment_id)}
+                          className="px-3 py-1 text-sm bg-primary text-white rounded hover:bg-blue-800 transition-colors"
+                        >
+                          저장
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-gray-700 ml-13">{comment.content}</p>
+                  )}
                 </div>
               ))}
             </div>
@@ -605,14 +959,6 @@ function PostDetail() {
               익명 게시글을 {authForm.action === 'edit' ? '수정' : '삭제'}하려면 작성 시 입력한 이메일과 비밀번호를 입력해주세요.
             </p>
 
-            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-4">
-              <p className="text-sm text-yellow-800">
-                <strong>테스트용 계정:</strong><br/>
-                이메일: test@example.com<br/>
-                비밀번호: password123
-              </p>
-            </div>
-
             <form onSubmit={handleAuthSubmit} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -664,6 +1010,81 @@ function PostDetail() {
                   }`}
                 >
                   {authForm.action === 'edit' ? '수정하기' : '삭제하기'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* 익명 댓글 인증 모달 */}
+      {showCommentAuthModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
+            <h3 className="text-xl font-bold text-gray-800 mb-4">
+              댓글 {commentAuthForm.action === 'edit' ? '수정' : '삭제'} 인증
+            </h3>
+            <p className="text-gray-600 mb-4">
+              익명 댓글을 {commentAuthForm.action === 'edit' ? '수정' : '삭제'}하려면 작성 시 입력한 이메일과 비밀번호를 입력해주세요.
+            </p>
+
+            <form onSubmit={handleCommentAuthSubmit} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  이메일
+                </label>
+                <input
+                  type="email"
+                  name="email"
+                  value={commentAuthForm.email}
+                  onChange={handleCommentAuthInputChange}
+                  placeholder="작성 시 입력한 이메일"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  비밀번호
+                </label>
+                <input
+                  type="password"
+                  name="password"
+                  value={commentAuthForm.password}
+                  onChange={handleCommentAuthInputChange}
+                  placeholder="작성 시 입력한 비밀번호"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                  required
+                />
+              </div>
+
+              <div className="flex justify-end space-x-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowCommentAuthModal(false);
+                    setCommentAuthForm({
+                      email: '',
+                      password: '',
+                      action: '',
+                      commentId: null,
+                      comment: null
+                    });
+                  }}
+                  className="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  취소
+                </button>
+                <button
+                  type="submit"
+                  className={`px-4 py-2 text-white rounded-lg transition-colors ${
+                    commentAuthForm.action === 'delete'
+                      ? 'bg-red-600 hover:bg-red-700'
+                      : 'bg-primary hover:bg-blue-800'
+                  }`}
+                >
+                  {commentAuthForm.action === 'edit' ? '확인' : '삭제하기'}
                 </button>
               </div>
             </form>

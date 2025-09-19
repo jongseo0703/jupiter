@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { getKoreanCategory, getEnglishCategory, KOREAN_CATEGORIES } from '../utils/categoryUtils';
 
 function Community() {
   const [selectedCategory, setSelectedCategory] = useState('전체');
@@ -9,30 +10,7 @@ function Community() {
 
   const [posts, setPosts] = useState([]);
 
-  const categories = ['전체', '자유게시판', '가격정보', '술리뷰', '질문답변', '이벤트'];
-
-  // 카테고리 변환 함수
-  const getCategoryForAPI = (koreanCategory) => {
-    const categoryMap = {
-      '자유게시판': 'FREE_BOARD',
-      '가격정보': 'PRICE_INFO',
-      '술리뷰': 'LIQUOR_REVIEW',
-      '질문답변': 'QNA',
-      '이벤트': 'EVENT'
-    };
-    return categoryMap[koreanCategory];
-  };
-
-  const getKoreanCategory = (englishCategory) => {
-    const categoryMap = {
-      'FREE_BOARD': '자유게시판',
-      'PRICE_INFO': '가격정보',
-      'LIQUOR_REVIEW': '술리뷰',
-      'QNA': '질문답변',
-      'EVENT': '이벤트'
-    };
-    return categoryMap[englishCategory] || '알 수 없음';
-  };
+  const categories = ['전체', ...KOREAN_CATEGORIES];
 
   // 게시글 목록 조회 API 호출
   useEffect(() => {
@@ -42,7 +20,7 @@ function Community() {
         const queryParams = new URLSearchParams();
 
         if (selectedCategory !== '전체') {
-          const englishCategory = getCategoryForAPI(selectedCategory);
+          const englishCategory = getEnglishCategory(selectedCategory);
           if (englishCategory) {
             queryParams.append('category', englishCategory);
           }

@@ -7,6 +7,7 @@ import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import com.example.communityservice.dto.auth.AnonymousAuthRequestDTO;
 import com.example.communityservice.dto.comments.CommentsRequestDTO;
 import com.example.communityservice.dto.comments.CommentsResponseDTO;
 import com.example.communityservice.global.common.ApiResponseDTO;
@@ -74,6 +75,22 @@ public class CommentsController {
       @Parameter(description = "작성자 권한 확인용 정보") @RequestBody CommentsRequestDTO requestDto) {
     commentsService.deleteComment(id, requestDto);
     return ResponseEntity.ok(ApiResponseDTO.success("댓글이 성공적으로 삭제되었습니다.", null));
+  }
+
+  // 익명 댓글 인증 확인
+  // POST /api/comments/{id}/verify
+  @Operation(summary = "익명 댓글 인증 확인", description = "익명 댓글의 이메일과 비밀번호를 확인합니다.")
+  @ApiResponses({
+    @ApiResponse(responseCode = "200", description = "인증 성공"),
+    @ApiResponse(responseCode = "403", description = "인증 실패"),
+    @ApiResponse(responseCode = "404", description = "댓글을 찾을 수 없음")
+  })
+  @PostMapping("/{id}/verify")
+  public ResponseEntity<ApiResponseDTO<Void>> verifyAnonymousComment(
+      @Parameter(description = "댓글 ID") @PathVariable Long id,
+      @Parameter(description = "인증 정보") @Valid @RequestBody AnonymousAuthRequestDTO requestDto) {
+    commentsService.verifyAnonymousComment(id, requestDto);
+    return ResponseEntity.ok(ApiResponseDTO.success("인증이 성공했습니다.", null));
   }
 
   // === User Service용 API ===

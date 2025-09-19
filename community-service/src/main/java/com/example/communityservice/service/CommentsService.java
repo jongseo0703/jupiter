@@ -7,6 +7,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.example.communityservice.dto.auth.AnonymousAuthRequestDTO;
 import com.example.communityservice.dto.comments.CommentsRequestDTO;
 import com.example.communityservice.dto.comments.CommentsResponseDTO;
 import com.example.communityservice.entity.Authors;
@@ -104,6 +105,27 @@ public class CommentsService {
       return authorsRepository
           .findById(requestDto.getAuthorId())
           .orElseThrow(() -> new AuthorNotFoundException(requestDto.getAuthorId()));
+    }
+  }
+
+  // 익명 댓글 인증 확인 (수정/삭제 전용)
+  public void verifyAnonymousComment(Long commentId, AnonymousAuthRequestDTO requestDto) {
+    Comments comment =
+        commentsRepository
+            .findById(commentId)
+            .orElseThrow(() -> new CommentNotFoundException(commentId));
+
+    Authors commentAuthor = comment.getAuthors();
+
+    if (!commentAuthor.getIsAnonymous()) {
+      throw new IllegalArgumentException("익명 댓글이 아닙니다.");
+    }
+
+    // 익명 사용자 검증: 이메일과 비밀번호 확인
+    if (!commentAuthor.getAnonymousEmail().equals(requestDto.getAnonymousEmail())
+        || !passwordEncoder.matches(
+            requestDto.getAnonymousPassword(), commentAuthor.getAnonymousPwd())) {
+      throw AccessDeniedException.forComment();
     }
   }
 

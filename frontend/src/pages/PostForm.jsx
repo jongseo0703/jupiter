@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { getEnglishCategory, KOREAN_CATEGORIES } from '../utils/categoryUtils';
 
 function PostForm() {
   const navigate = useNavigate();
@@ -18,19 +19,7 @@ function PostForm() {
   const [previewImages, setPreviewImages] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const categories = ['자유게시판', '가격정보', '술리뷰', '질문답변', '이벤트'];
-
-  // 카테고리 변환 함수
-  const getCategoryForAPI = (koreanCategory) => {
-    const categoryMap = {
-      '자유게시판': 'FREE_BOARD',
-      '가격정보': 'PRICE_INFO',
-      '술리뷰': 'LIQUOR_REVIEW',
-      '질문답변': 'QNA',
-      '이벤트': 'EVENT'
-    };
-    return categoryMap[koreanCategory];
-  };
+  const categories = KOREAN_CATEGORIES;
 
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -77,7 +66,7 @@ function PostForm() {
     try {
       // 게시글 데이터 준비
       const postData = {
-        category: getCategoryForAPI(formData.category),
+        category: getEnglishCategory(formData.category),
         title: formData.title,
         content: formData.content,
         tags: formData.tags,
@@ -97,7 +86,9 @@ function PostForm() {
       });
 
       if (!response.ok) {
-        throw new Error('게시글 생성 실패');
+        console.error('Failed to create post:', response.status);
+        alert('게시글 작성에 실패했습니다. 다시 시도해주세요.');
+        return;
       }
 
       const result = await response.json();
@@ -117,7 +108,9 @@ function PostForm() {
           });
 
           if (!fileResponse.ok) {
-            throw new Error('파일 업로드 실패');
+            console.error('Failed to upload files:', fileResponse.status);
+            alert('게시글은 작성되었지만 파일 업로드에 실패했습니다.');
+            return;
           }
         } catch (fileError) {
           console.error('파일 업로드 실패:', fileError);

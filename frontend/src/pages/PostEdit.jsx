@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
-import { Link, useParams, useNavigate } from 'react-router-dom';
+import { Link, useParams, useNavigate, useLocation } from 'react-router-dom';
+import { getKoreanCategory, getEnglishCategory, KOREAN_CATEGORIES } from '../utils/categoryUtils';
 
 function PostEdit() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation(); // 현재 URL 정보를 가져오는 Hook
   const [loading, setLoading] = useState(true);
   const [formData, setFormData] = useState({
     category: '',
@@ -34,13 +36,7 @@ function PostEdit() {
     is_logged_in: false
   }; // MOCK DATA
 
-  const categories = [
-    '자유게시판',
-    '가격정보',
-    '술리뷰',
-    '질문답변',
-    '이벤트'
-  ];
+  const categories = KOREAN_CATEGORIES;
 
   // 아이콘 회전 애니메이션
   useEffect(() => {
@@ -54,42 +50,51 @@ function PostEdit() {
   }, [loading, alcoholIcons.length]);
 
   useEffect(() => {
-    // TODO: 실제 API 호출로 바꿀 것 - GET /api/posts/{id}
-    const mockPost = {
-      post_id: parseInt(id),
-      title: '조니워커 블루라벨 할인 정보 공유',
-      content: `쿠팡에서 조니워커 블루라벨이 20% 할인 중이에요!
+    const fetchPost = async () => {
+      setLoading(true);
+      try {
+        const response = await fetch(`http://localhost:8080/community/api/posts/${id}`);
+        const result = await response.json();
 
-평소에 너무 비싸서 구매를 망설였는데, 이번에 할인가로 구매했습니다.
-정말 부드럽고 깊은 맛이 인상적이네요.
+        if (!response.ok) {
+          console.error('Failed to fetch post:', response.status);
+          alert('게시글을 불러오는데 실패했습니다.');
+          navigate('/community');
+          return;
+        }
 
-할인 기간이 얼마 남지 않았으니 관심 있으신 분들은 서둘러주세요!`,
-      author_name: '익명',
-      category: '가격정보',
-      tags: '#위스키 #할인 #쿠팡',
-      is_anonymous: false,
-      attachments: []
+        const postData = result.data;
+
+        // 백엔드 데이터를 프론트엔드 형식으로 변환
+        const transformedPost = {
+          post_id: postData.postId,
+          title: postData.title,
+          content: postData.content,
+          author_name: postData.authorName,
+          category: postData.category,
+          tags: postData.tags,
+          is_anonymous: postData.isAnonymous,
+          attachments: postData.attachments || []
+        };
+
+        setOriginalPost(transformedPost);
+        setFormData({
+          category: getKoreanCategory(transformedPost.category),
+          title: transformedPost.title,
+          content: transformedPost.content,
+          tags: transformedPost.tags,
+          attachments: []
+        });
+      } catch (error) {
+        console.error('Failed to fetch post:', error);
+        alert('게시글을 불러오는데 실패했습니다.');
+        navigate('/community');
+      } finally {
+        setLoading(false);
+      }
     };
 
-    // TODO: 권한 확인 - 작성자인지 체크
-    // if (!currentUser.is_logged_in ||
-    //     (!mockPost.is_anonymous && currentUser.author_name !== mockPost.author_name)) {
-    //   alert('수정 권한이 없습니다.');
-    //   navigate('/community');
-    //   return;
-    // }
-
-    setTimeout(() => {
-      setOriginalPost(mockPost);
-      setFormData({
-        category: mockPost.category,
-        title: mockPost.title,
-        content: mockPost.content,
-        tags: mockPost.tags,
-        attachments: []
-      });
-      setLoading(false);
-    }, 500);
+    fetchPost().catch(console.error);
   }, [id, navigate]);
 
   const handleInputChange = (e) => {
@@ -132,36 +137,46 @@ function PostEdit() {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // TODO: 실제 API 호출로 바꿀 것 - PUT /api/posts/{id}
-    // try {
-    //   const response = await fetch(`/api/posts/${id}`, {
-    //     method: 'PUT',
-    //     headers: {
-    //       'Content-Type': 'application/json',
-    //       'Authorization': `Bearer ${token}`
-    //     },
-    //     body: JSON.stringify({
-    //       category: formData.category,
-    //       title: formData.title,
-    //       content: formData.content,
-    //       tags: formData.tags
-    //       // 작성자 정보는 수정하지 않음
-    //     })
-    //   });
-    //
-    //   if (response.ok) {
-    //     navigate(`/post/${id}`);
-    //   } else {
-    //     alert('게시글 수정에 실패했습니다.');
-    //   }
-    // } catch (error) {
-    //   console.error('Failed to update post:', error);
-    //   alert('게시글 수정 중 오류가 발생했습니다.');
-    // }
+    try {
+      // 카테고리 변환 (한글 -> 영문)
 
-    console.log('수정된 게시글 데이터:', formData);
-    alert('게시글이 성공적으로 수정되었습니다!');
-    navigate(`/post/${id}`);
+      const requestData = {
+        title: formData.title,
+        content: formData.content,
+        category: getEnglishCategory(formData.category),
+        tags: formData.tags,
+        // 작성자 정보는 원본 게시글에서 가져옴
+        authorName: originalPost.author_name,
+        isAnonymous: originalPost.is_anonymous
+      };
+
+      // 익명 게시글인 경우 PostDetail에서 전달받은 인증 정보 추가
+      // location.state는 URL에 노출되지 않고, 브라우저 히스토리 객체에만 저장
+      if (originalPost.is_anonymous && location.state) {
+        requestData.anonymousEmail = location.state.anonymousEmail;
+        requestData.anonymousPassword = location.state.anonymousPassword;
+      }
+
+      const response = await fetch(`http://localhost:8080/community/api/posts/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(requestData)
+      });
+
+      if (!response.ok) {
+        console.error('Failed to update post:', response.status);
+        alert('게시글 수정 중 오류가 발생했습니다.');
+        return;
+      }
+
+      alert('게시글이 성공적으로 수정되었습니다!');
+      navigate(`/post/${id}`);
+    } catch (error) {
+      console.error('Failed to update post:', error);
+      alert('게시글 수정 중 오류가 발생했습니다.');
+    }
   };
 
   if (loading) {
