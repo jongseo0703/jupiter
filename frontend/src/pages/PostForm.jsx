@@ -47,13 +47,13 @@ function PostForm() {
         } catch (error) {
           console.error('사용자 정보 조회 실패:', error);
           // 토큰이 유효하지 않을 경우 로그아웃 처리
-          authService.logout();
+          await authService.logout();
           setIsLoggedIn(false);
         }
       }
     };
 
-    checkAuthStatus();
+    checkAuthStatus().catch(console.error);
   }, []);
 
   // 인기 게시글 조회 (전체 카테고리, 첫 번째 페이지, 조회수 순 정렬)
@@ -113,7 +113,7 @@ function PostForm() {
     setTagInput(e.target.value);
   };
 
-  const handleTagInputKeyPress = (e) => {
+  const handleTagInputKeyDown = (e) => {
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
       if (tagInput.trim()) {
@@ -238,14 +238,14 @@ function PostForm() {
                     type="text"
                     value={tagInput}
                     onChange={handleTagInputChange}
-                    onKeyPress={handleTagInputKeyPress}
+                    onKeyDown={handleTagInputKeyDown}
                     onBlur={handleTagInputBlur}
                     placeholder="태그 입력 후 스페이스바 또는 엔터"
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                   />
                   <p className="text-sm text-gray-500 mt-1">
                     태그를 입력하고 스페이스바나 엔터를 누르세요.
-                    <span className="text-blue-600 ml-1">#{tagList.length > 0 ? tagList.join(', #') : '예시: 소주, 추천'}</span>
+                    <span className="text-blue-600 ml-1">#{tagList.length > 0 ? tagList.join(', #') : '예시: 와인, 추천'}</span>
                   </p>
                 </div>
 

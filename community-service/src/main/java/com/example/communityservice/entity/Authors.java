@@ -58,13 +58,4 @@ public class Authors {
   public String getDisplayAuthorName() {
     return authorName != null ? authorName : "익명";
   }
-
-  // 유효성 검증
-  public boolean isValidAuthor() {
-    if (!isAnonymous) {
-      return userId != null && anonymousEmail == null && anonymousPwd == null;
-    } else {
-      return userId == null && anonymousEmail != null && anonymousPwd != null;
-    }
-  }
 }

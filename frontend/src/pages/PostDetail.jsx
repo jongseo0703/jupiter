@@ -269,69 +269,88 @@ function PostDetail() {
     }));
   };
 
+  // ===== 공통 mutation 헬퍼 함수들 =====
+
+  /**
+   * 낙관적 업데이트를 위한 공통 함수
+   * - 진행 중인 쿼리를 취소하여 충돌 방지
+   * - 현재 데이터의 스냅샷을 생성
+   * - UI를 즉시 업데이트 (서버 응답 전에 미리 화면 변경)
+   * @param {Function} updateFn - 데이터 업데이트 함수 (oldData) => newData
+   * @returns {Object} 롤백용 이전 데이터 스냅샷
+   */
+  const createOptimisticUpdate = async (updateFn) => {
+    // 1. 진행중인 post 쿼리 취소 (데이터 충돌 방지)
+    await queryClient.cancelQueries({ queryKey: ['post', id] });
+
+    // 2. 현재 캐시된 데이터의 스냅샷 생성 (에러시 롤백용)
+    const previousPost = queryClient.getQueryData(['post', id]);
+
+    // 3. UI 즉시 업데이트 (낙관적 업데이트)
+    if (updateFn) {
+      queryClient.setQueryData(['post', id], updateFn);
+    }
+    return { previousPost };
+  };
+
+  /**
+   * Mutation 에러 발생 시 데이터 롤백 처리
+   * - 낙관적 업데이트로 변경된 UI를 이전 상태로 되돌림
+   * @param {Error} err - 발생한 에러
+   * @param {Object} context - onMutate에서 반환한 컨텍스트 (스냅샷 포함)
+   */
+  const handleMutationError = (context) => {
+    // 이전 데이터가 있으면 롤백 실행
+    if (context?.previousPost) {
+      queryClient.setQueryData(['post', id], context.previousPost);
+    }
+  };
+
+  /**
+   * 서버와 클라이언트 데이터 동기화
+   * - Mutation 완료 후 서버에서 최신 데이터를 다시 가져옴
+   * - 낙관적 업데이트와 실제 서버 데이터 간의 차이를 해결
+   */
+  const invalidatePostQuery = () => {
+    // 특정 게시글(id)의 React Query 캐시를 무효화해서, 최신 데이터를 다시 불러오도록 하는 함수
+    queryClient.invalidateQueries({ queryKey: ['post', id] }).catch(console.error);
+  };
+
+  // 좋아요 mutation - 헬퍼 함수 사용으로 중복 코드 제거
   const { mutate: likeMutate } = useMutation({
     mutationFn: () => likePost(id),
-    onMutate: async () => {
-      // 진행중인 'post' 쿼리를 취소하여 이전 데이터와 충돌하지 않도록 함
-      await queryClient.cancelQueries({ queryKey: ['post', id] });
-
-      // 현재 캐시된 데이터의 스냅샷을 만듬
-      const previousPost = queryClient.getQueryData(['post', id]);
-
-      // UI를 즉시 업데이트 (낙관적 업데이트)
-      queryClient.setQueryData(['post', id], (oldData) => ({
-        ...oldData,
-        likes: oldData.likes + 1,
-      }));
-
-      // 스냅샷을 반환하여 에러 발생 시 롤백에 사용
-      return { previousPost };
-    },
+    onMutate: () => createOptimisticUpdate((oldData) => ({
+      ...oldData,
+      likes: oldData.likes + 1, // 좋아요 수 1 증가
+    })),
     onError: (err, context) => {
-      // 에러 발생 시 onMutate에서 만든 스냅샷으로 데이터 롤백
-      if (context.previousPost) {
-        queryClient.setQueryData(['post', id], context.previousPost);
-      }
+      handleMutationError(err, context); // 공통 에러 처리
       console.error('Failed to like post:', err);
       alert('좋아요 처리에 실패했습니다.');
     },
-    onSettled: () => {
-      // 성공/실패 여부와 관계없이, 서버와 클라이언트의 상태를 동기화하기 위해 쿼리를 다시 실행
-      queryClient.invalidateQueries({ queryKey: ['post', id] }).catch(console.error);
-    },
+    onSettled: invalidatePostQuery, // 공통 쿼리 무효화
   });
 
-  // 댓글 작성 mutation
+  // 댓글 작성 mutation - 헬퍼 함수 사용으로 중복 코드 제거
   const createCommentMutation = useMutation({
     mutationFn: createComment,
-    onMutate: async (newCommentData) => {
-      // 진행중인 쿼리 취소
-      await queryClient.cancelQueries({ queryKey: ['post', id] });
+    onMutate: (newCommentData) => createOptimisticUpdate((oldData) => {
+      if (!oldData) return oldData;
 
-      // 현재 데이터 스냅샷
-      const previousPost = queryClient.getQueryData(['post', id]);
+      const newComment = {
+        comment_id: Date.now(), // 임시 ID
+        post_id: parseInt(id),
+        content: newCommentData.content,
+        author_name: newCommentData.authorName,
+        created_at: new Date().toLocaleString('ko-KR'),
+        is_anonymous: newCommentData.isAnonymous
+      };
 
-      // 낙관적 업데이트 - 새 댓글 추가
-      queryClient.setQueryData(['post', id], (oldData) => {
-        if (!oldData) return oldData;
-
-        const newComment = {
-          comment_id: Date.now(), // 임시 ID
-          post_id: parseInt(id),
-          content: newCommentData.content,
-          author_name: newCommentData.authorName,
-          created_at: new Date().toLocaleString('ko-KR'),
-          is_anonymous: newCommentData.isAnonymous
-        };
-
-        return {
-          ...oldData,
-          comments: [...(oldData.comments || []), newComment]
-        };
-      });
-
-      return { previousPost };
-    },
+      return {
+        ...oldData,
+        comments: [...(oldData.comments || []), newComment] // 새 댓글 추가
+      };
+    }),
     onSuccess: () => {
       // 댓글 폼 초기화
       setCommentForm({
@@ -339,115 +358,67 @@ function PostDetail() {
         author_name: '',
         anonymous_email: '',
         anonymous_pwd: '',
-        is_anonymous: !isLoggedIn // 비로그인 사용자는 true, 로그인 사용자는 false
+        is_anonymous: !isLoggedIn
       });
-      // 성공 알림
       alert('댓글이 성공적으로 등록되었습니다.');
     },
     onError: (err, context) => {
-      // 에러 시 롤백
-      if (context?.previousPost) {
-        queryClient.setQueryData(['post', id], context.previousPost);
-      }
+      handleMutationError(err, context); // 공통 에러 처리
       console.error('Failed to create comment:', err);
       alert('댓글 등록에 실패했습니다.');
     },
-    onSettled: () => {
-      // 서버와 동기화
-      queryClient.invalidateQueries({ queryKey: ['post', id] }).catch(console.error);
-    }
+    onSettled: invalidatePostQuery, // 성공/실패 관계없이 서버 데이터로 동기화
   });
 
-  // 댓글 수정 mutation
+  // 댓글 수정 mutation - 헬퍼 함수 사용으로 중복 코드 제거
   const updateCommentMutation = useMutation({
     mutationFn: updateComment,
-    onMutate: async ({ commentId, commentData }) => {
-      // 진행중인 쿼리 취소
-      await queryClient.cancelQueries({ queryKey: ['post', id] });
+    onMutate: ({ commentId, commentData }) => createOptimisticUpdate((oldData) => {
+      if (!oldData) return oldData;
 
-      // 현재 데이터 스냅샷
-      const previousPost = queryClient.getQueryData(['post', id]);
-
-      // 낙관적 업데이트 - 댓글 수정
-      queryClient.setQueryData(['post', id], (oldData) => {
-        if (!oldData) return oldData;
-
-        return {
-          ...oldData,
-          comments: oldData.comments.map(comment =>
-            comment.comment_id === commentId
-              ? {
-                  ...comment,
-                  content: commentData.content,
-                  created_at: new Date().toLocaleString('ko-KR')
-                }
-              : comment
-          )
-        };
-      });
-
-      return { previousPost };
-    },
+      return {
+        ...oldData,
+        comments: oldData.comments.map(comment =>
+          comment.comment_id === commentId ? {
+            ...comment,
+            content: commentData.content, // 댓글 내용 수정
+            created_at: new Date().toLocaleString('ko-KR')} : comment)};
+    }),
     onSuccess: () => {
       // 편집 상태 초기화
       setEditingComment(null);
       setEditCommentContent('');
       setAuthenticatedAnonymousComment(null);
-      // 성공 알림
       alert('댓글이 성공적으로 수정되었습니다.');
     },
     onError: (err, context) => {
-      // 에러 시 롤백
-      if (context?.previousPost) {
-        queryClient.setQueryData(['post', id], context.previousPost);
-      }
+      handleMutationError(err, context); // 공통 에러 처리
       console.error('Failed to update comment:', err);
       alert('댓글 수정에 실패했습니다.');
     },
-    onSettled: () => {
-      // 서버와 동기화
-      queryClient.invalidateQueries({ queryKey: ['post', id] }).catch(console.error);
-    }
+    onSettled: invalidatePostQuery, // 공통 쿼리 무효화
   });
 
-  // 댓글 삭제 mutation
+  // 댓글 삭제 mutation - 헬퍼 함수 사용으로 중복 코드 제거
   const deleteCommentMutation = useMutation({
     mutationFn: deleteComment,
-    onMutate: async ({ commentId }) => {
-      // 진행중인 쿼리 취소
-      await queryClient.cancelQueries({ queryKey: ['post', id] });
+    onMutate: ({ commentId }) => createOptimisticUpdate((oldData) => {
+      if (!oldData) return oldData;
 
-      // 현재 데이터 스냅샷
-      const previousPost = queryClient.getQueryData(['post', id]);
-
-      // 낙관적 업데이트 - 댓글 삭제
-      queryClient.setQueryData(['post', id], (oldData) => {
-        if (!oldData) return oldData;
-
-        return {
-          ...oldData,
-          comments: oldData.comments.filter(comment => comment.comment_id !== commentId)
-        };
-      });
-
-      return { previousPost };
-    },
+      return {
+        ...oldData,
+        comments: oldData.comments.filter(comment => comment.comment_id !== commentId) // 댓글 제거
+      };
+    }),
     onSuccess: () => {
-      // 성공 알림
       alert('댓글이 성공적으로 삭제되었습니다.');
     },
     onError: (err, context) => {
-      // 에러 시 롤백
-      if (context?.previousPost) {
-        queryClient.setQueryData(['post', id], context.previousPost);
-      }
+      handleMutationError(err, context); // 공통 에러 처리
       console.error('Failed to delete comment:', err);
       alert('댓글 삭제에 실패했습니다.');
     },
-    onSettled: () => {
-      // 서버와 동기화
-      queryClient.invalidateQueries({ queryKey: ['post', id] }).catch(console.error);
-    }
+    onSettled: invalidatePostQuery, // 공통 쿼리 무효화
   });
 
   // 익명 댓글 인증 mutation

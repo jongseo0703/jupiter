@@ -255,6 +255,7 @@ export const fetchPost = async ({ queryKey }) => {
     title: postData.title,
     content: postData.content,
     author_name: postData.authorName,
+    author_id: postData.author_id, // PostEdit에서 필요한 author_id 추가
     category: getKoreanCategory(postData.category),
     created_at: new Date(postData.createdAt).toLocaleString('ko-KR'),
     updated_at: new Date(postData.updatedAt).toLocaleString('ko-KR'),
@@ -429,11 +430,57 @@ export const verifyAnonymousPost = async ({ postId, authData }) => {
 };
 
 /**
+ * 게시글을 수정하는 API 함수
+ * @param {object} param - 게시글 ID와 수정할 데이터
+ * @returns {Promise<object>} 수정된 게시글 정보
+ */
+export const updatePost = async ({ postId, postData }) => {
+  const response = await fetch(`${COMMUNITY_API_URL}/posts/${postId}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(postData),
+  });
+  return handleQueryApiResponse(response);
+};
+
+/**
+ * 첨부파일을 삭제하는 API 함수
+ * @param {string} attachmentId - 삭제할 첨부파일 ID
+ * @returns {Promise<object>} 삭제 성공 응답
+ */
+export const deleteAttachment = async (attachmentId) => {
+  const response = await fetch(`${COMMUNITY_API_URL}/posts/attachments/${attachmentId}`, {
+    method: 'DELETE',
+  });
+  return handleQueryApiResponse(response);
+};
+
+/**
+ * 게시글에 새 첨부파일을 업로드하는 API 함수
+ * @param {string} postId - 게시글 ID
+ * @param {File[]} files - 업로드할 파일 배열
+ * @returns {Promise<object>} 업로드 성공 응답
+ */
+export const uploadAttachments = async (postId, files) => {
+  const formData = new FormData();
+  files.forEach(file => {
+    formData.append('files', file);
+  });
+
+  const response = await fetch(`${COMMUNITY_API_URL}/posts/${postId}/attachments`, {
+    method: 'POST',
+    body: formData,
+  });
+  return handleQueryApiResponse(response);
+};
+
+/**
  * 모든 태그 목록을 조회하는 API 함수
  * @returns {Promise<Array>} - 모든 태그 목록 (사용 빈도순)
  */
 export const fetchAllTags = async () => {
   const response = await fetch(`${COMMUNITY_API_URL}/posts/tags`);
-  const tags = await handleQueryApiResponse(response);
-  return tags;
+  return await handleQueryApiResponse(response);
 };

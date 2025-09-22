@@ -2,11 +2,10 @@ import { useState } from 'react';
 
 /**
  * 파일 업로드 관련 로직을 처리하는 커스텀 훅
- * @param {Object} formData - 폼 데이터 상태
  * @param {Function} setFormData - 폼 데이터 설정 함수
  * @returns {Object} 파일 업로드 관련 상태와 함수들
  */
-export const useFileUpload = (formData, setFormData) => {
+export const useFileUpload = (setFormData) => {
   const [previewImages, setPreviewImages] = useState([]);
 
   // 파일 검증 함수
