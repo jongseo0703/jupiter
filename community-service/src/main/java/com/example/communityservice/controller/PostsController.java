@@ -11,12 +11,14 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.example.communityservice.dto.auth.AnonymousAuthRequestDTO;
+import com.example.communityservice.dto.auth.UserInfoResponse;
 import com.example.communityservice.dto.posts.PostAttachmentsResponseDTO;
 import com.example.communityservice.dto.posts.PostsRequestDTO;
 import com.example.communityservice.dto.posts.PostsResponseDTO;
 import com.example.communityservice.dto.posts.PostsSummaryDTO;
 import com.example.communityservice.global.common.ApiResponseDTO;
 import com.example.communityservice.global.common.PageResponseDTO;
+import com.example.communityservice.service.AuthService;
 import com.example.communityservice.service.FileUploadService;
 import com.example.communityservice.service.PostsService;
 
@@ -26,16 +28,19 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 /** 게시글 관련 REST API 컨트롤러 */
 @Tag(name = "Posts", description = "게시글 관리 API")
 @RestController
 @RequestMapping("/api/posts")
 @RequiredArgsConstructor
+@Slf4j
 public class PostsController {
 
   private final PostsService postsService;
   private final FileUploadService fileUploadService;
+  private final AuthService authService;
 
   // 게시글 목록 조회
   // GET /api/posts?category=전체&page=0&size=20&sort=views 또는 sort=createdAt
@@ -95,15 +100,64 @@ public class PostsController {
 
   // 게시글 작성
   // POST /api/posts
-  @Operation(summary = "게시글 작성", description = "새로운 게시글을 작성합니다. 회원/익명 사용자 모두 가능합니다.")
+  @Operation(
+      summary = "게시글 작성",
+      description = "새로운 게시글을 작성합니다. 로그인한 사용자는 해당 계정으로만 작성 가능하며, 비로그인 사용자는 익명으로 작성 가능합니다.")
   @ApiResponses({
     @ApiResponse(responseCode = "200", description = "작성 성공"),
     @ApiResponse(responseCode = "400", description = "입력값 검증 실패"),
+    @ApiResponse(responseCode = "401", description = "인증 실패"),
     @ApiResponse(responseCode = "404", description = "작성자를 찾을 수 없음")
   })
   @PostMapping
   public ResponseEntity<ApiResponseDTO<PostsResponseDTO>> createPost(
-      @Parameter(description = "게시글 작성 요청 정보") @Valid @RequestBody PostsRequestDTO requestDto) {
+      @Parameter(description = "게시글 작성 요청 정보") @Valid @RequestBody PostsRequestDTO requestDto,
+      @RequestHeader(value = "Authorization", required = false) String authorizationHeader) {
+
+    log.info("=== POST /api/posts 호출됨 ===");
+    log.info("인증 헤더: {}", authorizationHeader);
+    log.info(
+        "처리 전 요청 DTO: authorId={}, isAnonymous={}, authorName={}",
+        requestDto.getAuthorId(),
+        requestDto.getIsAnonymous(),
+        requestDto.getAuthorName());
+
+    // Authorization 헤더가 있으면 무조건 인증된 사용자로 처리 (강제)
+    if (authorizationHeader != null && authorizationHeader.startsWith("Bearer ")) {
+      log.info("인증 헤더 감지, 토큰 유효성 검사 중...");
+      try {
+        UserInfoResponse userInfo = authService.validateTokenAndGetUser(authorizationHeader);
+        log.info(
+            "사용자 정보 조회됨: id={}, username={}, email={}",
+            userInfo.getId(),
+            userInfo.getUsername(),
+            userInfo.getEmail());
+        // 로그인한 사용자는 무조건 해당 계정으로만 작성 가능
+        requestDto.setAuthorId(userInfo.getId());
+        requestDto.setIsAnonymous(false);
+        requestDto.setAuthorName(userInfo.getUsername()); // 사용자 이름 설정
+        // 익명 관련 필드 무시
+        requestDto.setAnonymousEmail(null);
+        requestDto.setAnonymousPassword(null);
+        log.info(
+            "요청 DTO 업데이트됨: authorId={}, isAnonymous={}",
+            requestDto.getAuthorId(),
+            requestDto.getIsAnonymous());
+      } catch (Exception e) {
+        log.error("토큰 유효성 검사 및 사용자 정보 조회 실패", e);
+        throw e;
+      }
+    } else {
+      log.info(
+          "유효한 인증 헤더 없음 (헤더: {}), 익명으로 진행",
+          authorizationHeader);
+    }
+
+    log.info(
+        "최종 요청 DTO: authorId={}, isAnonymous={}",
+        requestDto.getAuthorId(),
+        requestDto.getIsAnonymous());
+
     PostsResponseDTO createdPost = postsService.createPost(requestDto);
     return ResponseEntity.ok(ApiResponseDTO.success("게시글이 성공적으로 작성되었습니다.", createdPost));
   }
