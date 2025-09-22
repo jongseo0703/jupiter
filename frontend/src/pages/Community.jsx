@@ -35,6 +35,7 @@ function Community() {
   const popularPosts = popularPostsData?.posts || [];
   const allTags = allTagsData || [];
   const totalPages = data?.totalPages || 1;
+  const totalElements = data?.totalElements || 0;
 
   if (isError) {
     console.error('Failed to fetch posts:', error);
@@ -168,7 +169,7 @@ function Community() {
                   <h2 className="text-xl font-bold text-gray-800">
                     {selectedTag ? `태그: #${selectedTag}` :
                       searchKeyword ? `검색: "${searchKeyword}"` :
-                      selectedCategory} ({filteredPosts.length})
+                      selectedCategory} (전체 {totalElements}개)
                   </h2>
                   <Link
                     to="/community-form"

@@ -196,7 +196,11 @@ export const fetchPosts = async ({ queryKey }) => {
     has_attachments: post.hasAttachments || false // 백엔드에서 제공하는 hasAttachments 필드 사용
   }));
 
-  return { posts: transformedPosts, totalPages: pageData.totalPages };
+  return {
+    posts: transformedPosts,
+    totalPages: pageData.totalPages,
+    totalElements: pageData.totalElements || 0
+  };
 };
 
 /**
