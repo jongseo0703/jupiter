@@ -1,7 +1,32 @@
 
 import { Link } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import authService from '../../services/authService';
 
 const Footer = () => {
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+  useEffect(() => {
+    // 초기 로그인 상태 확인
+    setIsLoggedIn(authService.isLoggedIn());
+
+    // 주기적으로 로그인 상태 확인 (500ms마다)
+    const interval = setInterval(() => {
+      setIsLoggedIn(authService.isLoggedIn());
+    }, 500);
+
+    // 스토리지 이벤트 리스너 (다른 탭에서 로그인/로그아웃 시 감지)
+    const checkLoginStatus = () => {
+      setIsLoggedIn(authService.isLoggedIn());
+    };
+
+    window.addEventListener('storage', checkLoginStatus);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('storage', checkLoginStatus);
+    };
+  }, []);
   return (
     <footer className="bg-gray-900 text-white">
       {/* Main Footer */}
@@ -76,30 +101,51 @@ const Footer = () => {
             <div>
               <h4 className="text-lg font-semibold mb-6">계정</h4>
               <ul className="space-y-3">
-                <li>
-                  <Link to="/login" className="text-gray-300 hover:text-primary transition-colors flex items-center">
-                    <i className="fas fa-chevron-right mr-2 text-xs"></i>
-                    로그인
-                  </Link>
-                </li>
-                <li>
-                  <Link to="/register" className="text-gray-300 hover:text-primary transition-colors flex items-center">
-                    <i className="fas fa-chevron-right mr-2 text-xs"></i>
-                    회원가입
-                  </Link>
-                </li>
-                <li>
-                  <Link to="/favorites" className="text-gray-300 hover:text-primary transition-colors flex items-center">
-                    <i className="fas fa-chevron-right mr-2 text-xs"></i>
-                    즐겨찾기
-                  </Link>
-                </li>
-                <li>
-                  <Link to="/forgot-password" className="text-gray-300 hover:text-primary transition-colors flex items-center">
-                    <i className="fas fa-chevron-right mr-2 text-xs"></i>
-                    비밀번호 찾기
-                  </Link>
-                </li>
+                {isLoggedIn ? (
+                  // 로그인된 상태
+                  <>
+                    <li>
+                      <Link to="/mypage" className="text-gray-300 hover:text-primary transition-colors flex items-center">
+                        <i className="fas fa-chevron-right mr-2 text-xs"></i>
+                        마이페이지
+                      </Link>
+                    </li>
+                    <li>
+                      <Link to="/favorites" className="text-gray-300 hover:text-primary transition-colors flex items-center">
+                        <i className="fas fa-chevron-right mr-2 text-xs"></i>
+                        즐겨찾기
+                      </Link>
+                    </li>
+                    <li>
+                      <Link to="/settings" className="text-gray-300 hover:text-primary transition-colors flex items-center">
+                        <i className="fas fa-chevron-right mr-2 text-xs"></i>
+                        설정
+                      </Link>
+                    </li>
+                  </>
+                ) : (
+                  // 로그인되지 않은 상태
+                  <>
+                    <li>
+                      <Link to="/login" className="text-gray-300 hover:text-primary transition-colors flex items-center">
+                        <i className="fas fa-chevron-right mr-2 text-xs"></i>
+                        로그인
+                      </Link>
+                    </li>
+                    <li>
+                      <Link to="/register" className="text-gray-300 hover:text-primary transition-colors flex items-center">
+                        <i className="fas fa-chevron-right mr-2 text-xs"></i>
+                        회원가입
+                      </Link>
+                    </li>
+                    <li>
+                      <Link to="/forgot-password" className="text-gray-300 hover:text-primary transition-colors flex items-center">
+                        <i className="fas fa-chevron-right mr-2 text-xs"></i>
+                        비밀번호 찾기
+                      </Link>
+                    </li>
+                  </>
+                )}
               </ul>
             </div>
 
