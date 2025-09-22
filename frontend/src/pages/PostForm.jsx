@@ -1,14 +1,17 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import { getEnglishCategory, KOREAN_CATEGORIES } from '../utils/categoryUtils';
 import { useFileUpload } from '../hooks/useFileUpload';
 import { createPostWithFiles, fetchPopularPosts } from '../services/api';
 import { categorizeAttachments } from '../utils/fileUtils';
+import authService from '../services/authService';
 
 function PostForm() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [currentUser, setCurrentUser] = useState(null);
   const [formData, setFormData] = useState({
     category: '',
     title: '',
@@ -28,6 +31,30 @@ function PostForm() {
   const { previewImages, handleFileUpload, removeFile } = useFileUpload(formData, setFormData);
 
   const categories = KOREAN_CATEGORIES;
+
+  // 로그인 상태 확인
+  useEffect(() => {
+    const checkAuthStatus = async () => {
+      const loggedIn = authService.isLoggedIn();
+      setIsLoggedIn(loggedIn);
+
+      if (loggedIn) {
+        try {
+          const user = await authService.getCurrentUser();
+          setCurrentUser(user);
+          // 로그인한 사용자는 익명 체크 해제
+          setFormData(prev => ({ ...prev, is_anonymous: false }));
+        } catch (error) {
+          console.error('사용자 정보 조회 실패:', error);
+          // 토큰이 유효하지 않을 경우 로그아웃 처리
+          authService.logout();
+          setIsLoggedIn(false);
+        }
+      }
+    };
+
+    checkAuthStatus();
+  }, []);
 
   // 인기 게시글 조회 (전체 카테고리, 첫 번째 페이지, 조회수 순 정렬)
   const { data: popularPostsData } = useQuery({
@@ -113,10 +140,10 @@ function PostForm() {
       title: formData.title,
       content: formData.content,
       tags: JSON.stringify(tagList),
-      isAnonymous: formData.is_anonymous,
-      authorName: formData.is_anonymous ? '익명' : '현재사용자', // TODO: 실제 로그인된 사용자 정보로 교체
-      anonymousEmail: formData.is_anonymous ? formData.anonymous_email : null,
-      anonymousPassword: formData.is_anonymous ? formData.anonymous_pwd : null
+      isAnonymous: isLoggedIn ? false : formData.is_anonymous, // 로그인한 사용자는 강제로 false
+      authorName: isLoggedIn ? currentUser?.username : (formData.is_anonymous ? '익명' : '비회원'),
+      anonymousEmail: (!isLoggedIn && formData.is_anonymous) ? formData.anonymous_email : null,
+      anonymousPassword: (!isLoggedIn && formData.is_anonymous) ? formData.anonymous_pwd : null
     };
 
     mutate({ postData, files: formData.attachments });
@@ -367,62 +394,80 @@ function PostForm() {
               </h2>
 
               <div className="space-y-4">
-                <div className="flex items-center">
-                  <input
-                    type="checkbox"
-                    name="is_anonymous"
-                    checked={formData.is_anonymous}
-                    onChange={handleInputChange}
-                    className="mr-3 text-primary focus:ring-primary"
-                  />
-                  <label className="text-gray-700 font-medium">익명으로 작성</label>
-                </div>
-
-                {formData.is_anonymous ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        이메일 *
-                      </label>
-                      <input
-                        type="email"
-                        name="anonymous_email"
-                        value={formData.anonymous_email}
-                        onChange={handleInputChange}
-                        placeholder="익명 사용자 이메일"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                        required={formData.is_anonymous}
-                      />
-                      <p className="text-sm text-gray-500 mt-1">게시글 수정/삭제 시 사용</p>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        비밀번호 *
-                      </label>
-                      <input
-                        type="password"
-                        name="anonymous_pwd"
-                        value={formData.anonymous_pwd}
-                        onChange={handleInputChange}
-                        placeholder="게시글 비밀번호"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                        required={formData.is_anonymous}
-                      />
-                      <p className="text-sm text-gray-500 mt-1">게시글 수정/삭제 시 사용</p>
-                    </div>
-                  </div>
-                ) : (
+                {isLoggedIn ? (
+                  // 로그인된 사용자의 경우
                   <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
                     <h4 className="text-sm font-medium text-blue-800 mb-2">로그인된 사용자</h4>
                     <p className="text-blue-700">
-                      <strong>사용자명:</strong> {/* TODO: 실제 로그인된 사용자 정보로 교체 */}
-                      현재사용자
+                      <strong>사용자명:</strong> {currentUser?.username || '사용자'}
                     </p>
-                    <p className="text-xs text-blue-600 mt-1">
+                    <p className="text-blue-700">
+                      <strong>이메일:</strong> {currentUser?.email || ''}
+                    </p>
+                    <p className="text-xs text-blue-600 mt-2">
                       * 로그인된 사용자 정보로 게시글이 작성됩니다.
                     </p>
                   </div>
+                ) : (
+                  // 비로그인 사용자의 경우
+                  <>
+                    <div className="flex items-center">
+                      <input
+                        type="checkbox"
+                        name="is_anonymous"
+                        checked={formData.is_anonymous}
+                        onChange={handleInputChange}
+                        className="mr-3 text-primary focus:ring-primary"
+                      />
+                      <label className="text-gray-700 font-medium">익명으로 작성</label>
+                    </div>
+
+                    {formData.is_anonymous ? (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            이메일 *
+                          </label>
+                          <input
+                            type="email"
+                            name="anonymous_email"
+                            value={formData.anonymous_email}
+                            onChange={handleInputChange}
+                            placeholder="익명 사용자 이메일"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                            required={formData.is_anonymous}
+                          />
+                          <p className="text-sm text-gray-500 mt-1">게시글 수정/삭제 시 사용</p>
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            비밀번호 *
+                          </label>
+                          <input
+                            type="password"
+                            name="anonymous_pwd"
+                            value={formData.anonymous_pwd}
+                            onChange={handleInputChange}
+                            placeholder="게시글 비밀번호"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                            required={formData.is_anonymous}
+                          />
+                          <p className="text-sm text-gray-500 mt-1">게시글 수정/삭제 시 사용</p>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                        <h4 className="text-sm font-medium text-gray-700 mb-2">비회원 작성</h4>
+                        <p className="text-gray-600">
+                          비회원으로 게시글을 작성합니다. 수정/삭제가 제한될 수 있습니다.
+                        </p>
+                        <p className="text-xs text-gray-500 mt-2">
+                          * 회원가입 후 로그인하시면 더 많은 기능을 이용할 수 있습니다.
+                        </p>
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             </div>

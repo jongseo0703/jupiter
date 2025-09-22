@@ -283,12 +283,19 @@ export const fetchPost = async ({ queryKey }) => {
  * @returns {Promise<object>} 생성된 게시물 정보
  */
 export const createPostWithFiles = async ({ postData, files }) => {
-  // 1. 게시글 생성 API 호출
+  // 1. 게시글 생성 API 호출 (Authorization 헤더 포함)
+  const token = localStorage.getItem('accessToken');
+  const headers = {
+    'Content-Type': 'application/json',
+  };
+
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+
   const createPostResponse = await fetch(`${COMMUNITY_API_URL}/posts`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers,
     body: JSON.stringify(postData),
   });
   const createdPost = await handleQueryApiResponse(createPostResponse);
