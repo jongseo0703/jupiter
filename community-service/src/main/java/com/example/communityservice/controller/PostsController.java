@@ -54,13 +54,27 @@ public class PostsController {
       @Parameter(description = "정렬 기준 (views: 조회수순, createdAt: 최신순)")
           @RequestParam(required = false, defaultValue = "createdAt")
           String sort,
+      @Parameter(description = "태그 필터링") @RequestParam(required = false) String tag,
+      @Parameter(description = "키워드 검색 (제목, 내용)") @RequestParam(required = false) String search,
       @Parameter(description = "페이징 정보 (page, size)") Pageable pageable) {
+
     Page<PostsSummaryDTO> posts;
-    if ("views".equals(sort)) {
+
+    // 태그 검색
+    if (tag != null && !tag.trim().isEmpty()) {
+      posts = postsService.getPostsByTag(tag, pageable);
+    }
+    // 키워드 검색
+    else if (search != null && !search.trim().isEmpty()) {
+      posts = postsService.searchPosts(search, pageable);
+    }
+    // 일반 목록 조회
+    else if ("views".equals(sort)) {
       posts = postsService.getPopularPosts(category, pageable);
     } else {
       posts = postsService.getPosts(category, pageable);
     }
+
     PageResponseDTO<PostsSummaryDTO> pageResponse = PageResponseDTO.from(posts);
     return ResponseEntity.ok(ApiResponseDTO.success(pageResponse));
   }
@@ -210,5 +224,15 @@ public class PostsController {
       @Parameter(description = "첨부파일 ID") @PathVariable Long attachmentId) {
     fileUploadService.deleteAttachment(attachmentId);
     return ResponseEntity.ok(ApiResponseDTO.success("첨부파일이 삭제되었습니다.", null));
+  }
+
+  // === 태그 관련 API ===
+
+  @Operation(summary = "모든 태그 목록 조회", description = "사용 빈도순으로 모든 태그 목록을 조회합니다.")
+  @ApiResponses({@ApiResponse(responseCode = "200", description = "조회 성공")})
+  @GetMapping("/tags")
+  public ResponseEntity<ApiResponseDTO<List<String>>> getAllTags() {
+    List<String> allTags = postsService.getAllTags();
+    return ResponseEntity.ok(ApiResponseDTO.success(allTags));
   }
 }

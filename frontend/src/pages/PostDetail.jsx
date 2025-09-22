@@ -692,15 +692,26 @@ function PostDetail() {
                 <span className="text-sm text-gray-500">{post.created_at}</span>
               </div>
 
-              {post.tags && (
-                <div className="flex flex-wrap gap-1 mb-4">
-                  {post.tags.split(' ').map((tag, index) => (
-                    <span key={index} className="text-sm text-blue-600 bg-blue-50 px-2 py-1 rounded">
-                      {tag}
-                    </span>
-                  ))}
-                </div>
-              )}
+              {post.tags && (() => {
+                try {
+                  const parsedTags = typeof post.tags === 'string' ? JSON.parse(post.tags) : post.tags;
+                  if (Array.isArray(parsedTags) && parsedTags.length > 0) {
+                    return (
+                      <div className="flex flex-wrap gap-1 mb-4">
+                        {parsedTags.map((tag, index) => (
+                          <span key={index} className="text-sm text-blue-600 bg-blue-50 px-2 py-1 rounded">
+                            #{tag}
+                          </span>
+                        ))}
+                      </div>
+                    );
+                  }
+                } catch (e) {
+                  // JSON 파싱 실패 시 빈 배열로 처리
+                  return null;
+                }
+                return null;
+              })()}
 
               <div className="flex items-start justify-between mb-4">
                 <h1 className="text-3xl font-bold text-gray-800 flex-1">{post.title}</h1>

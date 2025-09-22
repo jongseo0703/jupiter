@@ -155,7 +155,7 @@ const handleQueryApiResponse = async (response) => {
  * @returns {Promise<Object>} - 변환된 게시물 목록과 페이지 정보
  */
 export const fetchPosts = async ({ queryKey }) => {
-  const [_key, category, page] = queryKey;
+  const [_key, category, page, tag, search] = queryKey;
 
   const queryParams = new URLSearchParams();
   if (category !== '전체') {
@@ -164,6 +164,17 @@ export const fetchPosts = async ({ queryKey }) => {
       queryParams.append('category', englishCategory);
     }
   }
+
+  // 태그 검색
+  if (tag && tag.trim()) {
+    queryParams.append('tag', tag.trim());
+  }
+
+  // 키워드 검색
+  if (search && search.trim()) {
+    queryParams.append('search', search.trim());
+  }
+
   queryParams.append('page', (page - 1).toString());
   queryParams.append('size', '20');
 
@@ -408,4 +419,14 @@ export const verifyAnonymousPost = async ({ postId, authData }) => {
     body: JSON.stringify(authData),
   });
   return handleQueryApiResponse(response);
+};
+
+/**
+ * 모든 태그 목록을 조회하는 API 함수
+ * @returns {Promise<Array>} - 모든 태그 목록 (사용 빈도순)
+ */
+export const fetchAllTags = async () => {
+  const response = await fetch(`${COMMUNITY_API_URL}/posts/tags`);
+  const tags = await handleQueryApiResponse(response);
+  return tags;
 };

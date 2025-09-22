@@ -237,4 +237,42 @@ public class PostsService {
   public Posts getPostEntity(Long postId) {
     return postsRepository.findById(postId).orElseThrow(() -> new PostNotFoundException(postId));
   }
+
+  // 태그로 게시글 검색
+  public Page<PostsSummaryDTO> getPostsByTag(String tag, Pageable pageable) {
+    String jsonTag = "\"" + tag + "\""; // JSON 형태로 변환
+    Page<Posts> posts = postsRepository.findByTagsContaining(jsonTag, pageable);
+
+    return posts.map(
+        post -> {
+          PostsSummaryDTO postsSummaryDTO = PostsSummaryDTO.from(post);
+          // 첨부파일 개수 확인하여 hasAttachments 설정
+          int attachmentCount = postAttachmentsRepository.countByPostId(post.getPostId());
+          postsSummaryDTO.setHasAttachments(attachmentCount > 0);
+          return postsSummaryDTO;
+        });
+  }
+
+  // 키워드로 게시글 검색 (제목, 내용, 태그 포함)
+  public Page<PostsSummaryDTO> searchPosts(String keyword, Pageable pageable) {
+    // 제목/내용으로 검색
+    Page<Posts> posts = postsRepository.findByTitleContainingOrContentContaining(keyword, pageable);
+
+    return posts.map(
+        post -> {
+          PostsSummaryDTO postsSummaryDTO = PostsSummaryDTO.from(post);
+          int attachmentCount = postAttachmentsRepository.countByPostId(post.getPostId());
+          postsSummaryDTO.setHasAttachments(attachmentCount > 0);
+          return postsSummaryDTO;
+        });
+  }
+
+  // 모든 태그 목록 조회 (사용 빈도순)
+  public List<String> getAllTags() {
+    List<Object[]> results = postsRepository.findAllTags();
+    return results.stream()
+        .map(row -> (String) row[0])
+        .filter(tag -> tag != null && !tag.trim().isEmpty())
+        .collect(Collectors.toList());
+  }
 }

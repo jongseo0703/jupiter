@@ -2,17 +2,19 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { KOREAN_CATEGORIES, getCategoryStyle } from '../utils/categoryUtils';
-import { fetchPosts, fetchPopularPosts } from '../services/api';
+import { fetchPosts, fetchPopularPosts, fetchAllTags } from '../services/api';
 
 function Community() {
   const [selectedCategory, setSelectedCategory] = useState('전체');
   const [currentPage, setCurrentPage] = useState(1);
+  const [searchKeyword, setSearchKeyword] = useState('');
+  const [selectedTag, setSelectedTag] = useState('');
 
   const categories = ['전체', ...KOREAN_CATEGORIES];
 
   // React Query를 사용하여 게시글 목록 조회
   const { data, isLoading: loading, isError, error } = useQuery({
-    queryKey: ['posts', selectedCategory, currentPage],
+    queryKey: ['posts', selectedCategory, currentPage, selectedTag, searchKeyword],
     queryFn: fetchPosts,
     keepPreviousData: true, // 페이지 변경 시 이전 데이터를 유지하여 UX 개선
   });
@@ -24,8 +26,16 @@ function Community() {
     staleTime: 5 * 60 * 1000, // 5분간 fresh 상태 유지
   });
 
+  // 모든 태그 조회
+  const { data: allTagsData } = useQuery({
+    queryKey: ['allTags'],
+    queryFn: fetchAllTags,
+    staleTime: 10 * 60 * 1000, // 10분간 fresh 상태 유지
+  });
+
   const posts = data?.posts || [];
   const popularPosts = popularPostsData?.posts || [];
+  const allTags = allTagsData || [];
   const totalPages = data?.totalPages || 1;
 
   if (isError) {
@@ -117,6 +127,37 @@ function Community() {
                 ))}
               </div>
             </div>
+
+            {/* 인기 태그 섹션 */}
+            <div className="bg-white rounded-lg shadow-sm p-6">
+              <h3 className="text-xl font-bold mb-4 text-gray-800">
+                <i className="fas fa-tags text-blue-500 mr-2"></i>
+                인기 태그
+              </h3>
+              <div className="flex flex-wrap gap-2">
+                {allTags.slice(0, 20).map((tag, index) => (
+                  <button
+                    key={index}
+                    onClick={() => {
+                      setSelectedTag(tag);
+                      setSearchKeyword('');
+                      setSelectedCategory('전체');
+                      setCurrentPage(1);
+                    }}
+                    className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
+                      selectedTag === tag
+                        ? 'bg-blue-500 text-white'
+                        : 'bg-blue-50 text-blue-600 hover:bg-blue-100'
+                    }`}
+                  >
+                    #{tag}
+                  </button>
+                ))}
+                {allTags.length === 0 && (
+                  <p className="text-gray-500 text-sm">아직 태그가 없습니다.</p>
+                )}
+              </div>
+            </div>
             </div>
           </div>
 
@@ -125,9 +166,11 @@ function Community() {
             <div className="bg-white rounded-lg shadow-sm">
               {/* 게시판 헤더 */}
               <div className="p-6 border-b border-gray-200">
-                <div className="flex justify-between items-center">
+                <div className="flex justify-between items-center mb-4">
                   <h2 className="text-xl font-bold text-gray-800">
-                    {selectedCategory} ({filteredPosts.length})
+                    {selectedTag ? `태그: #${selectedTag}` :
+                     searchKeyword ? `검색: "${searchKeyword}"` :
+                     selectedCategory} ({filteredPosts.length})
                   </h2>
                   <Link
                     to="/community-form"
@@ -137,6 +180,71 @@ function Community() {
                     글쓰기
                   </Link>
                 </div>
+
+                {/* 키워드 검색 바 */}
+                <div className="flex gap-2 mb-4">
+                  <div className="flex-1 relative">
+                    <input
+                      type="text"
+                      placeholder="게시글 제목이나 내용을 검색하세요..."
+                      value={searchKeyword}
+                      onChange={(e) => setSearchKeyword(e.target.value)}
+                      onKeyPress={(e) => {
+                        if (e.key === 'Enter') {
+                          setSelectedTag(''); // 태그 필터 해제
+                          setCurrentPage(1);
+                        }
+                      }}
+                      className="w-full px-4 py-2 pl-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+                    />
+                    <i className="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                    <button
+                      onClick={() => {
+                        setSelectedTag(''); // 태그 필터 해제
+                        setCurrentPage(1);
+                      }}
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 px-2 py-1 bg-primary text-white text-sm rounded hover:bg-blue-800 transition-colors"
+                    >
+                      검색
+                    </button>
+                  </div>
+                </div>
+
+                {/* 검색 안내 */}
+                <div className="mb-4 text-sm text-gray-600">
+                  <i className="fas fa-info-circle mr-1"></i>
+                  <span>제목/내용 검색은 위 검색창을, 태그 검색은 사이드바의 태그를 클릭하세요</span>
+                </div>
+
+                {/* 현재 필터 상태 */}
+                {(selectedTag || searchKeyword) && (
+                  <div className="flex gap-2 mb-2">
+                    {selectedTag && (
+                      <span className="inline-flex items-center px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">
+                        <i className="fas fa-tag mr-1"></i>
+                        태그 필터: #{selectedTag}
+                        <button
+                          onClick={() => setSelectedTag('')}
+                          className="ml-2 text-blue-600 hover:text-blue-800"
+                        >
+                          <i className="fas fa-times"></i>
+                        </button>
+                      </span>
+                    )}
+                    {searchKeyword && (
+                      <span className="inline-flex items-center px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm">
+                        <i className="fas fa-search mr-1"></i>
+                        키워드 검색: "{searchKeyword}"
+                        <button
+                          onClick={() => setSearchKeyword('')}
+                          className="ml-2 text-green-600 hover:text-green-800"
+                        >
+                          <i className="fas fa-times"></i>
+                        </button>
+                      </span>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* 게시글 목록 */}
@@ -176,15 +284,34 @@ function Community() {
                           <span className="text-sm text-gray-500">{post.created_at}</span>
                         </div>
 
-                        {post.tags && (
-                          <div className="flex flex-wrap gap-1 mb-2">
-                            {post.tags.split(' ').map((tag, index) => (
-                              <span key={index} className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">
-                                {tag}
-                              </span>
-                            ))}
-                          </div>
-                        )}
+                        {post.tags && (() => {
+                          try {
+                            const parsedTags = typeof post.tags === 'string' ? JSON.parse(post.tags) : post.tags;
+                            if (Array.isArray(parsedTags) && parsedTags.length > 0) {
+                              return (
+                                <div className="flex flex-wrap gap-1 mb-2">
+                                  {parsedTags.map((tag, index) => (
+                                    <button
+                                      key={index}
+                                      onClick={() => {
+                                        setSelectedTag(tag);
+                                        setSearchKeyword('');
+                                        setCurrentPage(1);
+                                      }}
+                                      className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded hover:bg-blue-100 cursor-pointer transition-colors"
+                                    >
+                                      #{tag}
+                                    </button>
+                                  ))}
+                                </div>
+                              );
+                            }
+                          } catch (e) {
+                            // JSON 파싱 실패 시 빈 배열로 처리
+                            return null;
+                          }
+                          return null;
+                        })()}
 
                         <Link to={`/post/${post.post_id}`}>
                           <h3 className="text-lg font-semibold text-gray-800 mb-2 hover:text-primary cursor-pointer flex items-center">

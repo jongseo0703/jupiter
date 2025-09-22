@@ -18,6 +18,10 @@ function PostEdit() {
     tags: '',
     attachments: []
   });
+
+  // 태그 상태 관리
+  const [tagInput, setTagInput] = useState('');
+  const [tagList, setTagList] = useState([]);
   const [originalPost, setOriginalPost] = useState(null);
   const [currentIconIndex, setCurrentIconIndex] = useState(0);
   const [deletedAttachments, setDeletedAttachments] = useState([]); // 삭제된 첨부파일 ID 추적
@@ -94,11 +98,16 @@ function PostEdit() {
         };
 
         setOriginalPost(transformedPost);
+        // JSON 배열을 파싱하여 태그 리스트에 설정
+        const parsedTags = transformedPost.tags ?
+          JSON.parse(transformedPost.tags) : [];
+        setTagList(parsedTags);
+
         setFormData({
           category: getKoreanCategory(transformedPost.category),
           title: transformedPost.title,
           content: transformedPost.content,
-          tags: transformedPost.tags,
+          tags: transformedPost.tags || JSON.stringify([]),
           attachments: []
         });
       } catch (error) {
@@ -127,6 +136,46 @@ function PostEdit() {
   };
 
 
+  // 태그 추가 함수
+  const addTag = (tagText) => {
+    const cleanTag = tagText.trim().replace(/^#+/, ''); // # 제거
+    if (cleanTag && !tagList.includes(cleanTag)) {
+      const newTagList = [...tagList, cleanTag];
+      setTagList(newTagList);
+      setFormData(prev => ({ ...prev, tags: JSON.stringify(newTagList) }));
+    }
+  };
+
+  // 태그 제거 함수
+  const removeTag = (tagToRemove) => {
+    const newTagList = tagList.filter(tag => tag !== tagToRemove);
+    setTagList(newTagList);
+    setFormData(prev => ({ ...prev, tags: JSON.stringify(newTagList) }));
+  };
+
+  // 태그 입력 처리
+  const handleTagInputChange = (e) => {
+    setTagInput(e.target.value);
+  };
+
+  const handleTagInputKeyPress = (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      if (tagInput.trim()) {
+        addTag(tagInput);
+        setTagInput('');
+      }
+    }
+  };
+
+  // 태그 입력 완료 (blur 시)
+  const handleTagInputBlur = () => {
+    if (tagInput.trim()) {
+      addTag(tagInput);
+      setTagInput('');
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -137,7 +186,7 @@ function PostEdit() {
         title: formData.title,
         content: formData.content,
         category: getEnglishCategory(formData.category),
-        tags: formData.tags,
+        tags: JSON.stringify(tagList),
         // 작성자 정보는 원본 게시글에서 가져옴
         authorName: originalPost.author_name,
         isAnonymous: originalPost.is_anonymous
@@ -331,14 +380,45 @@ function PostEdit() {
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     태그 (선택)
                   </label>
+
+                  {/* 태그 표시 영역 */}
+                  <div className="mb-2">
+                    <div className="flex flex-wrap gap-2 min-h-[32px] p-2 border border-gray-200 rounded-lg bg-gray-50">
+                      {tagList.map((tag, index) => (
+                        <span
+                          key={index}
+                          className="inline-flex items-center px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium"
+                        >
+                          #{tag}
+                          <button
+                            type="button"
+                            onClick={() => removeTag(tag)}
+                            className="ml-2 text-blue-600 hover:text-blue-800 focus:outline-none"
+                          >
+                            ×
+                          </button>
+                        </span>
+                      ))}
+                      {tagList.length === 0 && (
+                        <span className="text-gray-400 text-sm">태그를 입력해보세요</span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* 태그 입력 필드 */}
                   <input
                     type="text"
-                    name="tags"
-                    value={formData.tags}
-                    onChange={handleInputChange}
-                    placeholder="예: #소주 #추천 #가격비교 (공백으로 구분)"
+                    value={tagInput}
+                    onChange={handleTagInputChange}
+                    onKeyPress={handleTagInputKeyPress}
+                    onBlur={handleTagInputBlur}
+                    placeholder="태그 입력 후 스페이스바 또는 엔터"
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                   />
+                  <p className="text-sm text-gray-500 mt-1">
+                    태그를 입력하고 스페이스바나 엔터를 누르세요.
+                    <span className="text-blue-600 ml-1">#{tagList.length > 0 ? tagList.join(', #') : '예시: 소주, 추천'}</span>
+                  </p>
                 </div>
 
                 <div className="md:col-span-2">
