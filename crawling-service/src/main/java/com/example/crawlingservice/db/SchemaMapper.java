@@ -1,4 +1,4 @@
-package com.example.crawlingservice.controller.db;
+package com.example.crawlingservice.db;
 
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Update;
@@ -22,8 +22,8 @@ public interface SchemaMapper {
      * 부모 테이블
      */
     @Update("""
-        CREATE TABLE IF NOT EXISTS topCategory (
-            top_category_id INT AUTO_INCREMENT PRIMARY KEY,
+        CREATE TABLE IF NOT EXISTS topcategory (
+            topcategory_id INT AUTO_INCREMENT PRIMARY KEY,
             top_name VARCHAR(100) NOT NULL
         )
         """)
@@ -34,11 +34,11 @@ public interface SchemaMapper {
      * 상위 카테고리 테이블 참조
      */
     @Update("""
-        CREATE TABLE IF NOT EXISTS subCategory (
-            sub_category_id INT AUTO_INCREMENT PRIMARY KEY COMMENT,
+        CREATE TABLE IF NOT EXISTS subcategory (
+            subcategory_id INT AUTO_INCREMENT PRIMARY KEY,
             sub_name VARCHAR(100) NOT NULL,
-            top_category_id INT NOT NULL,
-            FOREIGN KEY (top_category_id) REFERENCES top_category(top_category_id) 
+            topcategory_id INT NOT NULL,
+            FOREIGN KEY (topcategory_id) REFERENCES topcategory(topcategory_id) 
                 ON DELETE CASCADE 
                 ON UPDATE CASCADE
         )
@@ -57,9 +57,9 @@ public interface SchemaMapper {
             brand VARCHAR(100),
             alcohol_percentage DOUBLE,
             url VARCHAR(500),
-            volume Int,
-            sub_category_id INT NOT NULL,
-            FOREIGN KEY (sub_category_id) REFERENCES sub_category(sub_category_id)
+            volume INT,
+            subcategory_id INT NOT NULL,
+            FOREIGN KEY (subcategory_id) REFERENCES subcategory(subcategory_id)
                 ON DELETE CASCADE
                 ON UPDATE CASCADE
         )
@@ -76,7 +76,7 @@ public interface SchemaMapper {
             shop_name VARCHAR(100) NOT NULL,
             link VARCHAR(500),
             logo_icon VARCHAR(500),
-            product_id INT NOT NULL,
+            product_id INT,
             FOREIGN KEY (product_id) REFERENCES product(product_id)
                 ON DELETE SET NULL
                 ON UPDATE CASCADE
@@ -116,7 +116,7 @@ public interface SchemaMapper {
             product_id INT NOT NULL,
             FOREIGN KEY (product_id) REFERENCES product(product_id)
                 ON DELETE CASCADE
-                ON UPDATE CASCADE,
+                ON UPDATE CASCADE
         )
         """)
     void createReviewTable();
