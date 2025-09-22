@@ -30,8 +30,8 @@ class AuthService {
       });
 
       if (response.result === 'SUCCESS') {
-        // JWT 토큰 저장
-        apiService.saveTokens(response.data.accessToken, response.data.refreshToken);
+        // JWT 토큰 저장 (rememberMe에 따라 storage 방식 결정)
+        apiService.saveTokens(response.data.accessToken, response.data.refreshToken, rememberMe);
         return response;
       } else {
         throw new Error(response.message || '로그인에 실패했습니다.');
@@ -100,7 +100,7 @@ class AuthService {
 
   // 로그인 상태 확인
   isLoggedIn() {
-    return !!localStorage.getItem('accessToken');
+    return !!(localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken'));
   }
 
   // 토큰 갱신
