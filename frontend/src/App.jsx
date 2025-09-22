@@ -26,6 +26,7 @@ import AdminPanel from './pages/AdminPanel';
 import AdminUsers from './pages/AdminUsers';
 import AdminProducts from './pages/AdminProducts';
 import AdminNotifications from './pages/AdminNotifications';
+import AdminSystemMonitoring from './pages/AdminSystemMonitoring';
 
 function ScrollToTop() {
   const { pathname } = useLocation();
@@ -70,6 +71,7 @@ function App() {
             <Route path="/admin/users" element={<AdminUsers />} />
             <Route path="/admin/products" element={<AdminProducts />} />
             <Route path="/admin/notifications" element={<AdminNotifications />} />
+            <Route path="/admin/system-monitoring" element={<AdminSystemMonitoring />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </main>

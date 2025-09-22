@@ -280,14 +280,14 @@ const AdminPanel = () => {
           </button>
 
           <button
-            onClick={() => navigate('/settings')}
+            onClick={() => navigate('/admin/system-monitoring')}
             className="bg-white rounded-lg shadow-sm p-6 hover:shadow-md transition-shadow text-center group"
           >
             <div className="w-12 h-12 bg-purple-100 rounded-lg mx-auto mb-4 flex items-center justify-center group-hover:bg-purple-200 transition-colors">
-              <i className="fas fa-cog text-purple-600 text-xl"></i>
+              <i className="fas fa-chart-line text-purple-600 text-xl"></i>
             </div>
-            <h3 className="font-semibold text-gray-900 mb-2">시스템 설정</h3>
-            <p className="text-sm text-gray-600">전체 시스템 설정</p>
+            <h3 className="font-semibold text-gray-900 mb-2">시스템 모니터링</h3>
+            <p className="text-sm text-gray-600">서버 상태 및 시스템 메트릭스</p>
           </button>
         </div>
       </div>

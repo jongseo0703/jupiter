@@ -45,7 +45,8 @@ const Settings = () => {
     }
   };
 
-  const settingsMenu = [
+  // 기본 설정 메뉴 (관리자, 일반 사용자 공통)
+  const baseSettingsMenu = [
     {
       id: 'profile',
       title: '프로필 설정',
@@ -54,15 +55,6 @@ const Settings = () => {
       color: 'text-blue-500',
       bgColor: 'bg-blue-50',
       action: () => navigate('/mypage')
-    },
-    {
-      id: 'notifications',
-      title: '알림 설정',
-      description: '가격 하락 알림 및 푸시 알림을 설정합니다',
-      icon: 'fas fa-bell',
-      color: 'text-green-500',
-      bgColor: 'bg-green-50',
-      action: () => navigate('/notification-settings')
     },
     {
       id: 'privacy',
@@ -92,6 +84,22 @@ const Settings = () => {
       action: () => navigate('/help')
     }
   ];
+
+  // 일반 사용자용 알림 설정
+  const userNotificationMenu = {
+    id: 'notifications',
+    title: '알림 설정',
+    description: '가격 하락 알림 및 푸시 알림을 설정합니다',
+    icon: 'fas fa-bell',
+    color: 'text-green-500',
+    bgColor: 'bg-green-50',
+    action: () => navigate('/notification-settings')
+  };
+
+  // 관리자는 알림 설정 제외, 일반 사용자는 포함
+  const settingsMenu = userInfo?.role === 'ADMIN'
+    ? baseSettingsMenu
+    : [baseSettingsMenu[0], userNotificationMenu, ...baseSettingsMenu.slice(1)];
 
   const handleLogout = async () => {
     if (window.confirm('정말 로그아웃하시겠습니까?')) {
