@@ -20,7 +20,6 @@ import com.example.communityservice.entity.Comments;
 import com.example.communityservice.entity.PostCategory;
 import com.example.communityservice.entity.Posts;
 import com.example.communityservice.global.exception.AccessDeniedException;
-import com.example.communityservice.global.exception.AuthorNotFoundException;
 import com.example.communityservice.global.exception.PostNotFoundException;
 import com.example.communityservice.repository.AuthorsRepository;
 import com.example.communityservice.repository.PostAttachmentsRepository;
@@ -190,8 +189,14 @@ public class PostsService {
         throw new IllegalArgumentException("회원 작성자 ID는 필수입니다.");
       }
       return authorsRepository
-          .findById(requestDto.getAuthorId())
-          .orElseThrow(() -> new AuthorNotFoundException(requestDto.getAuthorId()));
+          .findByUserId(requestDto.getAuthorId())
+          .orElseGet(
+              () -> {
+                Authors newAuthor =
+                    Authors.createMemberAuthor(
+                        requestDto.getAuthorId(), requestDto.getAuthorName());
+                return authorsRepository.save(newAuthor);
+              });
     }
   }
 
