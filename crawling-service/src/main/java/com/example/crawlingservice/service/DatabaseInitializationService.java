@@ -1,10 +1,11 @@
 package com.example.crawlingservice.service;
 
-import com.example.crawlingservice.controller.db.SchemaMapper;
+import com.example.crawlingservice.db.SchemaMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
+import org.springframework.context.annotation.DependsOn;
 import org.springframework.stereotype.Service;
 
 /**
@@ -13,6 +14,7 @@ import org.springframework.stereotype.Service;
 @Service
 @Slf4j
 @RequiredArgsConstructor
+@DependsOn("schemaMapper")
 public class DatabaseInitializationService implements ApplicationRunner {
     private final SchemaMapper schemaMapper;
 
