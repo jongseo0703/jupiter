@@ -3,7 +3,7 @@ import { Link, useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {fetchPost, fetchPopularPosts, likePost, createComment, updateComment, deleteComment, verifyAnonymousComment, deletePost as deletePostAPI, verifyAnonymousPost} from '../services/api';
 import { categorizeAttachments } from '../utils/fileUtils';
-import { getCategoryStyle } from '../utils/categoryUtils';
+import { getCategoryStyle, getEnglishCategory } from '../utils/categoryUtils';
 import authService from '../services/authService';
 
 function PostDetail() {
@@ -60,16 +60,18 @@ function PostDetail() {
         } catch (error) {
           console.error('사용자 정보 조회 실패:', error);
           // 토큰이 유효하지 않을 경우 로그아웃 처리
-          authService.logout();
+          await authService.logout();
           setIsLoggedIn(false);
+          setCurrentUser(null);
         }
       } else {
         // 비로그인 사용자는 무조건 익명으로 설정
         setCommentForm(prev => ({ ...prev, is_anonymous: true }));
+        setCurrentUser(null);
       }
     };
 
-    checkAuthStatus();
+    checkAuthStatus().catch(console.error);
   }, []);
 
   // React Query를 사용하여 게시글 상세 정보 조회
@@ -155,13 +157,12 @@ function PostDetail() {
     const commentData = {
       postId: parseInt(id),
       content: editCommentContent,
+      authorId: comment.is_anonymous ? null : currentUser?.id,
       authorName: comment.is_anonymous ? null : currentUser?.username,
       isAnonymous: comment.is_anonymous,
       // 익명 댓글의 경우 인증된 정보 사용
-      ...(comment.is_anonymous && authenticatedAnonymousComment && {
-        anonymousEmail: authenticatedAnonymousComment.email,
-        anonymousPassword: authenticatedAnonymousComment.password
-      })
+      anonymousEmail: (comment.is_anonymous && authenticatedAnonymousComment) ? authenticatedAnonymousComment.email : null,
+      anonymousPassword: (comment.is_anonymous && authenticatedAnonymousComment) ? authenticatedAnonymousComment.password : null
     };
 
     updateCommentMutation.mutate({ commentId, commentData });
@@ -175,8 +176,12 @@ function PostDetail() {
 
     const requestData = {
       postId: parseInt(id),
-      authorName: currentUser?.username, // 임시로 현재 사용자 이름 사용
-      isAnonymous: false
+      content: "", // 삭제 시에는 내용 불필요하지만 DTO 구조상 필요
+      authorId: currentUser?.id, // 사용자 ID 전달
+      authorName: currentUser?.username,
+      isAnonymous: false,
+      anonymousEmail: null,
+      anonymousPassword: null
     };
 
     deleteCommentMutation.mutate({ commentId, requestData });
@@ -282,7 +287,7 @@ function PostDetail() {
       // 스냅샷을 반환하여 에러 발생 시 롤백에 사용
       return { previousPost };
     },
-    onError: (err, variables, context) => {
+    onError: (err, context) => {
       // 에러 발생 시 onMutate에서 만든 스냅샷으로 데이터 롤백
       if (context.previousPost) {
         queryClient.setQueryData(['post', id], context.previousPost);
@@ -292,7 +297,7 @@ function PostDetail() {
     },
     onSettled: () => {
       // 성공/실패 여부와 관계없이, 서버와 클라이언트의 상태를 동기화하기 위해 쿼리를 다시 실행
-      queryClient.invalidateQueries({ queryKey: ['post', id] });
+      queryClient.invalidateQueries({ queryKey: ['post', id] }).catch(console.error);
     },
   });
 
@@ -339,7 +344,7 @@ function PostDetail() {
       // 성공 알림
       alert('댓글이 성공적으로 등록되었습니다.');
     },
-    onError: (err, variables, context) => {
+    onError: (err, context) => {
       // 에러 시 롤백
       if (context?.previousPost) {
         queryClient.setQueryData(['post', id], context.previousPost);
@@ -349,7 +354,7 @@ function PostDetail() {
     },
     onSettled: () => {
       // 서버와 동기화
-      queryClient.invalidateQueries({ queryKey: ['post', id] });
+      queryClient.invalidateQueries({ queryKey: ['post', id] }).catch(console.error);
     }
   });
 
@@ -391,7 +396,7 @@ function PostDetail() {
       // 성공 알림
       alert('댓글이 성공적으로 수정되었습니다.');
     },
-    onError: (err, variables, context) => {
+    onError: (err, context) => {
       // 에러 시 롤백
       if (context?.previousPost) {
         queryClient.setQueryData(['post', id], context.previousPost);
@@ -401,7 +406,7 @@ function PostDetail() {
     },
     onSettled: () => {
       // 서버와 동기화
-      queryClient.invalidateQueries({ queryKey: ['post', id] });
+      queryClient.invalidateQueries({ queryKey: ['post', id] }).catch(console.error);
     }
   });
 
@@ -431,7 +436,7 @@ function PostDetail() {
       // 성공 알림
       alert('댓글이 성공적으로 삭제되었습니다.');
     },
-    onError: (err, variables, context) => {
+    onError: (err, context) => {
       // 에러 시 롤백
       if (context?.previousPost) {
         queryClient.setQueryData(['post', id], context.previousPost);
@@ -441,7 +446,7 @@ function PostDetail() {
     },
     onSettled: () => {
       // 서버와 동기화
-      queryClient.invalidateQueries({ queryKey: ['post', id] });
+      queryClient.invalidateQueries({ queryKey: ['post', id] }).catch(console.error);
     }
   });
 
@@ -518,7 +523,15 @@ function PostDetail() {
     }
 
     const requestData = {
-      authorName: currentUser?.username
+      category: getEnglishCategory(post.category),
+      title: post.title,
+      content: post.content,
+      tags: post.tags,
+      authorId: currentUser?.id,
+      authorName: currentUser?.username,
+      isAnonymous: false,
+      anonymousEmail: null,
+      anonymousPassword: null
     };
 
     deletePostMutation.mutate({ postId: id, requestData });
@@ -555,12 +568,14 @@ function PostDetail() {
   const canEditPost = () => {
     if (!post) return false;
 
+
     // 익명 게시글은 항상 수정/삭제 버튼을 표시 (인증 모달로 확인)
     if (post.is_anonymous) {
       return true;
     } else {
-      // 일반 게시글은 로그인한 사용자가 작성자인 경우만
-      return isLoggedIn && currentUser?.username === post.author_name;
+      // 권한 확인: username으로 비교 (안정적인 방법)
+      // author_id가 정상적으로 오면 나중에 id 기반으로 변경 가능
+      return !!(isLoggedIn && currentUser?.username && currentUser.username === post.author_name);
     }
   };
 

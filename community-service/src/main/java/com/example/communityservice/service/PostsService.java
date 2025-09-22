@@ -84,7 +84,7 @@ public class PostsService {
   }
 
   // 게시글 상세 조회 (조회수 증가 + 댓글 목록 포함)
-  @Transactional(readOnly = false)
+  @Transactional
   public PostsResponseDTO getPost(Long postId) {
     Posts post =
         postsRepository.findById(postId).orElseThrow(() -> new PostNotFoundException(postId));
@@ -183,7 +183,7 @@ public class PostsService {
     }
 
     if (Boolean.TRUE.equals(requestDto.getIsAnonymous())) {
-      // 익명 사용자 처리
+      // 익명 사용자 처리 (익명 사용자는 이름, 이메일, 비밀번호를 받아서 새 Authors 객체를 생성)
       String encodedPassword = passwordEncoder.encode(requestDto.getAnonymousPassword());
       return authorsRepository.save(
           Authors.createAnonymousAuthor(
@@ -194,8 +194,8 @@ public class PostsService {
         throw new IllegalArgumentException("회원 작성자 ID는 필수입니다.");
       }
       return authorsRepository
-          .findByUserId(requestDto.getAuthorId())
-          .orElseGet(
+          .findByUserId(requestDto.getAuthorId()) // DB에서 해당 회원 작성자 정보 조회
+          .orElseGet( // 회원은 DB에 없으면 처음 작성 시 자동 생성
               () -> {
                 Authors newAuthor =
                     Authors.createMemberAuthor(
@@ -236,8 +236,8 @@ public class PostsService {
         throw AccessDeniedException.forPost();
       }
     } else {
-      // 회원 사용자 검증: 작성자 ID 확인
-      if (!postAuthor.getAuthorId().equals(requestDto.getAuthorId())) {
+      // 회원 사용자 검증: 사용자 ID 확인 (userId 기준)
+      if (!postAuthor.getUserId().equals(requestDto.getAuthorId())) {
         throw AccessDeniedException.forPost();
       }
     }

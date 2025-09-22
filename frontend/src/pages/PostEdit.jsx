@@ -5,12 +5,14 @@ import { getKoreanCategory, getEnglishCategory, KOREAN_CATEGORIES } from '../uti
 import { useFileUpload } from '../hooks/useFileUpload';
 import { categorizeAttachments } from '../utils/fileUtils';
 import { fetchPopularPosts } from '../services/api';
+import authService from '../services/authService';
 
 function PostEdit() {
   const { id } = useParams();
   const navigate = useNavigate();
   const location = useLocation(); // 현재 URL 정보를 가져오는 Hook
   const [loading, setLoading] = useState(true);
+  const [currentUser, setCurrentUser] = useState(null);
   const [formData, setFormData] = useState({
     category: '',
     title: '',
@@ -27,7 +29,7 @@ function PostEdit() {
   const [deletedAttachments, setDeletedAttachments] = useState([]); // 삭제된 첨부파일 ID 추적
 
   // 파일 업로드 훅 사용
-  const { previewImages, setPreviewImages, handleFileUpload, removeFile } = useFileUpload(formData, setFormData);
+  const { previewImages, handleFileUpload, removeFile } = useFileUpload(formData, setFormData);
 
   const alcoholIcons = [
     '🍷', // 와인잔
@@ -49,12 +51,7 @@ function PostEdit() {
 
   const popularPosts = popularPostsData?.posts || [];
 
-  // TODO: 실제 로그인 상태를 가져오는 hook 또는 context 사용
-  const currentUser = {
-    user_id: 1,
-    author_name: '익명',
-    is_logged_in: false
-  }; // MOCK DATA
+  // currentUser는 useState로 관리됨
 
   const categories = KOREAN_CATEGORIES;
 
@@ -68,6 +65,22 @@ function PostEdit() {
 
     return () => clearInterval(interval);
   }, [loading, alcoholIcons.length]);
+
+  // 사용자 정보 로드
+  useEffect(() => {
+    const loadCurrentUser = async () => {
+      const loggedIn = authService.isLoggedIn();
+      if (loggedIn) {
+        try {
+          const user = await authService.getCurrentUser();
+          setCurrentUser(user);
+        } catch (error) {
+          console.error('사용자 정보 조회 실패:', error);
+        }
+      }
+    };
+    loadCurrentUser().catch(console.error);
+  }, []);
 
   useEffect(() => {
     const fetchPost = async () => {
@@ -91,6 +104,7 @@ function PostEdit() {
           title: postData.title,
           content: postData.content,
           author_name: postData.authorName,
+          author_id: postData.author_id,
           category: postData.category,
           tags: postData.tags,
           is_anonymous: postData.isAnonymous,
@@ -188,8 +202,11 @@ function PostEdit() {
         category: getEnglishCategory(formData.category),
         tags: JSON.stringify(tagList),
         // 작성자 정보는 원본 게시글에서 가져옴
+        authorId: originalPost.author_id || currentUser?.id, // author_id가 없으면 현재 사용자 ID 사용
         authorName: originalPost.author_name,
-        isAnonymous: originalPost.is_anonymous
+        isAnonymous: originalPost.is_anonymous,
+        anonymousEmail: null,
+        anonymousPassword: null
       };
 
       // 익명 게시글인 경우 PostDetail에서 전달받은 인증 정보 추가
@@ -410,7 +427,7 @@ function PostEdit() {
                     type="text"
                     value={tagInput}
                     onChange={handleTagInputChange}
-                    onKeyPress={handleTagInputKeyPress}
+                    onKeyUp={handleTagInputKeyPress}
                     onBlur={handleTagInputBlur}
                     placeholder="태그 입력 후 스페이스바 또는 엔터"
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
