@@ -40,9 +40,13 @@ function PostForm() {
 
   const { mutate, isLoading: isSubmitting } = useMutation({
     mutationFn: createPostWithFiles,
-    onSuccess: (data) => {
-      // 'posts' 쿼리를 무효화하여 목록 페이지가 최신 데이터를 다시 불러오도록 함
-      queryClient.invalidateQueries({ queryKey: ['posts'] });
+    onSuccess: async (data) => {
+      // 모든 관련 쿼리를 무효화하여 최신 데이터를 다시 불러오도록 함
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['posts'] }), // 모든 posts 관련 쿼리
+        queryClient.invalidateQueries({ queryKey: ['popularPosts'] }), // 모든 popularPosts 관련 쿼리
+        queryClient.invalidateQueries({ queryKey: ['allTags'] }), // 태그 목록
+      ]);
       alert('게시글이 성공적으로 작성되었습니다!');
       navigate(`/post/${data.postId}`);
     },

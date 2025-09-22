@@ -23,14 +23,12 @@ function Community() {
   const { data: popularPostsData } = useQuery({
     queryKey: ['popularPosts', '전체', 1],
     queryFn: fetchPopularPosts,
-    staleTime: 5 * 60 * 1000, // 5분간 fresh 상태 유지
   });
 
   // 모든 태그 조회
   const { data: allTagsData } = useQuery({
     queryKey: ['allTags'],
     queryFn: fetchAllTags,
-    staleTime: 10 * 60 * 1000, // 10분간 fresh 상태 유지
   });
 
   const posts = data?.posts || [];
