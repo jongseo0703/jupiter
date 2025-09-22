@@ -62,6 +62,10 @@ dependencies {
     // Cool SMS
     implementation 'net.nurigo:sdk:4.3.0'
 
+    // Monitoring and Metrics
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
+    implementation 'io.micrometer:micrometer-core'
+
     // Test
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testImplementation 'org.springframework.security:spring-security-test'
