@@ -176,7 +176,7 @@ export const fetchPosts = async ({ queryKey }) => {
   }
 
   queryParams.append('page', (page - 1).toString());
-  queryParams.append('size', '20');
+  queryParams.append('size', '10');
 
   const response = await fetch(`${COMMUNITY_API_URL}/posts?${queryParams.toString()}`);
   const pageData = await handleQueryApiResponse(response);
@@ -215,7 +215,7 @@ export const fetchPopularPosts = async ({ queryKey }) => {
     }
   }
   queryParams.append('page', (page - 1).toString());
-  queryParams.append('size', '20');
+  queryParams.append('size', '10');
   queryParams.append('sort', 'views');
 
   const response = await fetch(`${COMMUNITY_API_URL}/posts?${queryParams.toString()}`);

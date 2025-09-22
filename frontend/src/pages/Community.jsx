@@ -348,21 +348,20 @@ function Community() {
                 ))}
               </div>
 
-{/* 페이지네이션 */}
-              {totalPages > 1 && (
-                <div className="p-6 border-t border-gray-200">
-                  <div className="flex justify-center">
-                    <nav className="flex space-x-2">
+              {/* 페이지네이션 */}
+              <div className="p-6 border-t border-gray-200">
+                <div className="flex justify-center">
+                  <nav className="flex space-x-2">
                       <button
                         onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                        disabled={currentPage === 1 || loading}
+                        disabled={currentPage === 1 || totalPages <= 1 || loading}
                         className="px-4 py-2 text-gray-600 bg-white border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50"
                       >
                         이전
                       </button>
 
                       {/* 동적 페이지 버튼 생성 */}
-                      {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
+                      {Array.from({ length: Math.max(1, Math.min(totalPages, 5)) }, (_, i) => {
                         let pageNum;
                         if (totalPages <= 5) {
                           pageNum = i + 1;
@@ -390,15 +389,14 @@ function Community() {
 
                       <button
                         onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                        disabled={currentPage === totalPages || loading}
+                        disabled={currentPage === totalPages || totalPages <= 1 || loading}
                         className="px-4 py-2 text-gray-600 bg-white border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50"
                       >
                         다음
                       </button>
                     </nav>
-                  </div>
                 </div>
-              )}
+              </div>
             </div>
           </div>
         </div>
