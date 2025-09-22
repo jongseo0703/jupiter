@@ -213,7 +213,7 @@ const MyPage = () => {
       setError('');
 
       const response = await apiService.post('/auth/api/v1/auth/send-verification', {
-        phoneNumber: editFormData.phone
+        phoneNumber: editFormData.phone.replace(/-/g, '')
       });
 
       setPhoneVerification(prev => ({
@@ -263,7 +263,7 @@ const MyPage = () => {
       setError('');
 
       const response = await apiService.post('/auth/api/v1/auth/verify-phone', {
-        phoneNumber: editFormData.phone,
+        phoneNumber: editFormData.phone.replace(/-/g, ''),
         verificationCode: phoneVerification.verificationCode
       });
 

@@ -49,7 +49,7 @@ class AuthService {
         username: userData.username || userData.name,
         email: userData.email,
         password: userData.password,
-        phone: userData.phone,
+        phone: userData.phone ? userData.phone.replace(/-/g, '') : userData.phone,
       });
 
       if (response.result === 'SUCCESS') {
@@ -114,7 +114,7 @@ class AuthService {
       const response = await apiService.put('/auth/api/v1/auth/profile', {
         username: profileData.username,
         email: profileData.email,
-        phone: profileData.phone,
+        phone: profileData.phone ? profileData.phone.replace(/-/g, '') : profileData.phone,
       });
 
       if (response.result === 'SUCCESS') {

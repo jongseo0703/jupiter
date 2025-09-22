@@ -73,14 +73,16 @@ public class UserServiceImpl implements UserService {
           }
 
           if (request.phone() != null && !request.phone().trim().isEmpty()) {
+            // 하이픈 제거된 번호로 정규화
+            String normalizedPhone = request.normalizedPhone();
             // 기존 휴대폰 번호와 다른 경우에만 인증 확인
-            if (!Objects.equals(user.getPhone(), request.phone())) {
-              if (!smsService.isPhoneVerified(request.phone())) {
+            if (!Objects.equals(user.getPhone(), normalizedPhone)) {
+              if (!smsService.isPhoneVerified(normalizedPhone)) {
                 throw new BusinessException("휴대폰 인증이 완료되지 않았습니다", 400, "PHONE_NOT_VERIFIED");
               }
-              user.setPhone(request.phone());
+              user.setPhone(normalizedPhone);
               // 휴대폰 인증 사용 완료 처리
-              smsService.markVerificationAsUsed(request.phone());
+              smsService.markVerificationAsUsed(normalizedPhone);
             }
           }
 

@@ -43,8 +43,9 @@ public class AuthServiceImpl implements AuthService {
   public UserResponse register(RegisterRequest request) {
     log.info("Registering new user with username: {}", request.username());
 
-    // 휴대폰 인증 완료 확인
-    if (!smsService.isPhoneVerified(request.phone())) {
+    // 휴대폰 인증 완료 확인 (하이픈 제거된 번호로 확인)
+    String normalizedPhone = request.normalizedPhone();
+    if (!smsService.isPhoneVerified(normalizedPhone)) {
       throw new BusinessException("휴대폰 인증이 완료되지 않았습니다", 400, "PHONE_NOT_VERIFIED");
     }
 
@@ -58,7 +59,7 @@ public class AuthServiceImpl implements AuthService {
             .username(request.username())
             .email(request.email())
             .password(passwordEncoder.encode(request.password()))
-            .phone(request.phone())
+            .phone(normalizedPhone)
             .role(Role.USER)
             .enabled(true)
             .accountNonExpired(true)
@@ -69,7 +70,7 @@ public class AuthServiceImpl implements AuthService {
     User savedUser = userRepository.save(user);
 
     // 휴대폰 인증 사용 완료 처리
-    smsService.markVerificationAsUsed(request.phone());
+    smsService.markVerificationAsUsed(normalizedPhone);
 
     log.info("User registered successfully with ID: {}", savedUser.getId());
 
