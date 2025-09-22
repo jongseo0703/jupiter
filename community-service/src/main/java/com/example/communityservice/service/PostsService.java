@@ -177,6 +177,11 @@ public class PostsService {
 
   // 작성자 정보 조회 또는 생성 (회원/익명 구분)
   private Authors getOrCreateAuthor(PostsRequestDTO requestDto) {
+    // 로그인한 사용자가 익명으로 작성하려 하는 경우 차단
+    if (requestDto.getAuthorId() != null && Boolean.TRUE.equals(requestDto.getIsAnonymous())) {
+      throw new IllegalArgumentException("로그인한 사용자는 익명으로 작성할 수 없습니다.");
+    }
+
     if (Boolean.TRUE.equals(requestDto.getIsAnonymous())) {
       // 익명 사용자 처리
       String encodedPassword = passwordEncoder.encode(requestDto.getAnonymousPassword());

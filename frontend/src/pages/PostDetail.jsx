@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {fetchPost, fetchPopularPosts, likePost, createComment, updateComment, deleteComment, verifyAnonymousComment, deletePost as deletePostAPI, verifyAnonymousPost} from '../services/api';
 import { categorizeAttachments } from '../utils/fileUtils';
 import { getCategoryStyle } from '../utils/categoryUtils';
+import authService from '../services/authService';
 
 function PostDetail() {
   const { id } = useParams();
@@ -41,12 +42,35 @@ function PostDetail() {
     password: '',
     action: '' // 'edit' or 'delete'
   });
-  // TODO: 실제 로그인 상태를 가져오는 hook 또는 context 사용
-  const currentUser = {
-    user_id: 1,
-    author_name: '위스키러버',
-    is_logged_in: true // 임시상태
-  }; // MOCK DATA - 실제로는 useAuth() hook에서 가져옴
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [currentUser, setCurrentUser] = useState(null);
+
+  // 로그인 상태 확인
+  useEffect(() => {
+    const checkAuthStatus = async () => {
+      const loggedIn = authService.isLoggedIn();
+      setIsLoggedIn(loggedIn);
+
+      if (loggedIn) {
+        try {
+          const user = await authService.getCurrentUser();
+          setCurrentUser(user);
+          // 로그인한 사용자는 익명 체크 해제
+          setCommentForm(prev => ({ ...prev, is_anonymous: false }));
+        } catch (error) {
+          console.error('사용자 정보 조회 실패:', error);
+          // 토큰이 유효하지 않을 경우 로그아웃 처리
+          authService.logout();
+          setIsLoggedIn(false);
+        }
+      } else {
+        // 비로그인 사용자는 무조건 익명으로 설정
+        setCommentForm(prev => ({ ...prev, is_anonymous: true }));
+      }
+    };
+
+    checkAuthStatus();
+  }, []);
 
   // React Query를 사용하여 게시글 상세 정보 조회
   const { data: post, isLoading: loading, isError, error } = useQuery({
@@ -100,11 +124,13 @@ function PostDetail() {
     const commentData = {
       postId: parseInt(id),
       content: commentForm.content,
-      isAnonymous: commentForm.is_anonymous,
-      authorName: commentForm.author_name,
-      anonymousEmail: commentForm.is_anonymous ? commentForm.anonymous_email : null,
-      anonymousPassword: commentForm.is_anonymous ? commentForm.anonymous_pwd : null
+      isAnonymous: !isLoggedIn, // 로그인한 사용자는 false, 비로그인은 true
+      authorId: isLoggedIn ? currentUser?.id : null,
+      authorName: isLoggedIn ? currentUser?.username : '익명',
+      anonymousEmail: !isLoggedIn ? commentForm.anonymous_email : null,
+      anonymousPassword: !isLoggedIn ? commentForm.anonymous_pwd : null
     };
+
 
     createCommentMutation.mutate(commentData);
   };
@@ -129,7 +155,7 @@ function PostDetail() {
     const commentData = {
       postId: parseInt(id),
       content: editCommentContent,
-      authorName: comment.is_anonymous ? null : currentUser.author_name,
+      authorName: comment.is_anonymous ? null : currentUser?.username,
       isAnonymous: comment.is_anonymous,
       // 익명 댓글의 경우 인증된 정보 사용
       ...(comment.is_anonymous && authenticatedAnonymousComment && {
@@ -149,7 +175,7 @@ function PostDetail() {
 
     const requestData = {
       postId: parseInt(id),
-      authorName: currentUser.author_name, // 임시로 현재 사용자 이름 사용
+      authorName: currentUser?.username, // 임시로 현재 사용자 이름 사용
       isAnonymous: false
     };
 
@@ -308,7 +334,7 @@ function PostDetail() {
         author_name: '',
         anonymous_email: '',
         anonymous_pwd: '',
-        is_anonymous: false
+        is_anonymous: !isLoggedIn // 비로그인 사용자는 true, 로그인 사용자는 false
       });
       // 성공 알림
       alert('댓글이 성공적으로 등록되었습니다.');
@@ -492,7 +518,7 @@ function PostDetail() {
     }
 
     const requestData = {
-      authorName: currentUser.author_name
+      authorName: currentUser?.username
     };
 
     deletePostMutation.mutate({ postId: id, requestData });
@@ -534,7 +560,7 @@ function PostDetail() {
       return true;
     } else {
       // 일반 게시글은 로그인한 사용자가 작성자인 경우만
-      return currentUser.is_logged_in && currentUser.author_name === post.author_name;
+      return isLoggedIn && currentUser?.username === post.author_name;
     }
   };
 
@@ -542,7 +568,7 @@ function PostDetail() {
     if (post.is_anonymous) {
       setAuthForm({ email: '', password: '', action: 'edit' });
       setShowAuthModal(true);
-    } else if (currentUser.is_logged_in && currentUser.author_name === post.author_name) {
+    } else if (isLoggedIn && currentUser?.username === post.author_name) {
       navigate(`/post/edit/${post.post_id}`);
       alert('수정 페이지로 이동합니다.');
     } else {
@@ -554,7 +580,7 @@ function PostDetail() {
     if (post.is_anonymous) {
       setAuthForm({ email: '', password: '', action: 'delete' });
       setShowAuthModal(true);
-    } else if (currentUser.is_logged_in && currentUser.author_name === post.author_name) {
+    } else if (isLoggedIn && currentUser?.username === post.author_name) {
       handleDeletePost();
     } else {
       alert('작성자만 삭제할 수 있습니다.');
@@ -862,7 +888,7 @@ function PostDetail() {
                     </div>
 
                     {/* 댓글 수정/삭제 버튼 */}
-                    {(comment.is_anonymous || (currentUser.is_logged_in && currentUser.author_name === comment.author_name)) && (
+                    {(comment.is_anonymous || (isLoggedIn && currentUser?.username === comment.author_name)) && (
                       <div className="flex space-x-2">
                         <button
                           onClick={() => comment.is_anonymous ? handleAnonymousCommentEdit(comment) : startEditComment(comment)}
@@ -930,45 +956,44 @@ function PostDetail() {
                   />
                 </div>
 
-                <div className="flex items-center mb-4">
-                  <input
-                    type="checkbox"
-                    name="is_anonymous"
-                    checked={commentForm.is_anonymous}
-                    onChange={handleCommentInputChange}
-                    className="mr-3 text-primary focus:ring-primary"
-                  />
-                  <label className="text-gray-700">익명으로 작성</label>
-                </div>
-
-                {commentForm.is_anonymous ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <input
-                      type="email"
-                      name="anonymous_email"
-                      value={commentForm.anonymous_email}
-                      onChange={handleCommentInputChange}
-                      placeholder="이메일"
-                      className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                      required={commentForm.is_anonymous}
-                    />
-                    <input
-                      type="password"
-                      name="anonymous_pwd"
-                      value={commentForm.anonymous_pwd}
-                      onChange={handleCommentInputChange}
-                      placeholder="비밀번호"
-                      className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                      required={commentForm.is_anonymous}
-                    />
-                  </div>
-                ) : (
-                  <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
+                {/* 로그인 상태에 따른 작성자 정보 표시 */}
+                {isLoggedIn ? (
+                  <div className="p-3 bg-blue-50 rounded-lg border border-blue-200 mb-4">
                     <p className="text-sm text-blue-800">
                       <i className="fas fa-user mr-2"></i>
-                      로그인된 사용자로 댓글을 작성합니다
+                      {currentUser?.username || '사용자'}로 댓글을 작성합니다
                     </p>
                   </div>
+                ) : (
+                  <>
+                    <div className="p-3 bg-orange-50 rounded-lg border border-orange-200 mb-4">
+                      <p className="text-sm text-orange-800">
+                        <i className="fas fa-user-secret mr-2"></i>
+                        익명으로 댓글을 작성합니다
+                      </p>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <input
+                        type="email"
+                        name="anonymous_email"
+                        value={commentForm.anonymous_email}
+                        onChange={handleCommentInputChange}
+                        placeholder="이메일 (수정/삭제 시 사용)"
+                        className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                        required
+                      />
+                      <input
+                        type="password"
+                        name="anonymous_pwd"
+                        value={commentForm.anonymous_pwd}
+                        onChange={handleCommentInputChange}
+                        placeholder="비밀번호 (수정/삭제 시 사용)"
+                        className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                        required
+                      />
+                    </div>
+                  </>
                 )}
 
                 <div className="flex justify-end">
