@@ -167,8 +167,8 @@ function Community() {
                 <div className="flex justify-between items-center mb-4">
                   <h2 className="text-xl font-bold text-gray-800">
                     {selectedTag ? `태그: #${selectedTag}` :
-                     searchKeyword ? `검색: "${searchKeyword}"` :
-                     selectedCategory} ({filteredPosts.length})
+                      searchKeyword ? `검색: "${searchKeyword}"` :
+                      selectedCategory} ({filteredPosts.length})
                   </h2>
                   <Link
                     to="/community-form"
@@ -187,7 +187,7 @@ function Community() {
                       placeholder="게시글 제목이나 내용을 검색하세요..."
                       value={searchKeyword}
                       onChange={(e) => setSearchKeyword(e.target.value)}
-                      onKeyPress={(e) => {
+                      onKeyUp={(e) => {
                         if (e.key === 'Enter') {
                           setSelectedTag(''); // 태그 필터 해제
                           setCurrentPage(1);
