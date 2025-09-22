@@ -18,10 +18,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-/**
- * 인증 관련 비즈니스 로직 처리 서비스
- * 외부 인증 서비스와 통신하여 토큰 유효성 검증 및 사용자 정보 조회
- */
+/** 인증 관련 비즈니스 로직 처리 서비스 외부 인증 서비스와 통신하여 토큰 유효성 검증 및 사용자 정보 조회 */
 @Service
 @Slf4j
 @RequiredArgsConstructor
@@ -55,9 +52,8 @@ public class AuthService {
       if (response.getStatusCode().is2xxSuccessful() && apiResponse.isSuccess()) {
         return apiResponse.getData();
       } else {
-log.error("인증 서비스 응답 실패. 상태: {}, 메시지: {}",
-            response.getStatusCode(),
-            apiResponse.getMessage());
+        log.error(
+            "인증 서비스 응답 실패. 상태: {}, 메시지: {}", response.getStatusCode(), apiResponse.getMessage());
         throw new BusinessException(ErrorCode.AUTHENTICATION_FAILED);
       }
     } catch (RestClientException e) {

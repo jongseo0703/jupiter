@@ -148,9 +148,7 @@ public class PostsController {
         throw e;
       }
     } else {
-      log.info(
-          "유효한 인증 헤더 없음 (헤더: {}), 익명으로 진행",
-          authorizationHeader);
+      log.info("유효한 인증 헤더 없음 (헤더: {}), 익명으로 진행", authorizationHeader);
     }
 
     log.info(
