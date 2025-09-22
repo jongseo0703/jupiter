@@ -49,7 +49,12 @@ function PostForm() {
           // 토큰이 유효하지 않을 경우 로그아웃 처리
           await authService.logout();
           setIsLoggedIn(false);
+          setCurrentUser(null);
         }
+      } else {
+        // 비로그인 사용자는 무조건 익명으로 설정
+        setFormData(prev => ({ ...prev, is_anonymous: true }));
+        setCurrentUser(null);
       }
     };
 
@@ -140,10 +145,10 @@ function PostForm() {
       title: formData.title,
       content: formData.content,
       tags: JSON.stringify(tagList),
-      isAnonymous: isLoggedIn ? false : formData.is_anonymous, // 로그인한 사용자는 강제로 false
-      authorName: isLoggedIn ? currentUser?.username : (formData.is_anonymous ? '익명' : '비회원'),
-      anonymousEmail: (!isLoggedIn && formData.is_anonymous) ? formData.anonymous_email : null,
-      anonymousPassword: (!isLoggedIn && formData.is_anonymous) ? formData.anonymous_pwd : null
+      isAnonymous: !isLoggedIn, // 로그인한 사용자는 false, 비로그인은 무조건 true
+      authorName: isLoggedIn ? currentUser?.username : '익명',
+      anonymousEmail: !isLoggedIn ? formData.anonymous_email : null,
+      anonymousPassword: !isLoggedIn ? formData.anonymous_pwd : null
     };
 
     mutate({ postData, files: formData.attachments });
@@ -409,64 +414,54 @@ function PostForm() {
                     </p>
                   </div>
                 ) : (
-                  // 비로그인 사용자의 경우
+                  // 비로그인 사용자의 경우 - 무조건 익명으로 작성
                   <>
-                    <div className="flex items-center">
-                      <input
-                        type="checkbox"
-                        name="is_anonymous"
-                        checked={formData.is_anonymous}
-                        onChange={handleInputChange}
-                        className="mr-3 text-primary focus:ring-primary"
-                      />
-                      <label className="text-gray-700 font-medium">익명으로 작성</label>
+                    <div className="p-4 bg-orange-50 rounded-lg border border-orange-200 mb-4">
+                      <h4 className="text-sm font-medium text-orange-800 mb-2 flex items-center">
+                        <i className="fas fa-user-secret mr-2"></i>
+                        익명 작성
+                      </h4>
+                      <p className="text-orange-700">
+                        비회원은 익명으로만 게시글을 작성할 수 있습니다.
+                      </p>
+                      <p className="text-xs text-orange-600 mt-2">
+                        * 회원가입 후 로그인하시면 본인 이름으로 게시글을 작성할 수 있습니다.
+                      </p>
                     </div>
 
-                    {formData.is_anonymous ? (
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
-                            이메일 *
-                          </label>
-                          <input
-                            type="email"
-                            name="anonymous_email"
-                            value={formData.anonymous_email}
-                            onChange={handleInputChange}
-                            placeholder="익명 사용자 이메일"
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                            required={formData.is_anonymous}
-                          />
-                          <p className="text-sm text-gray-500 mt-1">게시글 수정/삭제 시 사용</p>
-                        </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          이메일 *
+                        </label>
+                        <input
+                          type="email"
+                          name="anonymous_email"
+                          value={formData.anonymous_email}
+                          onChange={handleInputChange}
+                          placeholder="익명 사용자 이메일"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                          required
+                        />
+                        <p className="text-sm text-gray-500 mt-1">게시글 수정/삭제 시 사용</p>
+                      </div>
 
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
-                            비밀번호 *
-                          </label>
-                          <input
-                            type="password"
-                            name="anonymous_pwd"
-                            value={formData.anonymous_pwd}
-                            onChange={handleInputChange}
-                            placeholder="게시글 비밀번호"
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                            required={formData.is_anonymous}
-                          />
-                          <p className="text-sm text-gray-500 mt-1">게시글 수정/삭제 시 사용</p>
-                        </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          비밀번호 *
+                        </label>
+                        <input
+                          type="password"
+                          name="anonymous_pwd"
+                          value={formData.anonymous_pwd}
+                          onChange={handleInputChange}
+                          placeholder="게시글 비밀번호"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                          required
+                        />
+                        <p className="text-sm text-gray-500 mt-1">게시글 수정/삭제 시 사용</p>
                       </div>
-                    ) : (
-                      <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
-                        <h4 className="text-sm font-medium text-gray-700 mb-2">비회원 작성</h4>
-                        <p className="text-gray-600">
-                          비회원으로 게시글을 작성합니다. 수정/삭제가 제한될 수 있습니다.
-                        </p>
-                        <p className="text-xs text-gray-500 mt-2">
-                          * 회원가입 후 로그인하시면 더 많은 기능을 이용할 수 있습니다.
-                        </p>
-                      </div>
-                    )}
+                    </div>
                   </>
                 )}
               </div>
