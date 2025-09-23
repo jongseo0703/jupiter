@@ -10,6 +10,7 @@ import org.apache.ibatis.annotations.Update;
  *      <li>상위카테고리 테이블</li>
  *      <li>하위카테고리 테이블</li>
  *      <li>상품 테이블</li>
+ *      <li>상품-상점 테이블</li>
  *      <li>상점 테이블</li>
  *      <li>가격 테이블</li>
  *      <li>리뷰 테이블</li>
@@ -74,15 +75,27 @@ public interface SchemaMapper {
         CREATE TABLE IF NOT EXISTS shop (
             shop_id INT AUTO_INCREMENT PRIMARY KEY,
             shop_name VARCHAR(100) NOT NULL,
-            link VARCHAR(500),
-            logo_icon VARCHAR(500),
-            product_id INT,
-            FOREIGN KEY (product_id) REFERENCES product(product_id)
-                ON DELETE SET NULL
-                ON UPDATE CASCADE
+            logo_icon VARCHAR(500)
         )
         """)
     void createShopTable();
+
+    @Update("""
+        CREATE TABLE IF NOT EXISTS product_shop (
+            product_shop_id INT AUTO_INCREMENT PRIMARY KEY,
+            product_id INT NOT NULL,
+            shop_id INT NOT NULL,
+            link VARCHAR(500),
+            FOREIGN KEY (product_id) REFERENCES product(product_id)
+                ON DELETE CASCADE
+                ON UPDATE CASCADE,
+            FOREIGN KEY (shop_id) REFERENCES shop(shop_id)
+                ON DELETE CASCADE
+                ON UPDATE CASCADE,
+            UNIQUE(product_id, shop_id)
+        )
+        """)
+    void createProductShopTable();
 
     /**
      * 가격 테이블을 생성하는 메서드<br>
@@ -93,8 +106,8 @@ public interface SchemaMapper {
             price_id INT AUTO_INCREMENT PRIMARY KEY,
             price INT NOT NULL,
             delivery_fee INT DEFAULT 0,
-            shop_id INT NOT NULL,
-            FOREIGN KEY (shop_id) REFERENCES shop(shop_id)
+            product_shop_id INT NOT NULL,
+            FOREIGN KEY (product_shop_id) REFERENCES product_shop(product_shop_id)
                 ON DELETE CASCADE
                 ON UPDATE CASCADE
         )
@@ -113,8 +126,8 @@ public interface SchemaMapper {
             title VARCHAR(200),
             comment TEXT,
             review_date VARCHAR(50),
-            product_id INT NOT NULL,
-            FOREIGN KEY (product_id) REFERENCES product(product_id)
+            product_shop_id INT NOT NULL,
+            FOREIGN KEY (product_shop_id) REFERENCES product_shop(product_shop_id)
                 ON DELETE CASCADE
                 ON UPDATE CASCADE
         )
@@ -127,8 +140,9 @@ public interface SchemaMapper {
     default void createAllTables() {
         createTopCategory();
         createSubCategoryTable();
-        createProductTable();
         createShopTable();
+        createProductTable();
+        createProductShopTable();
         createPriceTable();
         createReviewTable();
     }
