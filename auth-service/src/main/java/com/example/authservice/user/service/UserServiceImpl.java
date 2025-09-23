@@ -28,6 +28,7 @@ public class UserServiceImpl implements UserService {
   private final UserRepository userRepository;
   private final PasswordEncoder passwordEncoder;
   private final TransactionTemplate transactionTemplate;
+  private final SecuritySettingsService securitySettingsService;
   private final SmsService smsService;
 
   @Override
@@ -182,6 +183,9 @@ public class UserServiceImpl implements UserService {
           // 새 비밀번호 설정
           user.setPassword(passwordEncoder.encode(request.newPassword()));
           User updatedUser = userRepository.save(user);
+
+          // 보안 설정의 lastPasswordChange 업데이트
+          securitySettingsService.updateLastPasswordChange(updatedUser.getId());
 
           log.info("🔒 Password changed successfully for user ID: {}", updatedUser.getId());
 
