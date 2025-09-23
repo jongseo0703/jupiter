@@ -2,6 +2,7 @@ package com.example.authservice.auth.controller;
 
 import java.util.Optional;
 
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 
 import org.springframework.http.HttpStatus;
@@ -80,9 +81,12 @@ public class AuthController {
   @Operation(summary = "Login", description = "User login")
   @PostMapping("/login")
   public ResponseEntity<ApiResponse<LoginResponse>> login(
-      @Valid @RequestBody LoginRequest request) {
+      @Valid @RequestBody LoginRequest request, HttpServletRequest httpRequest) {
     try {
-      LoginResponse response = authService.login(request);
+      String ipAddress = getClientIpAddress(httpRequest);
+      String userAgent = httpRequest.getHeader("User-Agent");
+
+      LoginResponse response = authService.login(request, ipAddress, userAgent);
       return ResponseEntity.ok(ApiResponse.success("Login successful", response));
     } catch (Exception e) {
       log.error("Login failed: ", e);
@@ -262,5 +266,21 @@ public class AuthController {
       return bearerToken.substring(7);
     }
     return null;
+  }
+
+  private String getClientIpAddress(HttpServletRequest request) {
+    String xForwardedFor = request.getHeader("X-Forwarded-For");
+    if (xForwardedFor != null
+        && !xForwardedFor.isEmpty()
+        && !"unknown".equalsIgnoreCase(xForwardedFor)) {
+      return xForwardedFor.split(",")[0].trim();
+    }
+
+    String xRealIp = request.getHeader("X-Real-IP");
+    if (xRealIp != null && !xRealIp.isEmpty() && !"unknown".equalsIgnoreCase(xRealIp)) {
+      return xRealIp;
+    }
+
+    return request.getRemoteAddr();
   }
 }
