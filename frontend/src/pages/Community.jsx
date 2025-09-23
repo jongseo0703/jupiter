@@ -2,13 +2,14 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { KOREAN_CATEGORIES, getCategoryStyle } from '../utils/categoryUtils';
-import { fetchPosts, fetchPopularPosts, fetchAllTags } from '../services/api';
+import { fetchPosts, fetchPopularPosts, fetchPopularPostsByLikes, fetchAllTags } from '../services/api';
 
 function Community() {
   const [selectedCategory, setSelectedCategory] = useState('전체');
   const [currentPage, setCurrentPage] = useState(1);
   const [searchKeyword, setSearchKeyword] = useState('');
   const [selectedTag, setSelectedTag] = useState('');
+  const [popularTab, setPopularTab] = useState('views'); // 'views' 또는 'likes'
 
   const categories = ['전체', ...KOREAN_CATEGORIES];
 
@@ -23,6 +24,14 @@ function Community() {
   const { data: popularPostsData } = useQuery({
     queryKey: ['popularPosts', '전체', 1],
     queryFn: fetchPopularPosts,
+    enabled: popularTab === 'views',
+  });
+
+  // 인기 게시글 조회 (좋아요 순)
+  const { data: popularPostsByLikesData } = useQuery({
+    queryKey: ['popularPostsByLikes', '전체', 1],
+    queryFn: fetchPopularPostsByLikes,
+    enabled: popularTab === 'likes',
   });
 
   // 모든 태그 조회
@@ -32,7 +41,9 @@ function Community() {
   });
 
   const posts = data?.posts || [];
-  const popularPosts = popularPostsData?.posts || [];
+  const popularPosts = popularTab === 'views'
+    ? (popularPostsData?.posts || [])
+    : (popularPostsByLikesData?.posts || []);
   const allTags = allTagsData || [];
   const totalPages = data?.totalPages || 1;
   const totalElements = data?.totalElements || 0;
@@ -108,6 +119,32 @@ function Community() {
                 <i className="fas fa-fire text-red-500 mr-2"></i>
                 인기 게시글
               </h3>
+
+              {/* 탭 메뉴 */}
+              <div className="flex space-x-1 mb-4 bg-gray-100 rounded-lg p-1">
+                <button
+                  onClick={() => setPopularTab('views')}
+                  className={`flex-1 py-2 px-3 rounded-md text-sm font-medium transition-colors ${
+                    popularTab === 'views'
+                      ? 'bg-white text-blue-600 shadow-sm'
+                      : 'text-gray-600 hover:text-gray-800'
+                  }`}
+                >
+                  <i className="fas fa-eye mr-1"></i>
+                  조회수
+                </button>
+                <button
+                  onClick={() => setPopularTab('likes')}
+                  className={`flex-1 py-2 px-3 rounded-md text-sm font-medium transition-colors ${
+                    popularTab === 'likes'
+                      ? 'bg-white text-red-600 shadow-sm'
+                      : 'text-gray-600 hover:text-gray-800'
+                  }`}
+                >
+                  <i className="fas fa-heart mr-1"></i>
+                  좋아요
+                </button>
+              </div>
               <div className="space-y-3">
                 {popularPosts.slice(0, 3).map(post => (
                   <div key={post.post_id} className="border-b border-gray-100 pb-3 last:border-b-0">
@@ -122,7 +159,11 @@ function Community() {
                     <div className="flex items-center text-xs text-gray-500">
                       <span>{post.is_anonymous ? '익명' : post.author_name}</span>
                       <span className="mx-2">•</span>
-                      <span>{post.views}회</span>
+                      {popularTab === 'views' ? (
+                        <span><i className="fas fa-eye mr-1"></i>{post.views}회</span>
+                      ) : (
+                        <span><i className="fas fa-heart mr-1"></i>{post.likes}</span>
+                      )}
                     </div>
                   </div>
                 ))}
