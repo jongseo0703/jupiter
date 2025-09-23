@@ -173,9 +173,11 @@ const Header = () => {
                   </Link>
                   <Link
                     to="/mypage"
-                    className="text-gray-700 font-medium hover:text-primary transition-colors cursor-pointer"
+                    className="flex items-center space-x-2 px-3 py-2 rounded-lg text-gray-700 font-medium hover:text-primary hover:bg-gray-200 transition-all duration-200 cursor-pointer"
+                    title="마이페이지로 이동"
                   >
-                    안녕하세요, {user?.username || user?.name}님
+                    <i className="fas fa-user-circle text-lg"></i>
+                    <span>안녕하세요, {user?.username || user?.name}님</span>
                   </Link>
                   <button
                     onClick={handleLogout}
@@ -226,9 +228,11 @@ const Header = () => {
                     <Link
                       to="/mypage"
                       onClick={() => setIsMenuOpen(false)}
-                      className="block text-center text-gray-700 font-medium py-2 hover:text-primary transition-colors"
+                      className="flex items-center justify-center space-x-2 text-gray-700 font-medium py-3 px-4 mx-2 rounded-lg hover:text-primary hover:bg-gray-200 transition-all duration-200"
+                      title="마이페이지로 이동"
                     >
-                      안녕하세요, {user?.username || user?.name}님
+                      <i className="fas fa-user-circle text-lg"></i>
+                      <span>안녕하세요, {user?.username || user?.name}님</span>
                     </Link>
                     <button
                       onClick={() => {

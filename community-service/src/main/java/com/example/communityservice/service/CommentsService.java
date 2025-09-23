@@ -14,7 +14,6 @@ import com.example.communityservice.entity.Authors;
 import com.example.communityservice.entity.Comments;
 import com.example.communityservice.entity.Posts;
 import com.example.communityservice.global.exception.AccessDeniedException;
-import com.example.communityservice.global.exception.AuthorNotFoundException;
 import com.example.communityservice.global.exception.CommentNotFoundException;
 import com.example.communityservice.global.exception.PostNotFoundException;
 import com.example.communityservice.repository.AuthorsRepository;
@@ -91,6 +90,11 @@ public class CommentsService {
 
   // 작성자 정보 조회 또는 생성 (회원/익명 구분)
   private Authors getOrCreateAuthor(CommentsRequestDTO requestDto) {
+    // 로그인한 사용자가 익명으로 작성하려 하는 경우 차단
+    if (requestDto.getAuthorId() != null && Boolean.TRUE.equals(requestDto.getIsAnonymous())) {
+      throw new IllegalArgumentException("로그인한 사용자는 익명으로 작성할 수 없습니다.");
+    }
+
     if (Boolean.TRUE.equals(requestDto.getIsAnonymous())) {
       // 익명 사용자 처리
       String encodedPassword = passwordEncoder.encode(requestDto.getAnonymousPassword());
@@ -103,8 +107,14 @@ public class CommentsService {
         throw new IllegalArgumentException("회원 작성자 ID는 필수입니다.");
       }
       return authorsRepository
-          .findById(requestDto.getAuthorId())
-          .orElseThrow(() -> new AuthorNotFoundException(requestDto.getAuthorId()));
+          .findByUserId(requestDto.getAuthorId())
+          .orElseGet(
+              () -> {
+                Authors newAuthor =
+                    Authors.createMemberAuthor(
+                        requestDto.getAuthorId(), requestDto.getAuthorName());
+                return authorsRepository.save(newAuthor);
+              });
     }
   }
 
@@ -141,8 +151,8 @@ public class CommentsService {
         throw AccessDeniedException.forComment();
       }
     } else {
-      // 회원 사용자 검증: 작성자 ID 확인
-      if (!commentAuthor.getAuthorId().equals(requestDto.getAuthorId())) {
+      // 회원 사용자 검증: 사용자 ID 확인 (userId 기준)
+      if (!commentAuthor.getUserId().equals(requestDto.getAuthorId())) {
         throw AccessDeniedException.forComment();
       }
     }

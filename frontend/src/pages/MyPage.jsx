@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import authService from '../services/authService';
-import apiService from '../services/api';
+import apiService, { fetchUserLikedPosts } from '../services/api';
 
 const MyPage = () => {
   const navigate = useNavigate();
@@ -32,6 +33,32 @@ const MyPage = () => {
   });
   const [isSendingSms, setIsSendingSms] = useState(false);
   const [isVerifyingSms, setIsVerifyingSms] = useState(false);
+
+  const { data: likedPostsData } = useQuery({
+    queryKey: ['userLikedPosts', user?.id, 1],
+    queryFn: fetchUserLikedPosts,
+    enabled: !!user?.id,
+  });
+  const likedPostsCount = likedPostsData?.totalElements ?? 0;
+
+  // 유저 작성글
+  const { data: userPostsData } = useQuery({
+    queryKey: ['userPosts', user?.id, 1],
+    queryFn: async () => {
+      if (!user?.id) return { totalElements: 0 };
+      try {
+        const response = await apiService.get(`/community/api/posts/users/${user.id}/posts`, {
+          params: { page: 0, size: 1 }
+        });
+        return response.data || { totalElements: 0 };
+      } catch (error) {
+        console.error('Failed to fetch user posts:', error);
+        return { totalElements: 0 };
+      }
+    },
+    enabled: !!user?.id,
+  });
+  const userPostsCount = userPostsData?.totalElements ?? 0;
 
   useEffect(() => {
     const loadUserInfo = async () => {
@@ -549,7 +576,10 @@ const MyPage = () => {
                   <span className="text-2xl font-bold text-primary">0</span>
                 </div>
 
-                <div className="flex items-center justify-between p-4 bg-green-50 rounded-lg">
+                <Link
+                  to="/mypage/my-posts"
+                  className="flex items-center justify-between p-4 bg-green-50 rounded-lg hover:bg-green-100 transition-colors border border-green-200 hover:border-green-300"
+                >
                   <div className="flex items-center">
                     <i className="fas fa-comments text-green-500 mr-3 text-xl"></i>
                     <div>
@@ -557,8 +587,29 @@ const MyPage = () => {
                       <p className="text-sm text-gray-600">커뮤니티 게시글</p>
                     </div>
                   </div>
-                  <span className="text-2xl font-bold text-primary">0</span>
-                </div>
+                  <div className="flex items-center">
+                    <span className="text-2xl font-bold text-primary mr-2">{userPostsCount}</span>
+                    <i className="fas fa-chevron-right text-gray-400"></i>
+                  </div>
+                </Link>
+
+                {/* 좋아요한 게시물 조회 */}
+                <Link
+                  to="/mypage/liked-posts"
+                  className="flex items-center justify-between p-4 bg-red-50 rounded-lg hover:bg-red-100 transition-colors border border-red-200 hover:border-red-300"
+                >
+                  <div className="flex items-center">
+                    <i className="fas fa-heart text-red-500 mr-3 text-xl"></i>
+                    <div>
+                      <p className="font-medium text-gray-900">좋아요한 게시물</p>
+                      <p className="text-sm text-gray-600">내가 좋아요를 누른 글</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center">
+                    <span className="text-2xl font-bold text-primary mr-2">{likedPostsCount}</span>
+                    <i className="fas fa-chevron-right text-gray-400"></i>
+                  </div>
+                </Link>
 
               </div>
             </div>

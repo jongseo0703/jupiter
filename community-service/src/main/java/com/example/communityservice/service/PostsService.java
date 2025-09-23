@@ -18,12 +18,13 @@ import com.example.communityservice.dto.posts.PostsSummaryDTO;
 import com.example.communityservice.entity.Authors;
 import com.example.communityservice.entity.Comments;
 import com.example.communityservice.entity.PostCategory;
+import com.example.communityservice.entity.PostLikes;
 import com.example.communityservice.entity.Posts;
 import com.example.communityservice.global.exception.AccessDeniedException;
-import com.example.communityservice.global.exception.AuthorNotFoundException;
 import com.example.communityservice.global.exception.PostNotFoundException;
 import com.example.communityservice.repository.AuthorsRepository;
 import com.example.communityservice.repository.PostAttachmentsRepository;
+import com.example.communityservice.repository.PostLikesRepository;
 import com.example.communityservice.repository.PostsRepository;
 
 import lombok.RequiredArgsConstructor;
@@ -39,6 +40,7 @@ public class PostsService {
   private final PostsRepository postsRepository;
   private final AuthorsRepository authorsRepository;
   private final PostAttachmentsRepository postAttachmentsRepository;
+  private final PostLikesRepository postLikesRepository;
   private final PasswordEncoder passwordEncoder;
   private final FileUploadService fileUploadService;
 
@@ -84,9 +86,30 @@ public class PostsService {
         });
   }
 
+  // 인기 게시글 목록 조회 (좋아요 순, 페이징)
+  public Page<PostsSummaryDTO> getPopularPostsByLikes(String category, Pageable pageable) {
+    Page<Posts> posts;
+
+    if (category == null || category.equals("전체")) {
+      posts = postsRepository.findAllByOrderByLikesDesc(pageable);
+    } else {
+      PostCategory postCategory = PostCategory.valueOf(category.toUpperCase());
+      posts = postsRepository.findByCategoryOrderByLikesDesc(postCategory, pageable);
+    }
+
+    return posts.map(
+        post -> {
+          PostsSummaryDTO postsSummaryDTO = PostsSummaryDTO.from(post);
+          // 첨부파일 개수 확인하여 hasAttachments 설정
+          int attachmentCount = postAttachmentsRepository.countByPostId(post.getPostId());
+          postsSummaryDTO.setHasAttachments(attachmentCount > 0);
+          return postsSummaryDTO;
+        });
+  }
+
   // 게시글 상세 조회 (조회수 증가 + 댓글 목록 포함)
-  @Transactional(readOnly = false)
-  public PostsResponseDTO getPost(Long postId) {
+  @Transactional
+  public PostsResponseDTO getPost(Long postId, Long userId) {
     Posts post =
         postsRepository.findById(postId).orElseThrow(() -> new PostNotFoundException(postId));
 
@@ -102,6 +125,14 @@ public class PostsService {
 
     PostsResponseDTO response = PostsResponseDTO.from(post);
     response.setComments(comments);
+
+    // 로그인한 사용자인 경우 좋아요 여부 확인
+    if (userId != null) {
+      response.setIsLikedByCurrentUser(isLikedByUser(postId, userId));
+    } else {
+      response.setIsLikedByCurrentUser(false);
+    }
+
     return response;
   }
 
@@ -158,28 +189,58 @@ public class PostsService {
     postsRepository.delete(post);
   }
 
-  // 좋아요 추가
+  // 좋아요 추가 (로그인한 사용자만)
   @Transactional
-  public void addLike(Long postId) {
-    if (!postsRepository.existsById(postId)) {
-      throw new PostNotFoundException(postId);
+  public void addLike(Long postId, Long userId) {
+    Posts post =
+        postsRepository.findById(postId).orElseThrow(() -> new PostNotFoundException(postId));
+
+    // 이미 좋아요를 눌렀는지 확인
+    if (postLikesRepository.existsByUserIdAndPostPostId(userId, postId)) {
+      throw new IllegalStateException("이미 좋아요를 누른 게시글입니다.");
     }
+
+    // 좋아요 추가
+    PostLikes postLike = PostLikes.create(userId, post);
+    postLikesRepository.save(postLike);
+
+    // 게시글의 좋아요 수 증가
     postsRepository.incrementLikes(postId);
   }
 
-  // 좋아요 취소
+  // 좋아요 취소 (로그인한 사용자만)
   @Transactional
-  public void removeLike(Long postId) {
+  public void removeLike(Long postId, Long userId) {
     if (!postsRepository.existsById(postId)) {
       throw new PostNotFoundException(postId);
     }
+
+    // 좋아요를 눌렀는지 확인
+    if (!postLikesRepository.existsByUserIdAndPostPostId(userId, postId)) {
+      throw new IllegalStateException("좋아요를 누르지 않은 게시글입니다.");
+    }
+
+    // 좋아요 삭제
+    postLikesRepository.deleteByUserIdAndPostId(userId, postId);
+
+    // 게시글의 좋아요 수 감소
     postsRepository.decrementLikes(postId);
+  }
+
+  // 사용자가 특정 게시글에 좋아요를 눌렀는지 확인
+  public boolean isLikedByUser(Long postId, Long userId) {
+    return postLikesRepository.existsByUserIdAndPostPostId(userId, postId);
   }
 
   // 작성자 정보 조회 또는 생성 (회원/익명 구분)
   private Authors getOrCreateAuthor(PostsRequestDTO requestDto) {
+    // 로그인한 사용자가 익명으로 작성하려 하는 경우 차단
+    if (requestDto.getAuthorId() != null && Boolean.TRUE.equals(requestDto.getIsAnonymous())) {
+      throw new IllegalArgumentException("로그인한 사용자는 익명으로 작성할 수 없습니다.");
+    }
+
     if (Boolean.TRUE.equals(requestDto.getIsAnonymous())) {
-      // 익명 사용자 처리
+      // 익명 사용자 처리 (익명 사용자는 이름, 이메일, 비밀번호를 받아서 새 Authors 객체를 생성)
       String encodedPassword = passwordEncoder.encode(requestDto.getAnonymousPassword());
       return authorsRepository.save(
           Authors.createAnonymousAuthor(
@@ -190,8 +251,14 @@ public class PostsService {
         throw new IllegalArgumentException("회원 작성자 ID는 필수입니다.");
       }
       return authorsRepository
-          .findById(requestDto.getAuthorId())
-          .orElseThrow(() -> new AuthorNotFoundException(requestDto.getAuthorId()));
+          .findByUserId(requestDto.getAuthorId()) // DB에서 해당 회원 작성자 정보 조회
+          .orElseGet( // 회원은 DB에 없으면 처음 작성 시 자동 생성
+              () -> {
+                Authors newAuthor =
+                    Authors.createMemberAuthor(
+                        requestDto.getAuthorId(), requestDto.getAuthorName());
+                return authorsRepository.save(newAuthor);
+              });
     }
   }
 
@@ -226,8 +293,8 @@ public class PostsService {
         throw AccessDeniedException.forPost();
       }
     } else {
-      // 회원 사용자 검증: 작성자 ID 확인
-      if (!postAuthor.getAuthorId().equals(requestDto.getAuthorId())) {
+      // 회원 사용자 검증: 사용자 ID 확인 (userId 기준)
+      if (!postAuthor.getUserId().equals(requestDto.getAuthorId())) {
         throw AccessDeniedException.forPost();
       }
     }
@@ -236,5 +303,72 @@ public class PostsService {
   // 파일 업로드를 위한 Posts 엔티티 조회
   public Posts getPostEntity(Long postId) {
     return postsRepository.findById(postId).orElseThrow(() -> new PostNotFoundException(postId));
+  }
+
+  // 태그로 게시글 검색
+  public Page<PostsSummaryDTO> getPostsByTag(String tag, Pageable pageable) {
+    String jsonTag = "\"" + tag + "\""; // JSON 형태로 변환
+    Page<Posts> posts = postsRepository.findByTagsContaining(jsonTag, pageable);
+
+    return posts.map(
+        post -> {
+          PostsSummaryDTO postsSummaryDTO = PostsSummaryDTO.from(post);
+          // 첨부파일 개수 확인하여 hasAttachments 설정
+          int attachmentCount = postAttachmentsRepository.countByPostId(post.getPostId());
+          postsSummaryDTO.setHasAttachments(attachmentCount > 0);
+          return postsSummaryDTO;
+        });
+  }
+
+  // 키워드로 게시글 검색 (제목, 내용, 태그 포함)
+  public Page<PostsSummaryDTO> searchPosts(String keyword, Pageable pageable) {
+    // 제목/내용으로 검색
+    Page<Posts> posts = postsRepository.findByTitleContainingOrContentContaining(keyword, pageable);
+
+    return posts.map(
+        post -> {
+          PostsSummaryDTO postsSummaryDTO = PostsSummaryDTO.from(post);
+          int attachmentCount = postAttachmentsRepository.countByPostId(post.getPostId());
+          postsSummaryDTO.setHasAttachments(attachmentCount > 0);
+          return postsSummaryDTO;
+        });
+  }
+
+  // 모든 태그 목록 조회 (사용 빈도순)
+  public List<String> getAllTags() {
+    List<Object[]> results = postsRepository.findAllTags();
+    return results.stream()
+        .map(row -> (String) row[0])
+        .filter(tag -> tag != null && !tag.trim().isEmpty())
+        .collect(Collectors.toList());
+  }
+
+  // 특정 사용자가 좋아요한 게시글 목록 조회
+  public Page<PostsSummaryDTO> getLikedPostsByUser(Long userId, Pageable pageable) {
+    Page<Posts> likedPosts = postsRepository.findLikedPostsByUserId(userId, pageable);
+
+    return likedPosts.map(
+        post -> {
+          PostsSummaryDTO postsSummaryDTO = PostsSummaryDTO.from(post);
+          // 첨부파일 개수 확인하여 hasAttachments 설정
+          int attachmentCount = postAttachmentsRepository.countByPostId(post.getPostId());
+          postsSummaryDTO.setHasAttachments(attachmentCount > 0);
+          return postsSummaryDTO;
+        });
+  }
+
+  // 특정 사용자가 작성한 게시글 목록 조회
+  public Page<PostsSummaryDTO> getPostsByUser(Long userId, Pageable pageable) {
+    Page<Posts> userPosts =
+        postsRepository.findByAuthors_UserIdOrderByCreatedAtDesc(userId, pageable);
+
+    return userPosts.map(
+        post -> {
+          PostsSummaryDTO postsSummaryDTO = PostsSummaryDTO.from(post);
+          // 첨부파일 개수 확인하여 hasAttachments 설정
+          int attachmentCount = postAttachmentsRepository.countByPostId(post.getPostId());
+          postsSummaryDTO.setHasAttachments(attachmentCount > 0);
+          return postsSummaryDTO;
+        });
   }
 }
