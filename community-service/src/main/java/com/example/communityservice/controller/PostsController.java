@@ -93,8 +93,22 @@ public class PostsController {
   })
   @GetMapping("/{id}")
   public ResponseEntity<ApiResponseDTO<PostsResponseDTO>> getPost(
-      @Parameter(description = "게시글 ID") @PathVariable Long id) {
-    PostsResponseDTO post = postsService.getPost(id);
+      @Parameter(description = "게시글 ID") @PathVariable Long id,
+      @RequestHeader(value = "Authorization", required = false) String authorizationHeader) {
+
+    Long userId = null;
+    // 로그인한 경우 사용자 ID 추출
+    if (authorizationHeader != null && authorizationHeader.startsWith("Bearer ")) {
+      try {
+        UserInfoResponse userInfo = authService.validateTokenAndGetUser(authorizationHeader);
+        userId = userInfo.getId();
+      } catch (Exception e) {
+        // 토큰이 유효하지 않아도 게시글 조회는 가능하므로 로그만 남기고 진행
+        log.warn("토큰 유효성 검사 실패, 비로그인으로 처리: {}", e.getMessage());
+      }
+    }
+
+    PostsResponseDTO post = postsService.getPost(id, userId);
     return ResponseEntity.ok(ApiResponseDTO.success(post));
   }
 
@@ -193,31 +207,45 @@ public class PostsController {
     return ResponseEntity.ok(ApiResponseDTO.success("게시글이 성공적으로 삭제되었습니다.", null));
   }
 
-  // 좋아요 추가
+  // 좋아요 추가 (로그인 필수)
   // POST /api/posts/{id}/likes
-  @Operation(summary = "좋아요 추가", description = "게시글에 좋아요를 추가합니다.")
+  @Operation(summary = "좋아요 추가", description = "게시글에 좋아요를 추가합니다. 로그인한 사용자만 가능합니다.")
   @ApiResponses({
     @ApiResponse(responseCode = "200", description = "좋아요 추가 성공"),
-    @ApiResponse(responseCode = "404", description = "게시글을 찾을 수 없음")
+    @ApiResponse(responseCode = "401", description = "인증 실패 - 로그인 필요"),
+    @ApiResponse(responseCode = "404", description = "게시글을 찾을 수 없음"),
+    @ApiResponse(responseCode = "409", description = "이미 좋아요를 누른 게시글")
   })
   @PostMapping("/{id}/likes")
   public ResponseEntity<ApiResponseDTO<Void>> addLike(
-      @Parameter(description = "게시글 ID") @PathVariable Long id) {
-    postsService.addLike(id);
+      @Parameter(description = "게시글 ID") @PathVariable Long id,
+      @RequestHeader(value = "Authorization", required = true) String authorizationHeader) {
+
+    // 로그인 체크
+    UserInfoResponse userInfo = authService.validateTokenAndGetUser(authorizationHeader);
+
+    postsService.addLike(id, userInfo.getId());
     return ResponseEntity.ok(ApiResponseDTO.success("좋아요가 추가되었습니다.", null));
   }
 
-  // 좋아요 취소
+  // 좋아요 취소 (로그인 필수)
   // DELETE /api/posts/{id}/likes
-  @Operation(summary = "좋아요 취소", description = "게시글의 좋아요를 취소합니다.")
+  @Operation(summary = "좋아요 취소", description = "게시글의 좋아요를 취소합니다. 로그인한 사용자만 가능합니다.")
   @ApiResponses({
     @ApiResponse(responseCode = "200", description = "좋아요 취소 성공"),
-    @ApiResponse(responseCode = "404", description = "게시글을 찾을 수 없음")
+    @ApiResponse(responseCode = "401", description = "인증 실패 - 로그인 필요"),
+    @ApiResponse(responseCode = "404", description = "게시글을 찾을 수 없음"),
+    @ApiResponse(responseCode = "409", description = "좋아요를 누르지 않은 게시글")
   })
   @DeleteMapping("/{id}/likes")
   public ResponseEntity<ApiResponseDTO<Void>> removeLike(
-      @Parameter(description = "게시글 ID") @PathVariable Long id) {
-    postsService.removeLike(id);
+      @Parameter(description = "게시글 ID") @PathVariable Long id,
+      @RequestHeader(value = "Authorization", required = true) String authorizationHeader) {
+
+    // 로그인 체크
+    UserInfoResponse userInfo = authService.validateTokenAndGetUser(authorizationHeader);
+
+    postsService.removeLike(id, userInfo.getId());
     return ResponseEntity.ok(ApiResponseDTO.success("좋아요가 취소되었습니다.", null));
   }
 
