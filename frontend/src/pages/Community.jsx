@@ -106,7 +106,7 @@ function Community() {
                       {categoryStyle && (
                         <i className={`${categoryStyle.icon} ${isSelected ? 'text-white' : categoryStyle.iconColor}`}></i>
                       )}
-                      {category === '전체' && <i className="fas fa-list text-gray-600"></i>}
+                      {category === '전체' && <i className="fas fa-list text-white-600"></i>}
                       <span>{category}</span>
                     </button>
                   );

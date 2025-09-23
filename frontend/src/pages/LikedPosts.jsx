@@ -69,7 +69,7 @@ function LikedPosts() {
   return (
     <div className="min-h-screen bg-gray-50 py-12">
       <div className="container mx-auto px-4">
-        <div className="max-w-6xl mx-auto">
+        <div className="max-w-4xl mx-auto">
           {/* 헤더 */}
           <div className="bg-white rounded-lg shadow-md p-6 mb-6">
             <div className="flex items-center justify-between">
@@ -83,7 +83,7 @@ function LikedPosts() {
               <div className="bg-white rounded-lg">
                 <div className="flex items-center justify-between">
                   <div className="text-right">
-                    <p className="text-sm font-medium text-gray-600">총 좋아요한 게시물</p>
+                    <p className="text-sm font-medium text-gray-600">MY LIKES</p>
                     <p className="text-2xl font-bold text-primary">{totalElements}개</p>
                   </div>
                   <div className="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center ml-4">
@@ -109,18 +109,18 @@ function LikedPosts() {
               </div>
               <div className="flex items-center space-x-3">
                 <Link
-                  to="/mypage"
-                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-                >
-                  <i className="fas fa-arrow-left mr-2"></i>
-                  마이페이지로
-                </Link>
-                <Link
                   to="/community"
-                  className="bg-primary text-white px-4 py-2 rounded-lg hover:bg-blue-800 transition-colors"
+                  className="px-4 py-2 bg-blue-50 border border-blue-200 text-blue-700 rounded-lg hover:bg-blue-100 hover:border-blue-300 transition-colors"
                 >
                   <i className="fas fa-list mr-2"></i>
                   커뮤니티
+                </Link>
+                <Link
+                  to="/mypage"
+                  className="px-4 py-2 bg-green-50 border border-green-200 text-green-700 rounded-lg hover:bg-green-100 hover:border-green-300 transition-colors"
+                >
+                  <i className="fas fa-arrow-left mr-2"></i>
+                  마이페이지로
                 </Link>
               </div>
             </div>
@@ -150,20 +150,24 @@ function LikedPosts() {
               ) : (
                 <div className="space-y-4">
                   {posts.map(post => (
-                    <div key={post.post_id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+                    <div key={post.post_id} className="border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow">
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
-                          {/* 카테고리와 날짜 */}
-                          <div className="flex items-center space-x-2 mb-2">
-                            {(() => {
-                              const categoryStyle = getCategoryStyle(post.category);
-                              return (
-                                <span className={`${categoryStyle.bgColor} ${categoryStyle.textColor} text-xs px-2 py-1 rounded-full flex items-center space-x-1 border ${categoryStyle.borderColor}`}>
-                                  <i className={`${categoryStyle.icon} ${categoryStyle.iconColor} text-xs`}></i>
-                                  <span>{post.category}</span>
-                                </span>
-                              );
-                            })()}
+                          <div className="flex items-center justify-between mb-3">
+                            <div className="flex items-center space-x-2">
+                              {(() => {
+                                const categoryStyle = getCategoryStyle(post.category);
+                                return (
+                                  <span className={`${categoryStyle.bgColor} ${categoryStyle.textColor} text-xs px-2 py-1 rounded-full flex items-center space-x-1 border ${categoryStyle.borderColor}`}>
+                                    <i className={`${categoryStyle.icon} ${categoryStyle.iconColor} text-xs`}></i>
+                                    <span>{post.category}</span>
+                                  </span>
+                                );
+                              })()}
+                              {post.has_attachments && (
+                                <i className="fas fa-paperclip text-red-400 text-lg" title="첨부파일 있음"></i>
+                              )}
+                            </div>
                             <span className="text-sm text-gray-500">{post.created_at}</span>
                           </div>
 
@@ -192,37 +196,34 @@ function LikedPosts() {
                           })()}
 
                           {/* 제목 */}
-                          <Link to={`/post/${post.post_id}`}>
-                            <h3 className="text-lg font-semibold text-gray-900 mb-2 hover:text-primary cursor-pointer flex items-center">
+                          <Link to={`/post/${post.post_id}`} className="block group">
+                            <h3 className="text-xl font-bold text-gray-900 mb-2 group-hover:text-primary cursor-pointer">
                               {post.title}
-                              {post.has_attachments && (
-                                <i className="fas fa-paperclip ml-2 text-red-400 text-sm" title="첨부파일 있음"></i>
-                              )}
                             </h3>
+                            <p className="text-gray-600 text-sm mb-3 line-clamp-2">
+                              {post.content}
+                            </p>
                           </Link>
 
-                          {/* 내용 미리보기 */}
-                          <p className="text-gray-600 text-sm mb-3 line-clamp-2">
-                            {post.content}
-                          </p>
-
                           {/* 통계 정보 */}
-                          <div className="flex items-center space-x-4 text-sm text-gray-500">
-                            <span className="flex items-center">
-                              <i className="fas fa-user mr-1"></i>
-                              {post.is_anonymous ? '익명' : post.author_name}
-                            </span>
-                            <span className="flex items-center">
-                              <i className="fas fa-eye mr-1"></i>
-                              {post.views}
-                            </span>
-                            <span className="flex items-center">
-                              <i className="fas fa-comment mr-1"></i>
-                              {post.comments_count}
-                            </span>
-                            <span className="flex items-center text-red-500 font-medium">
-                              <i className="fas fa-heart mr-1"></i>
-                              {post.likes}
+                          <div className="flex items-center justify-between text-sm text-gray-500">
+                            <div className="flex items-center space-x-4">
+                              <span className="flex items-center">
+                                <i className="fas fa-user mr-1"></i>
+                                {post.is_anonymous ? '익명' : post.author_name}
+                              </span>
+                              <span className="flex items-center">
+                                <i className="fas fa-eye mr-1"></i>
+                                {post.views}
+                              </span>
+                              <span className="flex items-center">
+                                <i className="fas fa-comment mr-1"></i>
+                                {post.comments_count}
+                              </span>
+                            </div>
+                            <span className="flex items-center text-red-600 font-bold text-2xl">
+                              <i className="fas fa-heart mr-2 text-3xl animate-pulse hover:animate-bounce transition-all duration-300 drop-shadow-sm" style={{animationDuration: '1.2s'}}></i>
+                              <span className="text-3xl font-black bg-gradient-to-r from-red-400 via-red-500 to-red-400 bg-clip-text text-transparent hover:scale-110 transition-transform duration-200 drop-shadow-sm">{post.likes}</span>
                             </span>
                           </div>
                         </div>
