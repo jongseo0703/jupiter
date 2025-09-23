@@ -251,7 +251,16 @@ export const fetchPopularPosts = async ({ queryKey }) => {
 export const fetchPost = async ({ queryKey }) => {
   const [_key, postId] = queryKey;
 
-  const response = await fetch(`${COMMUNITY_API_URL}/posts/${postId}`);
+  // 로그인한 경우 Authorization 헤더 추가
+  const token = localStorage.getItem('accessToken');
+  const headers = {};
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+
+  const response = await fetch(`${COMMUNITY_API_URL}/posts/${postId}`, {
+    headers,
+  });
   const postData = await handleQueryApiResponse(response);
 
   const transformedPost = {
@@ -265,6 +274,7 @@ export const fetchPost = async ({ queryKey }) => {
     updated_at: new Date(postData.updatedAt).toLocaleString('ko-KR'),
     views: postData.views || 0,
     likes: postData.likes || 0,
+    is_liked_by_current_user: postData.isLikedByCurrentUser || false,
     tags: postData.tags,
     is_anonymous: postData.isAnonymous,
     attachments: postData.attachments || []
@@ -326,13 +336,45 @@ export const createPostWithFiles = async ({ postData, files }) => {
 };
 
 /**
- * 게시물에 좋아요를 추가하는 API 함수
+ * 게시물에 좋아요를 추가하는 API 함수 (로그인 필수)
  * @param {string} postId - 게시물 ID
  * @returns {Promise<object>} 성공 응답
  */
 export const likePost = async (postId) => {
+  const token = localStorage.getItem('accessToken');
+  const headers = {
+    'Content-Type': 'application/json',
+  };
+
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+
   const response = await fetch(`${COMMUNITY_API_URL}/posts/${postId}/likes`, {
     method: 'POST',
+    headers,
+  });
+  return handleQueryApiResponse(response);
+};
+
+/**
+ * 게시물의 좋아요를 취소하는 API 함수 (로그인 필수)
+ * @param {string} postId - 게시물 ID
+ * @returns {Promise<object>} 성공 응답
+ */
+export const unlikePost = async (postId) => {
+  const token = localStorage.getItem('accessToken');
+  const headers = {
+    'Content-Type': 'application/json',
+  };
+
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+
+  const response = await fetch(`${COMMUNITY_API_URL}/posts/${postId}/likes`, {
+    method: 'DELETE',
+    headers,
   });
   return handleQueryApiResponse(response);
 };

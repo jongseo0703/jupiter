@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import {fetchPost, fetchPopularPosts, likePost, createComment, updateComment, deleteComment, verifyAnonymousComment, deletePost as deletePostAPI, verifyAnonymousPost} from '../services/api';
+import {fetchPost, fetchPopularPosts, likePost, unlikePost, createComment, updateComment, deleteComment, verifyAnonymousComment, deletePost as deletePostAPI, verifyAnonymousPost} from '../services/api';
 import { categorizeAttachments } from '../utils/fileUtils';
 import { getCategoryStyle, getEnglishCategory } from '../utils/categoryUtils';
 import authService from '../services/authService';
@@ -316,17 +316,56 @@ function PostDetail() {
     queryClient.invalidateQueries({ queryKey: ['post', id] }).catch(console.error);
   };
 
-  // 좋아요 mutation - 헬퍼 함수 사용으로 중복 코드 제거
+  // 좋아요 토글 함수 - 로그인 체크 후 좋아요/취소 결정
+  const handleLikeToggle = () => {
+    if (!isLoggedIn) {
+      alert('로그인이 필요합니다. 로그인 후 좋아요를 눌러주세요.');
+      return;
+    }
+
+    if (post.is_liked_by_current_user) {
+      unlikeMutate();
+    } else {
+      likeMutate();
+    }
+  };
+
+  // 좋아요 추가 mutation - 헬퍼 함수 사용으로 중복 코드 제거
   const { mutate: likeMutate } = useMutation({
     mutationFn: () => likePost(id),
     onMutate: () => createOptimisticUpdate((oldData) => ({
       ...oldData,
       likes: oldData.likes + 1, // 좋아요 수 1 증가
+      is_liked_by_current_user: true, // 사용자가 좋아요 누른 상태로 변경
     })),
     onError: (err, context) => {
       handleMutationError(err, context); // 공통 에러 처리
       console.error('Failed to like post:', err);
-      alert('좋아요 처리에 실패했습니다.');
+      if (err.message.includes('401')) {
+        alert('로그인이 필요합니다.');
+      } else {
+        alert('좋아요 처리에 실패했습니다.');
+      }
+    },
+    onSettled: invalidatePostQuery, // 공통 쿼리 무효화
+  });
+
+  // 좋아요 취소 mutation - 헬퍼 함수 사용으로 중복 코드 제거
+  const { mutate: unlikeMutate } = useMutation({
+    mutationFn: () => unlikePost(id),
+    onMutate: () => createOptimisticUpdate((oldData) => ({
+      ...oldData,
+      likes: oldData.likes - 1, // 좋아요 수 1 감소
+      is_liked_by_current_user: false, // 사용자가 좋아요 취소한 상태로 변경
+    })),
+    onError: (err, context) => {
+      handleMutationError(err, context); // 공통 에러 처리
+      console.error('Failed to unlike post:', err);
+      if (err.message.includes('401')) {
+        alert('로그인이 필요합니다.');
+      } else {
+        alert('좋아요 취소에 실패했습니다.');
+      }
     },
     onSettled: invalidatePostQuery, // 공통 쿼리 무효화
   });
@@ -766,10 +805,18 @@ function PostDetail() {
                 </div>
 
                 <button
-                  onClick={() => likeMutate()}
-                  className="flex items-center space-x-2 text-red-500 hover:text-red-600 transition-colors"
+                  onClick={handleLikeToggle}
+                  className={`flex items-center space-x-2 transition-colors ${
+                    post.is_liked_by_current_user
+                      ? 'text-red-500 hover:text-red-600'
+                      : 'text-gray-400 hover:text-red-500'
+                  }`}
+                  title={isLoggedIn
+                    ? (post.is_liked_by_current_user ? '좋아요 취소' : '좋아요')
+                    : '로그인이 필요합니다'
+                  }
                 >
-                  <i className="fas fa-heart"></i>
+                  <i className={`fas fa-heart ${post.is_liked_by_current_user ? 'text-red-500' : 'text-gray-400'}`}></i>
                   <span>{post.likes}</span>
                 </button>
               </div>
