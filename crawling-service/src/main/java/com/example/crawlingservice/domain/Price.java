@@ -11,5 +11,5 @@ public class Price {
     //배송비
     private int deliveryFee;
     //상점
-    private Shop shop;
+    private ProductShop productShop;
 }
