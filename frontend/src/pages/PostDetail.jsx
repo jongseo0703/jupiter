@@ -320,13 +320,13 @@ function PostDetail() {
   };
 
   /**
-   * 서버와 클라이언트 데이터 동기화
-   * - Mutation 완료 후 서버에서 최신 데이터를 다시 가져옴
-   * - 낙관적 업데이트와 실제 서버 데이터 간의 차이를 해결
+   * 좋아요 관련해서는 서버 재조회 없이 낙관적 업데이트만 사용
+   * - 조회수 증가 방지를 위해 쿼리 무효화 하지 않음
    */
   const invalidatePostQuery = () => {
-    // 특정 게시글(id)의 React Query 캐시를 무효화해서, 최신 데이터를 다시 불러오도록 하는 함수
-    queryClient.invalidateQueries({ queryKey: ['post', id] }).catch(console.error);
+    // 좋아요 관련은 낙관적 업데이트만 사용하므로 서버 재조회 안 함
+    // 필요시에만 주석 해제
+    // queryClient.invalidateQueries({ queryKey: ['post', id] }).catch(console.error);
   };
 
   // 좋아요 토글 함수 - 로그인 체크 후 좋아요/취소 결정
