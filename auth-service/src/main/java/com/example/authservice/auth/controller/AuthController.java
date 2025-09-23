@@ -18,6 +18,7 @@ import com.example.authservice.auth.dto.LoginResponse;
 import com.example.authservice.auth.dto.PhoneVerificationConfirmRequest;
 import com.example.authservice.auth.dto.PhoneVerificationRequest;
 import com.example.authservice.auth.dto.RegisterRequest;
+import com.example.authservice.auth.dto.TwoFactorVerifyRequest;
 import com.example.authservice.auth.security.JwtTokenProvider;
 import com.example.authservice.auth.service.AuthService;
 import com.example.authservice.auth.service.SmsService;
@@ -239,6 +240,19 @@ public class AuthController {
       }
     } catch (Exception e) {
       log.error("휴대폰 인증 실패: ", e);
+      throw e;
+    }
+  }
+
+  @Operation(summary = "2FA 코드 검증", description = "2단계 인증 코드를 검증합니다")
+  @PostMapping("/verify-2fa")
+  public ResponseEntity<ApiResponse<LoginResponse>> verifyTwoFactor(
+      @Valid @RequestBody TwoFactorVerifyRequest request) {
+    try {
+      LoginResponse response = authService.verifyTwoFactor(request.tempToken(), request.code());
+      return ResponseEntity.ok(ApiResponse.success("2FA verification successful", response));
+    } catch (Exception e) {
+      log.error("2FA verification failed: ", e);
       throw e;
     }
   }
