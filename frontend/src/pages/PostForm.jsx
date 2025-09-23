@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import { getEnglishCategory, KOREAN_CATEGORIES } from '../utils/categoryUtils';
 import { useFileUpload } from '../hooks/useFileUpload';
-import { createPostWithFiles, fetchPopularPosts } from '../services/api';
+import { createPostWithFiles, fetchPopularPosts, fetchPopularPostsByLikes } from '../services/api';
 import { categorizeAttachments } from '../utils/fileUtils';
 import authService from '../services/authService';
 
@@ -26,6 +26,7 @@ function PostForm() {
   // 태그 상태 관리
   const [tagInput, setTagInput] = useState('');
   const [tagList, setTagList] = useState([]);
+  const [popularTab, setPopularTab] = useState('views'); // 'views' 또는 'likes'
 
   // 파일 업로드 훅 사용
   const { previewImages, handleFileUpload, removeFile } = useFileUpload(formData, setFormData);
@@ -61,14 +62,25 @@ function PostForm() {
     checkAuthStatus().catch(console.error);
   }, []);
 
-  // 인기 게시글 조회 (전체 카테고리, 첫 번째 페이지, 조회수 순 정렬)
+  // 인기 게시글 조회 (조회수 순)
   const { data: popularPostsData } = useQuery({
     queryKey: ['popularPosts', '전체', 1],
     queryFn: fetchPopularPosts,
+    enabled: popularTab === 'views',
     staleTime: 5 * 60 * 1000, // 5분간 fresh 상태 유지
   });
 
-  const popularPosts = popularPostsData?.posts || [];
+  // 인기 게시글 조회 (좋아요 순)
+  const { data: popularPostsByLikesData } = useQuery({
+    queryKey: ['popularPostsByLikes', '전체', 1],
+    queryFn: fetchPopularPostsByLikes,
+    enabled: popularTab === 'likes',
+    staleTime: 5 * 60 * 1000, // 5분간 fresh 상태 유지
+  });
+
+  const popularPosts = popularTab === 'views'
+    ? (popularPostsData?.posts || [])
+    : (popularPostsByLikesData?.posts || []);
 
   const { mutate, isLoading: isSubmitting } = useMutation({
     mutationFn: createPostWithFiles,
@@ -527,6 +539,32 @@ function PostForm() {
                     <i className="fas fa-fire text-red-500 mr-2"></i>
                     인기 게시글
                   </h3>
+
+                  {/* 탭 메뉴 */}
+                  <div className="flex space-x-1 mb-4 bg-gray-100 rounded-lg p-1">
+                    <button
+                      onClick={() => setPopularTab('views')}
+                      className={`flex-1 py-2 px-3 rounded-md text-sm font-medium transition-colors ${
+                        popularTab === 'views'
+                          ? 'bg-white text-blue-600 shadow-sm'
+                          : 'text-gray-600 hover:text-gray-800'
+                      }`}
+                    >
+                      <i className="fas fa-eye mr-1"></i>
+                      조회수
+                    </button>
+                    <button
+                      onClick={() => setPopularTab('likes')}
+                      className={`flex-1 py-2 px-3 rounded-md text-sm font-medium transition-colors ${
+                        popularTab === 'likes'
+                          ? 'bg-white text-red-600 shadow-sm'
+                          : 'text-gray-600 hover:text-gray-800'
+                      }`}
+                    >
+                      <i className="fas fa-heart mr-1"></i>
+                      좋아요
+                    </button>
+                  </div>
                   <div className="space-y-3">
                     {popularPosts.length > 0 ? (
                       popularPosts.slice(0, 3).map(post => (
@@ -542,7 +580,11 @@ function PostForm() {
                           <div className="flex items-center text-xs text-gray-500">
                             <span>{post.is_anonymous ? '익명' : post.author_name}</span>
                             <span className="mx-2">•</span>
-                            <span>{post.views}회</span>
+                            {popularTab === 'views' ? (
+                              <span><i className="fas fa-eye mr-1"></i>{post.views}회</span>
+                            ) : (
+                              <span><i className="fas fa-heart mr-1"></i>{post.likes}</span>
+                            )}
                           </div>
                         </div>
                       ))
