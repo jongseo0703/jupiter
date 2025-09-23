@@ -148,94 +148,123 @@ function LikedPosts() {
                   </Link>
                 </div>
               ) : (
-                <div className="space-y-4">
-                  {posts.map(post => (
-                    <div key={post.post_id} className="border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow">
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center justify-between mb-3">
-                            <div className="flex items-center space-x-2">
-                              {(() => {
-                                const categoryStyle = getCategoryStyle(post.category);
-                                return (
-                                  <span className={`${categoryStyle.bgColor} ${categoryStyle.textColor} text-xs px-2 py-1 rounded-full flex items-center space-x-1 border ${categoryStyle.borderColor}`}>
-                                    <i className={`${categoryStyle.icon} ${categoryStyle.iconColor} text-xs`}></i>
-                                    <span>{post.category}</span>
-                                  </span>
-                                );
-                              })()}
-                              {post.has_attachments && (
-                                <i className="fas fa-paperclip text-red-400 text-lg" title="첨부파일 있음"></i>
-                              )}
-                            </div>
-                            <span className="text-sm text-gray-500">{post.created_at}</span>
-                          </div>
-
-                          {/* 태그 */}
-                          {post.tags && (() => {
-                            try {
-                              const parsedTags = typeof post.tags === 'string' ? JSON.parse(post.tags) : post.tags;
-                              if (Array.isArray(parsedTags) && parsedTags.length > 0) {
-                                return (
-                                  <div className="flex flex-wrap gap-1 mb-3">
-                                    {parsedTags.map((tag, index) => (
-                                      <span
-                                        key={index}
-                                        className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded border border-blue-200"
-                                      >
-                                        #{tag}
-                                      </span>
-                                    ))}
-                                  </div>
-                                );
-                              }
-                            } catch (e) {
-                              return null;
-                            }
-                            return null;
+                <table className="w-full table-fixed">
+                  {/* 테이블 헤더 */}
+                  <thead>
+                    <tr className="bg-gray-50 border-b border-gray-200">
+                      <th className="text-left py-3 px-4 font-semibold text-gray-700" style={{width: '15%'}}>분류</th>
+                      <th className="text-left py-3 px-4 font-semibold text-gray-700" style={{width: '30%'}}>제목</th>
+                      <th className="text-center py-3 px-4 font-semibold text-gray-700" style={{width: '12%'}}>작성자</th>
+                      <th className="text-center py-3 px-4 font-semibold text-gray-700" style={{width: '17%'}}>작성일</th>
+                      <th className="text-center py-3 px-4 font-semibold text-gray-700" style={{width: '8%'}}>조회</th>
+                      <th className="text-center py-3 px-4 font-semibold text-gray-700" style={{width: '9%'}}>댓글</th>
+                      <th className="text-center py-3 px-4 font-semibold text-gray-700" style={{width: '9%'}}>좋아요</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200">
+                    {posts.map(post => (
+                      <tr key={post.post_id} className="hover:bg-gray-50 transition-colors">
+                        {/* 분류 */}
+                        <td className="py-4 px-4">
+                          {(() => {
+                            const categoryStyle = getCategoryStyle(post.category);
+                            return (
+                              <span className={`${categoryStyle.bgColor} ${categoryStyle.textColor} text-xs px-2 py-1 rounded-full flex items-center space-x-1 border ${categoryStyle.borderColor} w-fit`}>
+                                <i className={`${categoryStyle.icon} ${categoryStyle.iconColor} text-xs`}></i>
+                                <span className="hidden sm:inline">{post.category}</span>
+                              </span>
+                            );
                           })()}
+                        </td>
 
-                          {/* 제목 */}
-                          <Link to={`/post/${post.post_id}`} className="block group">
-                            <h3 className="text-xl font-bold text-gray-900 mb-2 group-hover:text-primary cursor-pointer">
-                              {post.title}
-                            </h3>
-                            <p className="text-gray-600 text-sm mb-3 line-clamp-2">
-                              {post.content}
-                            </p>
-                          </Link>
+                        {/* 제목 */}
+                        <td className="py-4 px-4">
+                          <div className="min-w-0">
+                            {/* 태그들 */}
+                            {post.tags && (() => {
+                              try {
+                                const parsedTags = typeof post.tags === 'string' ? JSON.parse(post.tags) : post.tags;
+                                if (Array.isArray(parsedTags) && parsedTags.length > 0) {
+                                  return (
+                                    <div className="flex flex-wrap gap-1 mb-1">
+                                      {parsedTags.slice(0, 2).map((tag, index) => (
+                                        <span
+                                          key={index}
+                                          className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded flex-shrink-0"
+                                        >
+                                          #{tag}
+                                        </span>
+                                      ))}
+                                      {parsedTags.length > 2 && (
+                                        <span className="text-xs text-gray-500 px-2 py-1 flex-shrink-0">
+                                          +{parsedTags.length - 2}
+                                        </span>
+                                      )}
+                                    </div>
+                                  );
+                                }
+                              } catch (e) {
+                                return null;
+                              }
+                              return null;
+                            })()}
 
-                          {/* 통계 정보 */}
-                          <div className="flex items-center justify-between text-sm text-gray-500">
-                            <div className="flex items-center space-x-4">
-                              <span className="flex items-center">
-                                <i className="fas fa-user mr-1"></i>
-                                {post.is_anonymous ? '익명' : post.author_name}
-                              </span>
-                              <span className="flex items-center">
-                                <i className="fas fa-eye mr-1"></i>
-                                {post.views}
-                              </span>
-                              <span className="flex items-center">
-                                <i className="fas fa-comment mr-1"></i>
-                                {post.comments_count}
-                              </span>
-                            </div>
-                            <span className="flex items-center text-red-600 font-bold text-2xl">
-                              <i className="fas fa-heart mr-2 text-3xl animate-pulse hover:animate-bounce transition-all duration-300 drop-shadow-sm" style={{animationDuration: '1.2s'}}></i>
-                              <span className="text-3xl font-black bg-gradient-to-r from-red-400 via-red-500 to-red-400 bg-clip-text text-transparent hover:scale-110 transition-transform duration-200 drop-shadow-sm">{post.likes}</span>
-                            </span>
+                            <Link to={`/post/${post.post_id}`}>
+                              <h3 className="text-base font-semibold text-gray-800 hover:text-primary cursor-pointer break-words">
+                                {post.title}
+                                {post.has_attachments && (
+                                  <i className="fas fa-paperclip text-red-400 text-sm ml-2" title="첨부파일 있음"></i>
+                                )}
+                              </h3>
+                            </Link>
                           </div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                        </td>
+
+                        {/* 작성자 */}
+                        <td className="py-4 px-4 text-center">
+                          <span className="text-sm text-gray-700 flex items-center justify-center gap-1">
+                            <i className="fas fa-user text-gray-500"></i>
+                            {post.is_anonymous ? '익명' : post.author_name}
+                          </span>
+                        </td>
+
+                        {/* 작성일 */}
+                        <td className="py-4 px-4 text-center">
+                          <span className="text-sm text-gray-500">{post.created_at}</span>
+                        </td>
+
+                        {/* 조회수 */}
+                        <td className="py-4 px-4 text-center">
+                          <span className="text-sm text-gray-600">
+                            {post.views}
+                          </span>
+                        </td>
+
+                        {/* 댓글 */}
+                        <td className="py-4 px-4 text-center">
+                          <span className="text-sm text-gray-600">
+                            {post.comments_count}
+                          </span>
+                        </td>
+
+                        {/* 좋아요 */}
+                        <td className="py-4 px-4 text-center">
+                          <span className="text-base text-red-600 font-bold flex items-center justify-center gap-2 group cursor-pointer">
+                            <i className="fas fa-heart text-red-500 text-lg animate-pulse group-hover:animate-bounce group-hover:scale-125 group-hover:text-pink-500 group-hover:drop-shadow-lg transition-all duration-300"></i>
+                            <span className="text-lg group-hover:scale-110 group-hover:text-pink-600 group-hover:font-extrabold transition-all duration-300 font-bold">
+                              {post.likes}
+                            </span>
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               )}
             </div>
 
             {/* 페이지네이션 */}
-            {totalPages > 1 && (
+            {totalElements > 0 && (
               <div className="px-6 pb-6 border-t border-gray-200">
                 <div className="flex justify-center pt-6">
                   <nav className="flex items-center space-x-2">
@@ -287,6 +316,7 @@ function LikedPosts() {
                 </div>
               </div>
             )}
+
           </div>
         </div>
       </div>

@@ -194,7 +194,7 @@ export const fetchPosts = async ({ queryKey }) => {
   }
 
   queryParams.append('page', (page - 1).toString());
-  queryParams.append('size', '5');
+  queryParams.append('size', '10');
 
   const response = await fetch(`${COMMUNITY_API_URL}/posts?${queryParams.toString()}`);
   const pageData = await handleQueryApiResponse(response);
@@ -602,7 +602,7 @@ export const fetchAllTags = async () => {
  */
 export const fetchUserLikedPosts = async ({ queryKey }) => {
   const [, userId, page] = queryKey;
-  const size = 5; // 페이지 당 게시물 수
+  const size = 10; // 페이지 당 게시물 수
 
   const headers = {};
   const token = localStorage.getItem('accessToken');
@@ -653,7 +653,7 @@ export const fetchUserLikedPosts = async ({ queryKey }) => {
  */
 export const fetchUserPosts = async ({ queryKey }) => {
   const [, userId, page] = queryKey;
-  const size = 5; // 페이지 당 게시물 수
+  const size = 10; // 페이지 당 게시물 수
 
   const headers = {};
   const token = localStorage.getItem('accessToken');
