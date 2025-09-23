@@ -339,7 +339,8 @@ public class PostsController {
     }
 
     Page<PostsSummaryDTO> likedPosts = postsService.getLikedPostsByUser(userId, pageable);
-    PageResponseDTO<PostsSummaryDTO> response = PageResponseDTO.from(likedPosts); // from() : 엔터티를 DTO로 반환
+    PageResponseDTO<PostsSummaryDTO> response =
+        PageResponseDTO.from(likedPosts); // from() : 엔터티를 DTO로 반환
 
     return ResponseEntity.ok(ApiResponseDTO.success(response));
   }

@@ -570,3 +570,54 @@ export const fetchAllTags = async () => {
   const response = await fetch(`${COMMUNITY_API_URL}/posts/tags`);
   return await handleQueryApiResponse(response);
 };
+
+/**
+ * 특정 사용자가 좋아요한 게시물 목록을 조회하는 API 함수
+ * @param {Object} params - 쿼리 파라미터
+ * @param {Array} params.queryKey - React Query의 queryKey 배열 [키, 사용자ID, 페이지]
+ * @returns {Promise<Object>} - 좋아요한 게시물 목록과 페이징 정보
+ */
+export const fetchUserLikedPosts = async ({ queryKey }) => {
+  const [, userId, page] = queryKey;
+  const size = 20; // 페이지 당 게시물 수
+
+  const headers = {};
+  const token = localStorage.getItem('accessToken');
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+
+  const response = await fetch(
+    `${COMMUNITY_API_URL}/posts/users/${userId}/liked?page=${page - 1}&size=${size}&sort=createdAt,desc`,
+    {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        ...headers,
+      },
+    }
+  );
+
+  const pageData = await handleQueryApiResponse(response);
+
+  const transformedPosts = pageData.content.map(post => ({
+    post_id: post.postId,
+    title: post.title,
+    content: post.content,
+    author_name: post.authorName,
+    category: getKoreanCategory(post.category),
+    created_at: new Date(post.createdAt).toLocaleDateString('ko-KR'),
+    views: post.views || 0,
+    comments_count: post.commentsCount || 0,
+    likes: post.likes || 0,
+    tags: post.tags,
+    is_anonymous: post.isAnonymous,
+    has_attachments: post.hasAttachments || false
+  }));
+
+  return {
+    posts: transformedPosts,
+    totalPages: pageData.totalPages,
+    totalElements: pageData.totalElements || 0
+  };
+};
