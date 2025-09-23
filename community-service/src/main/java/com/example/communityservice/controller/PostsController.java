@@ -344,4 +344,28 @@ public class PostsController {
 
     return ResponseEntity.ok(ApiResponseDTO.success(response));
   }
+
+  @Operation(summary = "특정 사용자가 작성한 게시글 목록 조회", description = "특정 사용자가 작성한 게시글 목록을 페이징하여 조회합니다.")
+  @ApiResponses({
+    @ApiResponse(responseCode = "200", description = "조회 성공"),
+    @ApiResponse(responseCode = "401", description = "인증 실패"),
+    @ApiResponse(responseCode = "403", description = "권한 없음")
+  })
+  @GetMapping("/users/{userId}/posts")
+  public ResponseEntity<ApiResponseDTO<PageResponseDTO<PostsSummaryDTO>>> getUserPosts(
+      @Parameter(description = "사용자 ID") @PathVariable Long userId,
+      @RequestHeader(value = "Authorization", required = true) String authorizationHeader,
+      Pageable pageable) {
+
+    // 사용자 인증 및 권한 확인 (자신의 작성글 목록만 조회 가능)
+    UserInfoResponse userInfo = authService.validateTokenAndGetUser(authorizationHeader);
+    if (!userInfo.getId().equals(userId)) {
+      throw new IllegalArgumentException("자신의 작성글 목록만 조회할 수 있습니다.");
+    }
+
+    Page<PostsSummaryDTO> userPosts = postsService.getPostsByUser(userId, pageable);
+    PageResponseDTO<PostsSummaryDTO> response = PageResponseDTO.from(userPosts);
+
+    return ResponseEntity.ok(ApiResponseDTO.success(response));
+  }
 }

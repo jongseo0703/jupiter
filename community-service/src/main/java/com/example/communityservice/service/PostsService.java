@@ -356,4 +356,19 @@ public class PostsService {
           return postsSummaryDTO;
         });
   }
+
+  // 특정 사용자가 작성한 게시글 목록 조회
+  public Page<PostsSummaryDTO> getPostsByUser(Long userId, Pageable pageable) {
+    Page<Posts> userPosts =
+        postsRepository.findByAuthors_UserIdOrderByCreatedAtDesc(userId, pageable);
+
+    return userPosts.map(
+        post -> {
+          PostsSummaryDTO postsSummaryDTO = PostsSummaryDTO.from(post);
+          // 첨부파일 개수 확인하여 hasAttachments 설정
+          int attachmentCount = postAttachmentsRepository.countByPostId(post.getPostId());
+          postsSummaryDTO.setHasAttachments(attachmentCount > 0);
+          return postsSummaryDTO;
+        });
+  }
 }

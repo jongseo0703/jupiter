@@ -84,4 +84,7 @@ public interface PostsRepository extends JpaRepository<Posts, Long> {
           + "WHERE pl.userId = :userId "
           + "ORDER BY pl.createdAt DESC")
   Page<Posts> findLikedPostsByUserId(@Param("userId") Long userId, Pageable pageable);
+
+  // 특정 사용자가 작성한 게시글 목록 조회 (최신순)
+  Page<Posts> findByAuthors_UserIdOrderByCreatedAtDesc(Long userId, Pageable pageable);
 }
