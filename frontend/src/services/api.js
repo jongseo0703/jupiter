@@ -18,7 +18,7 @@ class ApiService {
     };
 
     // JWT 토큰이 있으면 Authorization 헤더 추가
-    const token = localStorage.getItem('accessToken');
+    const token = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken');
     if (token) {
       defaultOptions.headers.Authorization = `Bearer ${token}`;
     }
@@ -89,23 +89,41 @@ class ApiService {
   }
 
   // 토큰 저장
-  saveTokens(accessToken, refreshToken) {
-    localStorage.setItem('accessToken', accessToken);
-    localStorage.setItem('refreshToken', refreshToken);
+  saveTokens(accessToken, refreshToken, rememberMe = false) {
+    if (rememberMe) {
+      // 로그인 유지 시 localStorage 사용 (영구 저장)
+      localStorage.setItem('accessToken', accessToken);
+      localStorage.setItem('refreshToken', refreshToken);
+      // sessionStorage에서 토큰 제거 (중복 방지)
+      sessionStorage.removeItem('accessToken');
+      sessionStorage.removeItem('refreshToken');
+    } else {
+      // 로그인 유지 안함 시 sessionStorage 사용 (브라우저 종료 시 삭제)
+      sessionStorage.setItem('accessToken', accessToken);
+      sessionStorage.setItem('refreshToken', refreshToken);
+      // localStorage에서 토큰 제거 (중복 방지)
+      localStorage.removeItem('accessToken');
+      localStorage.removeItem('refreshToken');
+    }
   }
 
   // 토큰 삭제
   clearTokens() {
     localStorage.removeItem('accessToken');
     localStorage.removeItem('refreshToken');
+    sessionStorage.removeItem('accessToken');
+    sessionStorage.removeItem('refreshToken');
   }
 
   // 토큰 갱신
   async refreshToken() {
-    const refreshToken = localStorage.getItem('refreshToken');
+    const refreshToken = localStorage.getItem('refreshToken') || sessionStorage.getItem('refreshToken');
     if (!refreshToken) {
       throw new Error('Refresh token not found');
     }
+
+    // rememberMe 확인 (localStorage에 있으면 true, sessionStorage에 있으면 false)
+    const rememberMe = !!localStorage.getItem('refreshToken');
 
     try {
       const response = await this.post('/auth/api/v1/auth/refresh', {}, {
@@ -115,7 +133,7 @@ class ApiService {
       });
 
       if (response.result === 'SUCCESS') {
-        this.saveTokens(response.data.accessToken, response.data.refreshToken);
+        this.saveTokens(response.data.accessToken, response.data.refreshToken, rememberMe);
         return response.data.accessToken;
       } else {
         throw new Error('Token refresh failed');

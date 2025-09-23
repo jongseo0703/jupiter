@@ -10,9 +10,12 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.example.authservice.global.common.PageResponse;
 import com.example.authservice.global.exception.BusinessException;
+import com.example.authservice.security.repository.LoginHistoryRepository;
+import com.example.authservice.security.repository.SuspiciousActivityRepository;
 import com.example.authservice.user.dto.UserResponse;
 import com.example.authservice.user.dto.UserUpdateRequest;
 import com.example.authservice.user.entity.User;
+import com.example.authservice.user.repository.SecuritySettingsRepository;
 import com.example.authservice.user.repository.UserRepository;
 
 import lombok.RequiredArgsConstructor;
@@ -25,6 +28,9 @@ import lombok.extern.slf4j.Slf4j;
 public class AdminServiceImpl implements AdminService {
 
   private final UserRepository userRepository;
+  private final SecuritySettingsRepository securitySettingsRepository;
+  private final LoginHistoryRepository loginHistoryRepository;
+  private final SuspiciousActivityRepository suspiciousActivityRepository;
   private final PasswordEncoder passwordEncoder;
 
   @Override
@@ -95,7 +101,20 @@ public class AdminServiceImpl implements AdminService {
             .findById(id)
             .orElseThrow(() -> new BusinessException("User not found", 404, "USER_NOT_FOUND"));
 
+    // 관련 데이터 삭제 (외래키 순서대로)
+    log.info("Admin: Deleting related data for user ID: {}", id);
+
+    // 1. 로그인 히스토리 삭제
+    loginHistoryRepository.deleteByUser(user);
+
+    // 2. 의심스러운 활동 기록 삭제
+    suspiciousActivityRepository.deleteByUser(user);
+
+    // 3. 보안 설정 삭제
+    securitySettingsRepository.deleteByUser(user);
+
+    // 4. 사용자 삭제
     userRepository.delete(user);
-    log.info("Admin: User deleted successfully: {}", id);
+    log.info("Admin: User and all related data deleted successfully: {}", id);
   }
 }
