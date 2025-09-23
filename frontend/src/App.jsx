@@ -26,6 +26,8 @@ import AdminPanel from './pages/AdminPanel';
 import AdminUsers from './pages/AdminUsers';
 import AdminProducts from './pages/AdminProducts';
 import AdminNotifications from './pages/AdminNotifications';
+import LikedPosts from './pages/LikedPosts';
+import MyPosts from './pages/MyPosts';
 
 function ScrollToTop() {
   const { pathname } = useLocation();
@@ -59,6 +61,8 @@ function App() {
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
             <Route path="/mypage" element={<MyPage />} />
+            <Route path="/mypage/liked-posts" element={<LikedPosts />} />
+            <Route path="/mypage/my-posts" element={<MyPosts />} />
             <Route path="/terms" element={<Terms />} />
             <Route path="/privacy" element={<Privacy />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />

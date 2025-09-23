@@ -155,7 +155,7 @@ const handleQueryApiResponse = async (response) => {
  * @returns {Promise<Object>} - 변환된 게시물 목록과 페이지 정보
  */
 export const fetchPosts = async ({ queryKey }) => {
-  const [_key, category, page] = queryKey;
+  const [_key, category, page, tag, search] = queryKey;
 
   const queryParams = new URLSearchParams();
   if (category !== '전체') {
@@ -164,8 +164,19 @@ export const fetchPosts = async ({ queryKey }) => {
       queryParams.append('category', englishCategory);
     }
   }
+
+  // 태그 검색
+  if (tag && tag.trim()) {
+    queryParams.append('tag', tag.trim());
+  }
+
+  // 키워드 검색
+  if (search && search.trim()) {
+    queryParams.append('search', search.trim());
+  }
+
   queryParams.append('page', (page - 1).toString());
-  queryParams.append('size', '20');
+  queryParams.append('size', '5');
 
   const response = await fetch(`${COMMUNITY_API_URL}/posts?${queryParams.toString()}`);
   const pageData = await handleQueryApiResponse(response);
@@ -185,7 +196,11 @@ export const fetchPosts = async ({ queryKey }) => {
     has_attachments: post.hasAttachments || false // 백엔드에서 제공하는 hasAttachments 필드 사용
   }));
 
-  return { posts: transformedPosts, totalPages: pageData.totalPages };
+  return {
+    posts: transformedPosts,
+    totalPages: pageData.totalPages,
+    totalElements: pageData.totalElements || 0
+  };
 };
 
 /**
@@ -204,8 +219,48 @@ export const fetchPopularPosts = async ({ queryKey }) => {
     }
   }
   queryParams.append('page', (page - 1).toString());
-  queryParams.append('size', '20');
+  queryParams.append('size', '10');
   queryParams.append('sort', 'views');
+
+  const response = await fetch(`${COMMUNITY_API_URL}/posts?${queryParams.toString()}`);
+  const pageData = await handleQueryApiResponse(response);
+
+  const transformedPosts = pageData.content.map(post => ({
+    post_id: post.postId,
+    title: post.title,
+    content: post.content,
+    author_name: post.authorName,
+    category: getKoreanCategory(post.category),
+    created_at: new Date(post.createdAt).toLocaleDateString('ko-KR'),
+    views: post.views || 0,
+    comments_count: post.commentsCount || 0,
+    likes: post.likes || 0,
+    tags: post.tags,
+    is_anonymous: post.isAnonymous,
+    has_attachments: post.hasAttachments || false
+  }));
+
+  return { posts: transformedPosts, totalPages: pageData.totalPages };
+};
+
+/**
+ * 좋아요순 인기 게시물 목록을 조회하는 API 함수 (React Query용) - 좋아요 순 정렬
+ * @param {object} queryKey - React Query에서 제공하는 쿼리 키
+ * @returns {Promise<Object>} - 변환된 좋아요순 게시물 목록과 페이지 정보
+ */
+export const fetchPopularPostsByLikes = async ({ queryKey }) => {
+  const [_key, category, page] = queryKey;
+
+  const queryParams = new URLSearchParams();
+  if (category !== '전체') {
+    const englishCategory = getEnglishCategory(category);
+    if (englishCategory) {
+      queryParams.append('category', englishCategory);
+    }
+  }
+  queryParams.append('page', (page - 1).toString());
+  queryParams.append('size', '10');
+  queryParams.append('sort', 'likes');
 
   const response = await fetch(`${COMMUNITY_API_URL}/posts?${queryParams.toString()}`);
   const pageData = await handleQueryApiResponse(response);
@@ -236,7 +291,16 @@ export const fetchPopularPosts = async ({ queryKey }) => {
 export const fetchPost = async ({ queryKey }) => {
   const [_key, postId] = queryKey;
 
-  const response = await fetch(`${COMMUNITY_API_URL}/posts/${postId}`);
+  // 로그인한 경우 Authorization 헤더 추가
+  const token = localStorage.getItem('accessToken');
+  const headers = {};
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+
+  const response = await fetch(`${COMMUNITY_API_URL}/posts/${postId}`, {
+    headers,
+  });
   const postData = await handleQueryApiResponse(response);
 
   const transformedPost = {
@@ -244,11 +308,13 @@ export const fetchPost = async ({ queryKey }) => {
     title: postData.title,
     content: postData.content,
     author_name: postData.authorName,
+    author_id: postData.author_id, // PostEdit에서 필요한 author_id 추가
     category: getKoreanCategory(postData.category),
     created_at: new Date(postData.createdAt).toLocaleString('ko-KR'),
     updated_at: new Date(postData.updatedAt).toLocaleString('ko-KR'),
     views: postData.views || 0,
     likes: postData.likes || 0,
+    is_liked_by_current_user: postData.isLikedByCurrentUser || false,
     tags: postData.tags,
     is_anonymous: postData.isAnonymous,
     attachments: postData.attachments || []
@@ -272,12 +338,19 @@ export const fetchPost = async ({ queryKey }) => {
  * @returns {Promise<object>} 생성된 게시물 정보
  */
 export const createPostWithFiles = async ({ postData, files }) => {
-  // 1. 게시글 생성 API 호출
+  // 1. 게시글 생성 API 호출 (Authorization 헤더 포함)
+  const token = localStorage.getItem('accessToken');
+  const headers = {
+    'Content-Type': 'application/json',
+  };
+
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+
   const createPostResponse = await fetch(`${COMMUNITY_API_URL}/posts`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers,
     body: JSON.stringify(postData),
   });
   const createdPost = await handleQueryApiResponse(createPostResponse);
@@ -303,13 +376,45 @@ export const createPostWithFiles = async ({ postData, files }) => {
 };
 
 /**
- * 게시물에 좋아요를 추가하는 API 함수
+ * 게시물에 좋아요를 추가하는 API 함수 (로그인 필수)
  * @param {string} postId - 게시물 ID
  * @returns {Promise<object>} 성공 응답
  */
 export const likePost = async (postId) => {
+  const token = localStorage.getItem('accessToken');
+  const headers = {
+    'Content-Type': 'application/json',
+  };
+
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+
   const response = await fetch(`${COMMUNITY_API_URL}/posts/${postId}/likes`, {
     method: 'POST',
+    headers,
+  });
+  return handleQueryApiResponse(response);
+};
+
+/**
+ * 게시물의 좋아요를 취소하는 API 함수 (로그인 필수)
+ * @param {string} postId - 게시물 ID
+ * @returns {Promise<object>} 성공 응답
+ */
+export const unlikePost = async (postId) => {
+  const token = localStorage.getItem('accessToken');
+  const headers = {
+    'Content-Type': 'application/json',
+  };
+
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+
+  const response = await fetch(`${COMMUNITY_API_URL}/posts/${postId}/likes`, {
+    method: 'DELETE',
+    headers,
   });
   return handleQueryApiResponse(response);
 };
@@ -408,4 +513,141 @@ export const verifyAnonymousPost = async ({ postId, authData }) => {
     body: JSON.stringify(authData),
   });
   return handleQueryApiResponse(response);
+};
+
+/**
+ * 게시글을 수정하는 API 함수
+ * @param {object} param - 게시글 ID와 수정할 데이터
+ * @returns {Promise<object>} 수정된 게시글 정보
+ */
+export const updatePost = async ({ postId, postData }) => {
+  const response = await fetch(`${COMMUNITY_API_URL}/posts/${postId}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(postData),
+  });
+  return handleQueryApiResponse(response);
+};
+
+/**
+ * 첨부파일을 삭제하는 API 함수
+ * @param {string} attachmentId - 삭제할 첨부파일 ID
+ * @returns {Promise<object>} 삭제 성공 응답
+ */
+export const deleteAttachment = async (attachmentId) => {
+  const response = await fetch(`${COMMUNITY_API_URL}/posts/attachments/${attachmentId}`, {
+    method: 'DELETE',
+  });
+  return handleQueryApiResponse(response);
+};
+
+/**
+ * 게시글에 새 첨부파일을 업로드하는 API 함수
+ * @param {string} postId - 게시글 ID
+ * @param {File[]} files - 업로드할 파일 배열
+ * @returns {Promise<object>} 업로드 성공 응답
+ */
+export const uploadAttachments = async (postId, files) => {
+  const formData = new FormData();
+  files.forEach(file => {
+    formData.append('files', file);
+  });
+
+  const response = await fetch(`${COMMUNITY_API_URL}/posts/${postId}/attachments`, {
+    method: 'POST',
+    body: formData,
+  });
+  return handleQueryApiResponse(response);
+};
+
+/**
+ * 모든 태그 목록을 조회하는 API 함수
+ * @returns {Promise<Array>} - 모든 태그 목록 (사용 빈도순)
+ */
+export const fetchAllTags = async () => {
+  const response = await fetch(`${COMMUNITY_API_URL}/posts/tags`);
+  return await handleQueryApiResponse(response);
+};
+
+/**
+ * 특정 사용자가 좋아요한 게시물 목록을 조회하는 API 함수
+ * @param {Object} params - 쿼리 파라미터
+ * @param {Array} params.queryKey - React Query의 queryKey 배열 [키, 사용자ID, 페이지]
+ * @returns {Promise<Object>} - 좋아요한 게시물 목록과 페이징 정보
+ */
+export const fetchUserLikedPosts = async ({ queryKey }) => {
+  const [, userId, page] = queryKey;
+  const size = 5; // 페이지 당 게시물 수
+
+  const headers = {};
+  const token = localStorage.getItem('accessToken');
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+
+  const response = await fetch(
+    `${COMMUNITY_API_URL}/posts/users/${userId}/liked?page=${page - 1}&size=${size}&sort=createdAt,desc`,
+    {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        ...headers,
+      },
+    }
+  );
+
+  const pageData = await handleQueryApiResponse(response);
+
+  const transformedPosts = pageData.content.map(post => ({
+    post_id: post.postId,
+    title: post.title,
+    content: post.content,
+    author_name: post.authorName,
+    category: getKoreanCategory(post.category),
+    created_at: new Date(post.createdAt).toLocaleDateString('ko-KR'),
+    views: post.views || 0,
+    comments_count: post.commentsCount || 0,
+    likes: post.likes || 0,
+    tags: post.tags,
+    is_anonymous: post.isAnonymous,
+    has_attachments: post.hasAttachments || false
+  }));
+
+  return {
+    posts: transformedPosts,
+    totalPages: pageData.totalPages,
+    totalElements: pageData.totalElements || 0
+  };
+};
+
+/**
+ * 특정 사용자가 작성한 게시물 목록을 조회하는 API 함수
+ * @param {Object} params - 쿼리 파라미터
+ * @param {Array} params.queryKey - React Query의 queryKey 배열 [키, 사용자ID, 페이지]
+ * @returns {Promise<Object>} - 작성한 게시물 목록과 페이징 정보
+ */
+export const fetchUserPosts = async ({ queryKey }) => {
+  const [, userId, page] = queryKey;
+  const size = 5; // 페이지 당 게시물 수
+
+  const headers = {};
+  const token = localStorage.getItem('accessToken');
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+
+  const response = await fetch(
+    `${COMMUNITY_API_URL}/posts/users/${userId}/posts?page=${page - 1}&size=${size}&sort=createdAt,desc`,
+    {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        ...headers,
+      },
+    }
+  );
+
+  return await handleQueryApiResponse(response);
 };

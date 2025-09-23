@@ -46,3 +46,6 @@ application-sms.properties
 
 # uploads folder
 uploads/
+
+# Markdown documentation files
+*.md

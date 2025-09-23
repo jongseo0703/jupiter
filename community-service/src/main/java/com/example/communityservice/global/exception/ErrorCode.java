@@ -25,6 +25,10 @@ public enum ErrorCode {
   INVALID_AUTHOR_INFO(HttpStatus.BAD_REQUEST, "A002", "작성자 정보가 유효하지 않습니다."),
   ANONYMOUS_AUTH_FAILED(HttpStatus.UNAUTHORIZED, "A003", "익명 사용자 인증에 실패했습니다."),
 
+  // 인증 관련 에러
+  AUTHENTICATION_FAILED(HttpStatus.UNAUTHORIZED, "AUTH001", "인증에 실패했습니다."),
+  AUTH_SERVICE_ERROR(HttpStatus.UNAUTHORIZED, "AUTH002", "인증 서비스 호출 실패"),
+
   // File 관련 에러
   FILE_UPLOAD_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "F001", "파일 업로드에 실패했습니다."),
   FILE_NOT_FOUND(HttpStatus.NOT_FOUND, "F002", "파일을 찾을 수 없습니다."),
