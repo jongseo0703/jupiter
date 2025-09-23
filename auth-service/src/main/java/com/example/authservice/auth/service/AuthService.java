@@ -13,5 +13,7 @@ public interface AuthService {
 
   LoginResponse login(LoginRequest request);
 
+  LoginResponse verifyTwoFactor(String tempToken, String code);
+
   ForgotPasswordResponse forgotPassword(ForgotPasswordRequest request);
 }
