@@ -30,7 +30,13 @@ class AuthService {
       });
 
       if (response.result === 'SUCCESS') {
-        // JWT 토큰 저장 (rememberMe에 따라 storage 방식 결정)
+        // 2FA가 필요한 경우
+        if (response.data.twoFactorRequired) {
+          // 임시 토큰은 저장하지 않고 응답만 반환
+          return response;
+        }
+
+        // 일반 로그인 성공 시에만 토큰 저장
         apiService.saveTokens(response.data.accessToken, response.data.refreshToken, rememberMe);
         return response;
       } else {
@@ -145,6 +151,27 @@ class AuthService {
       }
     } catch (error) {
       console.error('Change password error:', error);
+      throw error;
+    }
+  }
+
+  // 2FA 코드 검증
+  async verifyTwoFactor(tempToken, code, rememberMe = false) {
+    try {
+      const response = await apiService.post('/auth/api/v1/auth/verify-2fa', {
+        tempToken,
+        code,
+      });
+
+      if (response.result === 'SUCCESS') {
+        // 2FA 검증 성공 시 토큰 저장
+        apiService.saveTokens(response.data.accessToken, response.data.refreshToken, rememberMe);
+        return response;
+      } else {
+        throw new Error(response.message || '2단계 인증에 실패했습니다.');
+      }
+    } catch (error) {
+      console.error('2FA verification error:', error);
       throw error;
     }
   }
