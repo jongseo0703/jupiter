@@ -1,14 +1,15 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { getKoreanCategory, getCategoryStyle } from '../utils/categoryUtils';
 import authService from '../services/authService';
-import apiService from '../services/api';
+import { fetchUserPosts } from '../services/api';
 
 const MyPosts = () => {
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
 
   // 사용자 정보 로드
   useEffect(() => {
@@ -34,23 +35,10 @@ const MyPosts = () => {
 
   // 사용자 작성 게시물 목록 조회
   const { data: postsData, isLoading: isPostsLoading, error } = useQuery({
-    queryKey: ['userPosts', user?.id],
-    queryFn: async () => {
-      if (!user?.id) return { content: [], totalElements: 0, totalPages: 0, number: 0 };
-
-      console.log('Fetching posts for user ID:', user.id);
-      try {
-        const response = await apiService.get(`/community/api/posts/users/${user.id}/posts`, {
-          params: { page: 0, size: 20, sort: 'createdAt,desc' }
-        });
-        return response.data || { content: [], totalElements: 0, totalPages: 0, number: 0 };
-      } catch (error) {
-        console.error('Failed to fetch user posts:', error);
-        console.error('Error details:', error.response);
-        throw error;
-      }
-    },
+    queryKey: ['userPosts', user?.id, currentPage],
+    queryFn: fetchUserPosts,
     enabled: !!user?.id,
+    keepPreviousData: true,
   });
 
   const formatDate = (dateString) => {
@@ -255,13 +243,58 @@ const MyPosts = () => {
           </div>
 
           {/* 페이지네이션 */}
-          {postsData && postsData.totalPages > 1 && (
-            <div className="mt-6 flex justify-center">
-              <div className="flex items-center space-x-2">
-                {/* 페이지네이션 UI는 필요시 추가 구현 */}
-                <span className="text-sm text-gray-600">
-                  {postsData.number + 1} / {postsData.totalPages} 페이지
-                </span>
+          {postsData && postsData.totalElements > 0 && (
+            <div className="mt-6 bg-white rounded-lg shadow-md">
+              <div className="px-6 pb-6 border-t border-gray-200">
+                <div className="flex justify-center pt-6">
+                  <nav className="flex items-center space-x-2">
+                    <button
+                      onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                      disabled={currentPage === 1 || isPostsLoading}
+                      className="flex items-center px-3 py-2 text-sm text-gray-600 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <i className="fas fa-chevron-left mr-1"></i>
+                      이전
+                    </button>
+
+                    <div className="flex space-x-1">
+                      {Array.from({ length: Math.max(1, Math.min(Math.max(1, postsData.totalPages), 5)) }, (_, i) => {
+                        let pageNum;
+                        const totalPages = Math.max(1, postsData.totalPages);
+                        if (totalPages <= 5) {
+                          pageNum = i + 1;
+                        } else {
+                          const start = Math.max(1, Math.min(currentPage - 2, totalPages - 4));
+                          pageNum = start + i;
+                        }
+
+                        return (
+                          <button
+                            key={pageNum}
+                            onClick={() => setCurrentPage(pageNum)}
+                            disabled={isPostsLoading}
+                            className={`px-3 py-2 text-sm border rounded-md ${
+                              currentPage === pageNum
+                                ? 'text-white bg-primary border-primary shadow-sm'
+                                : 'text-gray-600 bg-white border-gray-300 hover:bg-gray-50'
+                            } disabled:opacity-50 disabled:cursor-not-allowed`}
+                          >
+                            {pageNum}
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    <button
+                      onClick={() => setCurrentPage(prev => Math.min(prev + 1, Math.max(1, postsData.totalPages)))}
+                      disabled={currentPage >= Math.max(1, postsData.totalPages) || isPostsLoading}
+                      className="flex items-center px-3 py-2 text-sm text-gray-600 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      다음
+                      <i className="fas fa-chevron-right ml-1"></i>
+                    </button>
+                  </nav>
+                </div>
               </div>
             </div>
           )}

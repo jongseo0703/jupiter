@@ -176,7 +176,7 @@ export const fetchPosts = async ({ queryKey }) => {
   }
 
   queryParams.append('page', (page - 1).toString());
-  queryParams.append('size', '10');
+  queryParams.append('size', '5');
 
   const response = await fetch(`${COMMUNITY_API_URL}/posts?${queryParams.toString()}`);
   const pageData = await handleQueryApiResponse(response);
@@ -579,7 +579,7 @@ export const fetchAllTags = async () => {
  */
 export const fetchUserLikedPosts = async ({ queryKey }) => {
   const [, userId, page] = queryKey;
-  const size = 20; // 페이지 당 게시물 수
+  const size = 5; // 페이지 당 게시물 수
 
   const headers = {};
   const token = localStorage.getItem('accessToken');
@@ -620,4 +620,34 @@ export const fetchUserLikedPosts = async ({ queryKey }) => {
     totalPages: pageData.totalPages,
     totalElements: pageData.totalElements || 0
   };
+};
+
+/**
+ * 특정 사용자가 작성한 게시물 목록을 조회하는 API 함수
+ * @param {Object} params - 쿼리 파라미터
+ * @param {Array} params.queryKey - React Query의 queryKey 배열 [키, 사용자ID, 페이지]
+ * @returns {Promise<Object>} - 작성한 게시물 목록과 페이징 정보
+ */
+export const fetchUserPosts = async ({ queryKey }) => {
+  const [, userId, page] = queryKey;
+  const size = 5; // 페이지 당 게시물 수
+
+  const headers = {};
+  const token = localStorage.getItem('accessToken');
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+
+  const response = await fetch(
+    `${COMMUNITY_API_URL}/posts/users/${userId}/posts?page=${page - 1}&size=${size}&sort=createdAt,desc`,
+    {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        ...headers,
+      },
+    }
+  );
+
+  return await handleQueryApiResponse(response);
 };
