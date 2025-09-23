@@ -342,4 +342,18 @@ public class PostsService {
         .filter(tag -> tag != null && !tag.trim().isEmpty())
         .collect(Collectors.toList());
   }
+
+  // 특정 사용자가 좋아요한 게시글 목록 조회
+  public Page<PostsSummaryDTO> getLikedPostsByUser(Long userId, Pageable pageable) {
+    Page<Posts> likedPosts = postsRepository.findLikedPostsByUserId(userId, pageable);
+
+    return likedPosts.map(
+        post -> {
+          PostsSummaryDTO postsSummaryDTO = PostsSummaryDTO.from(post);
+          // 첨부파일 개수 확인하여 hasAttachments 설정
+          int attachmentCount = postAttachmentsRepository.countByPostId(post.getPostId());
+          postsSummaryDTO.setHasAttachments(attachmentCount > 0);
+          return postsSummaryDTO;
+        });
+  }
 }

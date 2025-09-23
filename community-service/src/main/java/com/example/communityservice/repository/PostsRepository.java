@@ -76,4 +76,12 @@ public interface PostsRepository extends JpaRepository<Posts, Long> {
               + "ORDER BY usage_count DESC",
       nativeQuery = true)
   List<Object[]> findAllTags();
+
+  // 특정 사용자가 좋아요한 게시글 목록 조회 (최신순)
+  @Query(
+      "SELECT p FROM Posts p "
+          + "JOIN PostLikes pl ON p.postId = pl.post.postId "
+          + "WHERE pl.userId = :userId "
+          + "ORDER BY pl.createdAt DESC")
+  Page<Posts> findLikedPostsByUserId(@Param("userId") Long userId, Pageable pageable);
 }

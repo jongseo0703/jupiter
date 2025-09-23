@@ -317,4 +317,30 @@ public class PostsController {
     List<String> allTags = postsService.getAllTags();
     return ResponseEntity.ok(ApiResponseDTO.success(allTags));
   }
+
+  // === 사용자 좋아요 관련 API ===
+
+  @Operation(summary = "특정 사용자가 좋아요한 게시글 목록 조회", description = "특정 사용자가 좋아요한 게시글 목록을 페이징하여 조회합니다.")
+  @ApiResponses({
+    @ApiResponse(responseCode = "200", description = "조회 성공"),
+    @ApiResponse(responseCode = "401", description = "인증 실패"),
+    @ApiResponse(responseCode = "403", description = "권한 없음")
+  })
+  @GetMapping("/users/{userId}/liked")
+  public ResponseEntity<ApiResponseDTO<PageResponseDTO<PostsSummaryDTO>>> getUserLikedPosts(
+      @Parameter(description = "사용자 ID") @PathVariable Long userId,
+      @RequestHeader(value = "Authorization", required = true) String authorizationHeader,
+      Pageable pageable) {
+
+    // 사용자 인증 및 권한 확인 (자신의 좋아요 목록만 조회 가능)
+    UserInfoResponse userInfo = authService.validateTokenAndGetUser(authorizationHeader);
+    if (!userInfo.getId().equals(userId)) {
+      throw new IllegalArgumentException("자신의 좋아요 목록만 조회할 수 있습니다.");
+    }
+
+    Page<PostsSummaryDTO> likedPosts = postsService.getLikedPostsByUser(userId, pageable);
+    PageResponseDTO<PostsSummaryDTO> response = PageResponseDTO.from(likedPosts); // from() : 엔터티를 DTO로 반환
+
+    return ResponseEntity.ok(ApiResponseDTO.success(response));
+  }
 }
