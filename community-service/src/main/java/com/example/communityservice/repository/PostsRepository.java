@@ -29,6 +29,12 @@ public interface PostsRepository extends JpaRepository<Posts, Long> {
   // 카테고리별 게시글 목록 조회 (조회수 순)
   Page<Posts> findByCategoryOrderByViewsDesc(PostCategory category, Pageable pageable);
 
+  // 전체 게시글 목록 조회 (좋아요 순)
+  Page<Posts> findAllByOrderByLikesDesc(Pageable pageable);
+
+  // 카테고리별 게시글 목록 조회 (좋아요 순)
+  Page<Posts> findByCategoryOrderByLikesDesc(PostCategory category, Pageable pageable);
+
   // 특정 작성자의 게시글 목록 조회
   List<Posts> findByAuthors_AuthorId(Long authorId);
 

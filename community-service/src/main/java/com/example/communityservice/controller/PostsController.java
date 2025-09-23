@@ -56,7 +56,7 @@ public class PostsController {
       @Parameter(description = "게시글 카테고리 (전체, FREE_BOARD, PRICE_INFO, LIQUOR_REVIEW, QNA, EVENT)")
           @RequestParam(required = false)
           String category,
-      @Parameter(description = "정렬 기준 (views: 조회수순, createdAt: 최신순)")
+      @Parameter(description = "정렬 기준 (views: 조회수순, likes: 좋아요순, createdAt: 최신순)")
           @RequestParam(required = false, defaultValue = "createdAt")
           String sort,
       @Parameter(description = "태그 필터링") @RequestParam(required = false) String tag,
@@ -76,6 +76,8 @@ public class PostsController {
     // 일반 목록 조회
     else if ("views".equals(sort)) {
       posts = postsService.getPopularPosts(category, pageable);
+    } else if ("likes".equals(sort)) {
+      posts = postsService.getPopularPostsByLikes(category, pageable);
     } else {
       posts = postsService.getPosts(category, pageable);
     }

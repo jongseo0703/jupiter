@@ -86,6 +86,27 @@ public class PostsService {
         });
   }
 
+  // 인기 게시글 목록 조회 (좋아요 순, 페이징)
+  public Page<PostsSummaryDTO> getPopularPostsByLikes(String category, Pageable pageable) {
+    Page<Posts> posts;
+
+    if (category == null || category.equals("전체")) {
+      posts = postsRepository.findAllByOrderByLikesDesc(pageable);
+    } else {
+      PostCategory postCategory = PostCategory.valueOf(category.toUpperCase());
+      posts = postsRepository.findByCategoryOrderByLikesDesc(postCategory, pageable);
+    }
+
+    return posts.map(
+        post -> {
+          PostsSummaryDTO postsSummaryDTO = PostsSummaryDTO.from(post);
+          // 첨부파일 개수 확인하여 hasAttachments 설정
+          int attachmentCount = postAttachmentsRepository.countByPostId(post.getPostId());
+          postsSummaryDTO.setHasAttachments(attachmentCount > 0);
+          return postsSummaryDTO;
+        });
+  }
+
   // 게시글 상세 조회 (조회수 증가 + 댓글 목록 포함)
   @Transactional
   public PostsResponseDTO getPost(Long postId, Long userId) {
