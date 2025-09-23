@@ -107,14 +107,10 @@ public class PostsService {
         });
   }
 
-  // 게시글 상세 조회 (조회수 증가 + 댓글 목록 포함)
-  @Transactional
-  public PostsResponseDTO getPost(Long postId, Long userId) {
+  // 게시글 정보 조회 (조회수 증가 없이 순수 정보만)
+  public PostsResponseDTO getPostInfo(Long postId, Long userId) {
     Posts post =
         postsRepository.findById(postId).orElseThrow(() -> new PostNotFoundException(postId));
-
-    // 엔티티의 조회수 증가 메서드 호출 (JPA의 변경 감지 기능으로 DB에 자동 반영)
-    post.increaseViews();
 
     // 댓글 목록 조회
     List<CommentsResponseDTO> comments =
@@ -134,6 +130,26 @@ public class PostsService {
     }
 
     return response;
+  }
+
+  // 조회수 증가 (별도 메서드)
+  @Transactional
+  public void increaseViewCount(Long postId) {
+    Posts post =
+        postsRepository.findById(postId).orElseThrow(() -> new PostNotFoundException(postId));
+
+    // 엔티티의 조회수 증가 메서드 호출 (JPA의 변경 감지 기능으로 DB에 자동 반영)
+    post.increaseViews();
+  }
+
+  // 게시글 상세 조회 (조회수 증가 + 댓글 목록 포함)
+  @Transactional
+  public PostsResponseDTO getPost(Long postId, Long userId) {
+    // 조회수 증가
+    increaseViewCount(postId);
+
+    // 게시글 정보 조회
+    return getPostInfo(postId, userId);
   }
 
   // 게시글 생성

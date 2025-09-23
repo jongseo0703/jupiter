@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link, useParams, useNavigate } from 'react-router-dom';
+import { Link, useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {fetchPost, fetchPopularPosts, fetchPopularPostsByLikes, likePost, unlikePost, createComment, updateComment, deleteComment, verifyAnonymousComment, deletePost as deletePostAPI, verifyAnonymousPost} from '../services/api';
 import { categorizeAttachments } from '../utils/fileUtils';
@@ -9,6 +9,7 @@ import authService from '../services/authService';
 function PostDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const queryClient = useQueryClient();
 
   const [commentForm, setCommentForm] = useState({
@@ -79,7 +80,10 @@ function PostDetail() {
   // React Query를 사용하여 게시글 상세 정보 조회
   const { data: post, isLoading: loading, isError, error } = useQuery({
     queryKey: ['post', id],
-    queryFn: fetchPost
+    queryFn: fetchPost,
+    meta: {
+      incrementView: location.state?.incrementView !== false // state로 전달된 값이 false가 아니면 조회수 증가 (기본값: true)
+    }
   });
 
   // 인기 게시글 조회 (조회수 순)

@@ -96,6 +96,8 @@ public class PostsController {
   @GetMapping("/{id}")
   public ResponseEntity<ApiResponseDTO<PostsResponseDTO>> getPost(
       @Parameter(description = "게시글 ID") @PathVariable Long id,
+      @Parameter(description = "조회수 증가 여부 (기본값: true)") @RequestParam(defaultValue = "true")
+          boolean incrementView,
       @RequestHeader(value = "Authorization", required = false) String authorizationHeader) {
 
     Long userId = null;
@@ -110,7 +112,13 @@ public class PostsController {
       }
     }
 
-    PostsResponseDTO post = postsService.getPost(id, userId);
+    PostsResponseDTO post;
+    if (incrementView) {
+      post = postsService.getPost(id, userId); // 조회수 증가
+    } else {
+      post = postsService.getPostInfo(id, userId); // 조회수 증가 없음
+    }
+
     return ResponseEntity.ok(ApiResponseDTO.success(post));
   }
 

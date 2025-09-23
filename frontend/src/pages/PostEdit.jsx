@@ -221,7 +221,9 @@ function PostEdit() {
       }
 
       alert('게시글이 성공적으로 수정되었습니다!');
-      navigate(`/post/${id}`);
+      navigate(`/post/${id}`, {
+        state: { incrementView: false } // 수정 후 이동 시 조회수 증가 방지
+      });
     } catch (error) {
       // 예상치 못한 에러 처리 (API 에러는 헬퍼 함수에서 처리됨)
       console.error('게시글 수정 처리 중 예상치 못한 오류:', error);
