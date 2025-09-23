@@ -17,6 +17,6 @@ public class Review {
     private String comment;
     //작성일
     private String reviewDate;
-    //상품
-    private Product product;
+    //상품_상점
+    private ProductShop productShop;
 }
