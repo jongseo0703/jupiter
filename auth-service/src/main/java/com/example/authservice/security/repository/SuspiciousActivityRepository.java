@@ -21,4 +21,6 @@ public interface SuspiciousActivityRepository extends JpaRepository<SuspiciousAc
   long countByUserAndDetectedAtAfter(@Param("user") User user, @Param("since") LocalDateTime since);
 
   List<SuspiciousActivity> findByUserAndNotifiedFalse(User user);
+
+  void deleteByUser(User user);
 }

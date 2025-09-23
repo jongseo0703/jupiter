@@ -30,4 +30,6 @@ public interface LoginHistoryRepository extends JpaRepository<LoginHistory, Long
   List<String> findDistinctSuccessfulUserAgentsByUser(@Param("user") User user);
 
   Optional<LoginHistory> findFirstByUserAndSuccessfulTrueOrderByLoginTimeDesc(User user);
+
+  void deleteByUser(User user);
 }

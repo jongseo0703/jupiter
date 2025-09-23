@@ -11,4 +11,6 @@ import com.example.authservice.user.entity.User;
 @Repository
 public interface SecuritySettingsRepository extends JpaRepository<SecuritySettings, Long> {
   Optional<SecuritySettings> findByUser(User user);
+
+  void deleteByUser(User user);
 }
