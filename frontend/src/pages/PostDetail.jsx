@@ -44,6 +44,7 @@ function PostDetail() {
   });
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
+  const [showHeartAnimation, setShowHeartAnimation] = useState(false);
 
   // 로그인 상태 확인
   useEffect(() => {
@@ -338,6 +339,11 @@ function PostDetail() {
       likes: oldData.likes + 1, // 좋아요 수 1 증가
       is_liked_by_current_user: true, // 사용자가 좋아요 누른 상태로 변경
     })),
+    onSuccess: () => {
+      // 좋아요 성공 시 하트 애니메이션 트리거
+      setShowHeartAnimation(true);
+      setTimeout(() => setShowHeartAnimation(false), 1600); // 1.6초 후 애니메이션 종료
+    },
     onError: (err, context) => {
       handleMutationError(err, context); // 공통 에러 처리
       console.error('Failed to like post:', err);
@@ -804,21 +810,92 @@ function PostDetail() {
                   </span>
                 </div>
 
-                <button
-                  onClick={handleLikeToggle}
-                  className={`flex items-center space-x-2 transition-colors ${
-                    post.is_liked_by_current_user
-                      ? 'text-red-500 hover:text-red-600'
-                      : 'text-gray-400 hover:text-red-500'
-                  }`}
-                  title={isLoggedIn
-                    ? (post.is_liked_by_current_user ? '좋아요 취소' : '좋아요')
-                    : '로그인이 필요합니다'
+                <div className="relative">
+                  <button
+                    onClick={handleLikeToggle}
+                    className={`flex items-center space-x-3 p-2 rounded-lg transition-all duration-200 transform hover:scale-105 ${
+                      post.is_liked_by_current_user
+                        ? 'text-red-500 hover:text-red-600 bg-red-50 hover:bg-red-100'
+                        : 'text-gray-400 hover:text-red-500 hover:bg-red-50'
+                    }`}
+                    title={isLoggedIn
+                      ? (post.is_liked_by_current_user ? '좋아요 취소' : '좋아요')
+                      : '로그인이 필요합니다'
+                    }
+                  >
+                    <i className={`fas fa-heart text-xl ${
+                      post.is_liked_by_current_user ? 'text-red-500' : 'text-gray-400'
+                    } transition-all duration-200`}></i>
+                    <span className="font-semibold">{post.likes}</span>
+                  </button>
+
+                  {/* 하트 애니메이션 */}
+                  {showHeartAnimation && (
+                    <div className="absolute inset-0 pointer-events-none">
+                      {[...Array(8)].map((_, i) => (
+                        <div
+                          key={i}
+                          className="absolute"
+                          style={{
+                            left: `${15 + i * 8}%`,
+                            top: '50%',
+                            animation: `heartFloat${i} 1.5s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards`,
+                            animationDelay: `${i * 0.08}s`
+                          }}
+                        >
+                          <i className={`fas fa-heart text-lg ${
+                            i % 3 === 0 ? 'text-red-400' :
+                            i % 3 === 1 ? 'text-pink-400' : 'text-red-300'
+                          } opacity-90`}></i>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* CSS 애니메이션 추가 */}
+                <style>{`
+                  @keyframes heartFloat0 {
+                    0% { transform: translateY(0px) scale(0.8); opacity: 0.9; }
+                    50% { transform: translateY(-40px) scale(1.2); opacity: 0.7; }
+                    100% { transform: translateY(-100px) scale(0.6); opacity: 0; }
                   }
-                >
-                  <i className={`fas fa-heart ${post.is_liked_by_current_user ? 'text-red-500' : 'text-gray-400'}`}></i>
-                  <span>{post.likes}</span>
-                </button>
+                  @keyframes heartFloat1 {
+                    0% { transform: translateY(0px) translateX(-8px) scale(0.7); opacity: 0.9; }
+                    50% { transform: translateY(-45px) translateX(-18px) scale(1.1); opacity: 0.6; }
+                    100% { transform: translateY(-110px) translateX(-25px) scale(0.5); opacity: 0; }
+                  }
+                  @keyframes heartFloat2 {
+                    0% { transform: translateY(0px) translateX(12px) scale(0.9); opacity: 0.9; }
+                    50% { transform: translateY(-50px) translateX(20px) scale(1.3); opacity: 0.7; }
+                    100% { transform: translateY(-120px) translateX(30px) scale(0.4); opacity: 0; }
+                  }
+                  @keyframes heartFloat3 {
+                    0% { transform: translateY(0px) translateX(-5px) scale(0.6); opacity: 0.9; }
+                    50% { transform: translateY(-35px) translateX(-12px) scale(1.0); opacity: 0.8; }
+                    100% { transform: translateY(-95px) translateX(-18px) scale(0.7); opacity: 0; }
+                  }
+                  @keyframes heartFloat4 {
+                    0% { transform: translateY(0px) translateX(8px) scale(0.8); opacity: 0.9; }
+                    50% { transform: translateY(-55px) translateX(15px) scale(1.4); opacity: 0.6; }
+                    100% { transform: translateY(-130px) translateX(22px) scale(0.3); opacity: 0; }
+                  }
+                  @keyframes heartFloat5 {
+                    0% { transform: translateY(0px) translateX(-12px) scale(0.7); opacity: 0.9; }
+                    50% { transform: translateY(-42px) translateX(-22px) scale(1.1); opacity: 0.7; }
+                    100% { transform: translateY(-105px) translateX(-32px) scale(0.5); opacity: 0; }
+                  }
+                  @keyframes heartFloat6 {
+                    0% { transform: translateY(0px) translateX(15px) scale(0.9); opacity: 0.9; }
+                    50% { transform: translateY(-48px) translateX(25px) scale(1.2); opacity: 0.6; }
+                    100% { transform: translateY(-115px) translateX(35px) scale(0.4); opacity: 0; }
+                  }
+                  @keyframes heartFloat7 {
+                    0% { transform: translateY(0px) translateX(-3px) scale(0.8); opacity: 0.9; }
+                    50% { transform: translateY(-38px) translateX(-8px) scale(1.0); opacity: 0.8; }
+                    100% { transform: translateY(-98px) translateX(-12px) scale(0.6); opacity: 0; }
+                  }
+                `}</style>
               </div>
             </div>
 
