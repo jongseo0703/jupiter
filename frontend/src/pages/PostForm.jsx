@@ -121,6 +121,10 @@ function PostForm() {
   const handleTagInputKeyDown = (e) => {
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
+      // IME 조합 중인지 확인
+      if (e.isComposing || e.nativeEvent?.isComposing) {
+        return;
+      }
       if (tagInput.trim()) {
         addTag(tagInput);
         setTagInput('');
