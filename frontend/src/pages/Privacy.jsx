@@ -1,6 +1,14 @@
 import { Link } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import authService from '../services/authService';
 
 const Privacy = () => {
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+  useEffect(() => {
+    setIsLoggedIn(authService.isLoggedIn());
+  }, []);
+
   return (
     <div className="min-h-screen bg-gray-50 py-12">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -265,23 +273,25 @@ const Privacy = () => {
             </section>
           </div>
 
-          {/* 하단 버튼 */}
-          <div className="mt-12 pt-8 border-t border-gray-200">
-            <div className="flex flex-col sm:flex-row gap-4">
-              <Link
-                to="/login"
-                className="bg-primary text-white px-6 py-3 rounded-lg hover:bg-blue-800 transition-colors text-center"
-              >
-                로그인 페이지로 돌아가기
-              </Link>
-              <Link
-                to="/register"
-                className="bg-gray-100 text-gray-700 px-6 py-3 rounded-lg hover:bg-gray-200 transition-colors text-center"
-              >
-                회원가입 페이지로 돌아가기
-              </Link>
+          {/* 하단 버튼 - 로그인하지 않은 사용자에게만 표시 */}
+          {!isLoggedIn && (
+            <div className="mt-12 pt-8 border-t border-gray-200">
+              <div className="flex flex-col sm:flex-row gap-4">
+                <Link
+                  to="/login"
+                  className="bg-primary text-white px-6 py-3 rounded-lg hover:bg-blue-800 transition-colors text-center"
+                >
+                  로그인 페이지로 돌아가기
+                </Link>
+                <Link
+                  to="/register"
+                  className="bg-gray-100 text-gray-700 px-6 py-3 rounded-lg hover:bg-gray-200 transition-colors text-center"
+                >
+                  회원가입 페이지로 돌아가기
+                </Link>
+              </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
     </div>

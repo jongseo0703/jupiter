@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import {fetchPost, fetchPopularPosts, likePost, createComment, updateComment, deleteComment, verifyAnonymousComment, deletePost as deletePostAPI, verifyAnonymousPost} from '../services/api';
+import {fetchPost, fetchPopularPosts, fetchPopularPostsByLikes, likePost, unlikePost, createComment, updateComment, deleteComment, verifyAnonymousComment, deletePost as deletePostAPI, verifyAnonymousPost} from '../services/api';
 import { categorizeAttachments } from '../utils/fileUtils';
-import { getCategoryStyle } from '../utils/categoryUtils';
+import { getCategoryStyle, getEnglishCategory } from '../utils/categoryUtils';
+import authService from '../services/authService';
 
 function PostDetail() {
   const { id } = useParams();
@@ -41,12 +42,39 @@ function PostDetail() {
     password: '',
     action: '' // 'edit' or 'delete'
   });
-  // TODO: 실제 로그인 상태를 가져오는 hook 또는 context 사용
-  const currentUser = {
-    user_id: 1,
-    author_name: '위스키러버',
-    is_logged_in: true // 임시상태
-  }; // MOCK DATA - 실제로는 useAuth() hook에서 가져옴
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [currentUser, setCurrentUser] = useState(null);
+  const [showHeartAnimation, setShowHeartAnimation] = useState(false);
+  const [popularTab, setPopularTab] = useState('views'); // 'views' 또는 'likes'
+
+  // 로그인 상태 확인
+  useEffect(() => {
+    const checkAuthStatus = async () => {
+      const loggedIn = authService.isLoggedIn();
+      setIsLoggedIn(loggedIn);
+
+      if (loggedIn) {
+        try {
+          const user = await authService.getCurrentUser();
+          setCurrentUser(user);
+          // 로그인한 사용자는 익명 체크 해제
+          setCommentForm(prev => ({ ...prev, is_anonymous: false }));
+        } catch (error) {
+          console.error('사용자 정보 조회 실패:', error);
+          // 토큰이 유효하지 않을 경우 로그아웃 처리
+          await authService.logout();
+          setIsLoggedIn(false);
+          setCurrentUser(null);
+        }
+      } else {
+        // 비로그인 사용자는 무조건 익명으로 설정
+        setCommentForm(prev => ({ ...prev, is_anonymous: true }));
+        setCurrentUser(null);
+      }
+    };
+
+    checkAuthStatus().catch(console.error);
+  }, []);
 
   // React Query를 사용하여 게시글 상세 정보 조회
   const { data: post, isLoading: loading, isError, error } = useQuery({
@@ -54,14 +82,25 @@ function PostDetail() {
     queryFn: fetchPost
   });
 
-  // 인기 게시글 조회 (전체 카테고리, 첫 번째 페이지, 조회수 순 정렬)
+  // 인기 게시글 조회 (조회수 순)
   const { data: popularPostsData } = useQuery({
     queryKey: ['popularPosts', '전체', 1],
     queryFn: fetchPopularPosts,
+    enabled: popularTab === 'views',
     staleTime: 5 * 60 * 1000, // 5분간 fresh 상태 유지
   });
 
-  const popularPosts = popularPostsData?.posts || [];
+  // 인기 게시글 조회 (좋아요 순)
+  const { data: popularPostsByLikesData } = useQuery({
+    queryKey: ['popularPostsByLikes', '전체', 1],
+    queryFn: fetchPopularPostsByLikes,
+    enabled: popularTab === 'likes',
+    staleTime: 5 * 60 * 1000, // 5분간 fresh 상태 유지
+  });
+
+  const popularPosts = popularTab === 'views'
+    ? (popularPostsData?.posts || [])
+    : (popularPostsByLikesData?.posts || []);
 
   // React Query에서 댓글 데이터 직접 사용
   const comments = post?.comments || [];
@@ -100,11 +139,13 @@ function PostDetail() {
     const commentData = {
       postId: parseInt(id),
       content: commentForm.content,
-      isAnonymous: commentForm.is_anonymous,
-      authorName: commentForm.author_name,
-      anonymousEmail: commentForm.is_anonymous ? commentForm.anonymous_email : null,
-      anonymousPassword: commentForm.is_anonymous ? commentForm.anonymous_pwd : null
+      isAnonymous: !isLoggedIn, // 로그인한 사용자는 false, 비로그인은 true
+      authorId: isLoggedIn ? currentUser?.id : null,
+      authorName: isLoggedIn ? currentUser?.username : '익명',
+      anonymousEmail: !isLoggedIn ? commentForm.anonymous_email : null,
+      anonymousPassword: !isLoggedIn ? commentForm.anonymous_pwd : null
     };
+
 
     createCommentMutation.mutate(commentData);
   };
@@ -129,13 +170,12 @@ function PostDetail() {
     const commentData = {
       postId: parseInt(id),
       content: editCommentContent,
-      authorName: comment.is_anonymous ? null : currentUser.author_name,
+      authorId: comment.is_anonymous ? null : currentUser?.id,
+      authorName: comment.is_anonymous ? null : currentUser?.username,
       isAnonymous: comment.is_anonymous,
       // 익명 댓글의 경우 인증된 정보 사용
-      ...(comment.is_anonymous && authenticatedAnonymousComment && {
-        anonymousEmail: authenticatedAnonymousComment.email,
-        anonymousPassword: authenticatedAnonymousComment.password
-      })
+      anonymousEmail: (comment.is_anonymous && authenticatedAnonymousComment) ? authenticatedAnonymousComment.email : null,
+      anonymousPassword: (comment.is_anonymous && authenticatedAnonymousComment) ? authenticatedAnonymousComment.password : null
     };
 
     updateCommentMutation.mutate({ commentId, commentData });
@@ -149,8 +189,12 @@ function PostDetail() {
 
     const requestData = {
       postId: parseInt(id),
-      authorName: currentUser.author_name, // 임시로 현재 사용자 이름 사용
-      isAnonymous: false
+      content: "", // 삭제 시에는 내용 불필요하지만 DTO 구조상 필요
+      authorId: currentUser?.id, // 사용자 ID 전달
+      authorName: currentUser?.username,
+      isAnonymous: false,
+      anonymousEmail: null,
+      anonymousPassword: null
     };
 
     deleteCommentMutation.mutate({ commentId, requestData });
@@ -238,69 +282,132 @@ function PostDetail() {
     }));
   };
 
+  // ===== 공통 mutation 헬퍼 함수들 =====
+
+  /**
+   * 낙관적 업데이트를 위한 공통 함수
+   * - 진행 중인 쿼리를 취소하여 충돌 방지
+   * - 현재 데이터의 스냅샷을 생성
+   * - UI를 즉시 업데이트 (서버 응답 전에 미리 화면 변경)
+   * @param {Function} updateFn - 데이터 업데이트 함수 (oldData) => newData
+   * @returns {Object} 롤백용 이전 데이터 스냅샷
+   */
+  const createOptimisticUpdate = async (updateFn) => {
+    // 1. 진행중인 post 쿼리 취소 (데이터 충돌 방지)
+    await queryClient.cancelQueries({ queryKey: ['post', id] });
+
+    // 2. 현재 캐시된 데이터의 스냅샷 생성 (에러시 롤백용)
+    const previousPost = queryClient.getQueryData(['post', id]);
+
+    // 3. UI 즉시 업데이트 (낙관적 업데이트)
+    if (updateFn) {
+      queryClient.setQueryData(['post', id], updateFn);
+    }
+    return { previousPost };
+  };
+
+  /**
+   * Mutation 에러 발생 시 데이터 롤백 처리
+   * - 낙관적 업데이트로 변경된 UI를 이전 상태로 되돌림
+   * @param {Error} err - 발생한 에러
+   * @param {Object} context - onMutate에서 반환한 컨텍스트 (스냅샷 포함)
+   */
+  const handleMutationError = (context) => {
+    // 이전 데이터가 있으면 롤백 실행
+    if (context?.previousPost) {
+      queryClient.setQueryData(['post', id], context.previousPost);
+    }
+  };
+
+  /**
+   * 서버와 클라이언트 데이터 동기화
+   * - Mutation 완료 후 서버에서 최신 데이터를 다시 가져옴
+   * - 낙관적 업데이트와 실제 서버 데이터 간의 차이를 해결
+   */
+  const invalidatePostQuery = () => {
+    // 특정 게시글(id)의 React Query 캐시를 무효화해서, 최신 데이터를 다시 불러오도록 하는 함수
+    queryClient.invalidateQueries({ queryKey: ['post', id] }).catch(console.error);
+  };
+
+  // 좋아요 토글 함수 - 로그인 체크 후 좋아요/취소 결정
+  const handleLikeToggle = () => {
+    if (!isLoggedIn) {
+      alert('로그인이 필요합니다. 로그인 후 좋아요를 눌러주세요.');
+      return;
+    }
+
+    if (post.is_liked_by_current_user) {
+      unlikeMutate();
+    } else {
+      likeMutate();
+    }
+  };
+
+  // 좋아요 추가 mutation - 헬퍼 함수 사용으로 중복 코드 제거
   const { mutate: likeMutate } = useMutation({
     mutationFn: () => likePost(id),
-    onMutate: async () => {
-      // 진행중인 'post' 쿼리를 취소하여 이전 데이터와 충돌하지 않도록 함
-      await queryClient.cancelQueries({ queryKey: ['post', id] });
-
-      // 현재 캐시된 데이터의 스냅샷을 만듬
-      const previousPost = queryClient.getQueryData(['post', id]);
-
-      // UI를 즉시 업데이트 (낙관적 업데이트)
-      queryClient.setQueryData(['post', id], (oldData) => ({
-        ...oldData,
-        likes: oldData.likes + 1,
-      }));
-
-      // 스냅샷을 반환하여 에러 발생 시 롤백에 사용
-      return { previousPost };
+    onMutate: () => createOptimisticUpdate((oldData) => ({
+      ...oldData,
+      likes: oldData.likes + 1, // 좋아요 수 1 증가
+      is_liked_by_current_user: true, // 사용자가 좋아요 누른 상태로 변경
+    })),
+    onSuccess: () => {
+      // 좋아요 성공 시 하트 애니메이션 트리거
+      setShowHeartAnimation(true);
+      setTimeout(() => setShowHeartAnimation(false), 1600); // 1.6초 후 애니메이션 종료
     },
-    onError: (err, variables, context) => {
-      // 에러 발생 시 onMutate에서 만든 스냅샷으로 데이터 롤백
-      if (context.previousPost) {
-        queryClient.setQueryData(['post', id], context.previousPost);
-      }
+    onError: (err, context) => {
+      handleMutationError(err, context); // 공통 에러 처리
       console.error('Failed to like post:', err);
-      alert('좋아요 처리에 실패했습니다.');
+      if (err.message.includes('401')) {
+        alert('로그인이 필요합니다.');
+      } else {
+        alert('좋아요 처리에 실패했습니다.');
+      }
     },
-    onSettled: () => {
-      // 성공/실패 여부와 관계없이, 서버와 클라이언트의 상태를 동기화하기 위해 쿼리를 다시 실행
-      queryClient.invalidateQueries({ queryKey: ['post', id] });
-    },
+    onSettled: invalidatePostQuery, // 공통 쿼리 무효화
   });
 
-  // 댓글 작성 mutation
+  // 좋아요 취소 mutation - 헬퍼 함수 사용으로 중복 코드 제거
+  const { mutate: unlikeMutate } = useMutation({
+    mutationFn: () => unlikePost(id),
+    onMutate: () => createOptimisticUpdate((oldData) => ({
+      ...oldData,
+      likes: oldData.likes - 1, // 좋아요 수 1 감소
+      is_liked_by_current_user: false, // 사용자가 좋아요 취소한 상태로 변경
+    })),
+    onError: (err, context) => {
+      handleMutationError(err, context); // 공통 에러 처리
+      console.error('Failed to unlike post:', err);
+      if (err.message.includes('401')) {
+        alert('로그인이 필요합니다.');
+      } else {
+        alert('좋아요 취소에 실패했습니다.');
+      }
+    },
+    onSettled: invalidatePostQuery, // 공통 쿼리 무효화
+  });
+
+  // 댓글 작성 mutation - 헬퍼 함수 사용으로 중복 코드 제거
   const createCommentMutation = useMutation({
     mutationFn: createComment,
-    onMutate: async (newCommentData) => {
-      // 진행중인 쿼리 취소
-      await queryClient.cancelQueries({ queryKey: ['post', id] });
+    onMutate: (newCommentData) => createOptimisticUpdate((oldData) => {
+      if (!oldData) return oldData;
 
-      // 현재 데이터 스냅샷
-      const previousPost = queryClient.getQueryData(['post', id]);
+      const newComment = {
+        comment_id: Date.now(), // 임시 ID
+        post_id: parseInt(id),
+        content: newCommentData.content,
+        author_name: newCommentData.authorName,
+        created_at: new Date().toLocaleString('ko-KR'),
+        is_anonymous: newCommentData.isAnonymous
+      };
 
-      // 낙관적 업데이트 - 새 댓글 추가
-      queryClient.setQueryData(['post', id], (oldData) => {
-        if (!oldData) return oldData;
-
-        const newComment = {
-          comment_id: Date.now(), // 임시 ID
-          post_id: parseInt(id),
-          content: newCommentData.content,
-          author_name: newCommentData.authorName,
-          created_at: new Date().toLocaleString('ko-KR'),
-          is_anonymous: newCommentData.isAnonymous
-        };
-
-        return {
-          ...oldData,
-          comments: [...(oldData.comments || []), newComment]
-        };
-      });
-
-      return { previousPost };
-    },
+      return {
+        ...oldData,
+        comments: [...(oldData.comments || []), newComment] // 새 댓글 추가
+      };
+    }),
     onSuccess: () => {
       // 댓글 폼 초기화
       setCommentForm({
@@ -308,115 +415,67 @@ function PostDetail() {
         author_name: '',
         anonymous_email: '',
         anonymous_pwd: '',
-        is_anonymous: false
+        is_anonymous: !isLoggedIn
       });
-      // 성공 알림
       alert('댓글이 성공적으로 등록되었습니다.');
     },
-    onError: (err, variables, context) => {
-      // 에러 시 롤백
-      if (context?.previousPost) {
-        queryClient.setQueryData(['post', id], context.previousPost);
-      }
+    onError: (err, context) => {
+      handleMutationError(err, context); // 공통 에러 처리
       console.error('Failed to create comment:', err);
       alert('댓글 등록에 실패했습니다.');
     },
-    onSettled: () => {
-      // 서버와 동기화
-      queryClient.invalidateQueries({ queryKey: ['post', id] });
-    }
+    onSettled: invalidatePostQuery, // 성공/실패 관계없이 서버 데이터로 동기화
   });
 
-  // 댓글 수정 mutation
+  // 댓글 수정 mutation - 헬퍼 함수 사용으로 중복 코드 제거
   const updateCommentMutation = useMutation({
     mutationFn: updateComment,
-    onMutate: async ({ commentId, commentData }) => {
-      // 진행중인 쿼리 취소
-      await queryClient.cancelQueries({ queryKey: ['post', id] });
+    onMutate: ({ commentId, commentData }) => createOptimisticUpdate((oldData) => {
+      if (!oldData) return oldData;
 
-      // 현재 데이터 스냅샷
-      const previousPost = queryClient.getQueryData(['post', id]);
-
-      // 낙관적 업데이트 - 댓글 수정
-      queryClient.setQueryData(['post', id], (oldData) => {
-        if (!oldData) return oldData;
-
-        return {
-          ...oldData,
-          comments: oldData.comments.map(comment =>
-            comment.comment_id === commentId
-              ? {
-                  ...comment,
-                  content: commentData.content,
-                  created_at: new Date().toLocaleString('ko-KR')
-                }
-              : comment
-          )
-        };
-      });
-
-      return { previousPost };
-    },
+      return {
+        ...oldData,
+        comments: oldData.comments.map(comment =>
+          comment.comment_id === commentId ? {
+            ...comment,
+            content: commentData.content, // 댓글 내용 수정
+            created_at: new Date().toLocaleString('ko-KR')} : comment)};
+    }),
     onSuccess: () => {
       // 편집 상태 초기화
       setEditingComment(null);
       setEditCommentContent('');
       setAuthenticatedAnonymousComment(null);
-      // 성공 알림
       alert('댓글이 성공적으로 수정되었습니다.');
     },
-    onError: (err, variables, context) => {
-      // 에러 시 롤백
-      if (context?.previousPost) {
-        queryClient.setQueryData(['post', id], context.previousPost);
-      }
+    onError: (err, context) => {
+      handleMutationError(err, context); // 공통 에러 처리
       console.error('Failed to update comment:', err);
       alert('댓글 수정에 실패했습니다.');
     },
-    onSettled: () => {
-      // 서버와 동기화
-      queryClient.invalidateQueries({ queryKey: ['post', id] });
-    }
+    onSettled: invalidatePostQuery, // 공통 쿼리 무효화
   });
 
-  // 댓글 삭제 mutation
+  // 댓글 삭제 mutation - 헬퍼 함수 사용으로 중복 코드 제거
   const deleteCommentMutation = useMutation({
     mutationFn: deleteComment,
-    onMutate: async ({ commentId }) => {
-      // 진행중인 쿼리 취소
-      await queryClient.cancelQueries({ queryKey: ['post', id] });
+    onMutate: ({ commentId }) => createOptimisticUpdate((oldData) => {
+      if (!oldData) return oldData;
 
-      // 현재 데이터 스냅샷
-      const previousPost = queryClient.getQueryData(['post', id]);
-
-      // 낙관적 업데이트 - 댓글 삭제
-      queryClient.setQueryData(['post', id], (oldData) => {
-        if (!oldData) return oldData;
-
-        return {
-          ...oldData,
-          comments: oldData.comments.filter(comment => comment.comment_id !== commentId)
-        };
-      });
-
-      return { previousPost };
-    },
+      return {
+        ...oldData,
+        comments: oldData.comments.filter(comment => comment.comment_id !== commentId) // 댓글 제거
+      };
+    }),
     onSuccess: () => {
-      // 성공 알림
       alert('댓글이 성공적으로 삭제되었습니다.');
     },
-    onError: (err, variables, context) => {
-      // 에러 시 롤백
-      if (context?.previousPost) {
-        queryClient.setQueryData(['post', id], context.previousPost);
-      }
+    onError: (err, context) => {
+      handleMutationError(err, context); // 공통 에러 처리
       console.error('Failed to delete comment:', err);
       alert('댓글 삭제에 실패했습니다.');
     },
-    onSettled: () => {
-      // 서버와 동기화
-      queryClient.invalidateQueries({ queryKey: ['post', id] });
-    }
+    onSettled: invalidatePostQuery, // 공통 쿼리 무효화
   });
 
   // 익명 댓글 인증 mutation
@@ -492,7 +551,15 @@ function PostDetail() {
     }
 
     const requestData = {
-      authorName: currentUser.author_name
+      category: getEnglishCategory(post.category),
+      title: post.title,
+      content: post.content,
+      tags: post.tags,
+      authorId: currentUser?.id,
+      authorName: currentUser?.username,
+      isAnonymous: false,
+      anonymousEmail: null,
+      anonymousPassword: null
     };
 
     deletePostMutation.mutate({ postId: id, requestData });
@@ -529,12 +596,14 @@ function PostDetail() {
   const canEditPost = () => {
     if (!post) return false;
 
+
     // 익명 게시글은 항상 수정/삭제 버튼을 표시 (인증 모달로 확인)
     if (post.is_anonymous) {
       return true;
     } else {
-      // 일반 게시글은 로그인한 사용자가 작성자인 경우만
-      return currentUser.is_logged_in && currentUser.author_name === post.author_name;
+      // 권한 확인: username으로 비교 (안정적인 방법)
+      // author_id가 정상적으로 오면 나중에 id 기반으로 변경 가능
+      return !!(isLoggedIn && currentUser?.username && currentUser.username === post.author_name);
     }
   };
 
@@ -542,7 +611,7 @@ function PostDetail() {
     if (post.is_anonymous) {
       setAuthForm({ email: '', password: '', action: 'edit' });
       setShowAuthModal(true);
-    } else if (currentUser.is_logged_in && currentUser.author_name === post.author_name) {
+    } else if (isLoggedIn && currentUser?.username === post.author_name) {
       navigate(`/post/edit/${post.post_id}`);
       alert('수정 페이지로 이동합니다.');
     } else {
@@ -554,7 +623,7 @@ function PostDetail() {
     if (post.is_anonymous) {
       setAuthForm({ email: '', password: '', action: 'delete' });
       setShowAuthModal(true);
-    } else if (currentUser.is_logged_in && currentUser.author_name === post.author_name) {
+    } else if (isLoggedIn && currentUser?.username === post.author_name) {
       handleDeletePost();
     } else {
       alert('작성자만 삭제할 수 있습니다.');
@@ -692,15 +761,26 @@ function PostDetail() {
                 <span className="text-sm text-gray-500">{post.created_at}</span>
               </div>
 
-              {post.tags && (
-                <div className="flex flex-wrap gap-1 mb-4">
-                  {post.tags.split(' ').map((tag, index) => (
-                    <span key={index} className="text-sm text-blue-600 bg-blue-50 px-2 py-1 rounded">
-                      {tag}
-                    </span>
-                  ))}
-                </div>
-              )}
+              {post.tags && (() => {
+                try {
+                  const parsedTags = typeof post.tags === 'string' ? JSON.parse(post.tags) : post.tags;
+                  if (Array.isArray(parsedTags) && parsedTags.length > 0) {
+                    return (
+                      <div className="flex flex-wrap gap-1 mb-4">
+                        {parsedTags.map((tag, index) => (
+                          <span key={index} className="text-sm text-blue-600 bg-blue-50 px-2 py-1 rounded">
+                            #{tag}
+                          </span>
+                        ))}
+                      </div>
+                    );
+                  }
+                } catch (e) {
+                  // JSON 파싱 실패 시 빈 배열로 처리
+                  return null;
+                }
+                return null;
+              })()}
 
               <div className="flex items-start justify-between mb-4">
                 <h1 className="text-3xl font-bold text-gray-800 flex-1">{post.title}</h1>
@@ -742,13 +822,92 @@ function PostDetail() {
                   </span>
                 </div>
 
-                <button
-                  onClick={() => likeMutate()}
-                  className="flex items-center space-x-2 text-red-500 hover:text-red-600 transition-colors"
-                >
-                  <i className="fas fa-heart"></i>
-                  <span>{post.likes}</span>
-                </button>
+                <div className="relative">
+                  <button
+                    onClick={handleLikeToggle}
+                    className={`flex items-center space-x-3 p-2 rounded-lg transition-all duration-200 transform hover:scale-105 ${
+                      post.is_liked_by_current_user
+                        ? 'text-red-500 hover:text-red-600 bg-red-50 hover:bg-red-100'
+                        : 'text-gray-400 hover:text-red-500 hover:bg-red-50'
+                    }`}
+                    title={isLoggedIn
+                      ? (post.is_liked_by_current_user ? '좋아요 취소' : '좋아요')
+                      : '로그인이 필요합니다'
+                    }
+                  >
+                    <i className={`fas fa-heart text-xl ${
+                      post.is_liked_by_current_user ? 'text-red-500' : 'text-gray-400'
+                    } transition-all duration-200`}></i>
+                    <span className="font-semibold">{post.likes}</span>
+                  </button>
+
+                  {/* 하트 애니메이션 */}
+                  {showHeartAnimation && (
+                    <div className="absolute inset-0 pointer-events-none">
+                      {[...Array(8)].map((_, i) => (
+                        <div
+                          key={i}
+                          className="absolute"
+                          style={{
+                            left: `${15 + i * 8}%`,
+                            top: '50%',
+                            animation: `heartFloat${i} 1.5s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards`,
+                            animationDelay: `${i * 0.08}s`
+                          }}
+                        >
+                          <i className={`fas fa-heart text-lg ${
+                            i % 3 === 0 ? 'text-red-400' :
+                            i % 3 === 1 ? 'text-pink-400' : 'text-red-300'
+                          } opacity-90`}></i>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* CSS 애니메이션 추가 */}
+                <style>{`
+                  @keyframes heartFloat0 {
+                    0% { transform: translateY(0px) scale(0.8); opacity: 0.9; }
+                    50% { transform: translateY(-40px) scale(1.2); opacity: 0.7; }
+                    100% { transform: translateY(-100px) scale(0.6); opacity: 0; }
+                  }
+                  @keyframes heartFloat1 {
+                    0% { transform: translateY(0px) translateX(-8px) scale(0.7); opacity: 0.9; }
+                    50% { transform: translateY(-45px) translateX(-18px) scale(1.1); opacity: 0.6; }
+                    100% { transform: translateY(-110px) translateX(-25px) scale(0.5); opacity: 0; }
+                  }
+                  @keyframes heartFloat2 {
+                    0% { transform: translateY(0px) translateX(12px) scale(0.9); opacity: 0.9; }
+                    50% { transform: translateY(-50px) translateX(20px) scale(1.3); opacity: 0.7; }
+                    100% { transform: translateY(-120px) translateX(30px) scale(0.4); opacity: 0; }
+                  }
+                  @keyframes heartFloat3 {
+                    0% { transform: translateY(0px) translateX(-5px) scale(0.6); opacity: 0.9; }
+                    50% { transform: translateY(-35px) translateX(-12px) scale(1.0); opacity: 0.8; }
+                    100% { transform: translateY(-95px) translateX(-18px) scale(0.7); opacity: 0; }
+                  }
+                  @keyframes heartFloat4 {
+                    0% { transform: translateY(0px) translateX(8px) scale(0.8); opacity: 0.9; }
+                    50% { transform: translateY(-55px) translateX(15px) scale(1.4); opacity: 0.6; }
+                    100% { transform: translateY(-130px) translateX(22px) scale(0.3); opacity: 0; }
+                  }
+                  @keyframes heartFloat5 {
+                    0% { transform: translateY(0px) translateX(-12px) scale(0.7); opacity: 0.9; }
+                    50% { transform: translateY(-42px) translateX(-22px) scale(1.1); opacity: 0.7; }
+                    100% { transform: translateY(-105px) translateX(-32px) scale(0.5); opacity: 0; }
+                  }
+                  @keyframes heartFloat6 {
+                    0% { transform: translateY(0px) translateX(15px) scale(0.9); opacity: 0.9; }
+                    50% { transform: translateY(-48px) translateX(25px) scale(1.2); opacity: 0.6; }
+                    100% { transform: translateY(-115px) translateX(35px) scale(0.4); opacity: 0; }
+                  }
+                  @keyframes heartFloat7 {
+                    0% { transform: translateY(0px) translateX(-3px) scale(0.8); opacity: 0.9; }
+                    50% { transform: translateY(-38px) translateX(-8px) scale(1.0); opacity: 0.8; }
+                    100% { transform: translateY(-98px) translateX(-12px) scale(0.6); opacity: 0; }
+                  }
+                `}</style>
               </div>
             </div>
 
@@ -851,7 +1010,7 @@ function PostDetail() {
                     </div>
 
                     {/* 댓글 수정/삭제 버튼 */}
-                    {(comment.is_anonymous || (currentUser.is_logged_in && currentUser.author_name === comment.author_name)) && (
+                    {(comment.is_anonymous || (isLoggedIn && currentUser?.username === comment.author_name)) && (
                       <div className="flex space-x-2">
                         <button
                           onClick={() => comment.is_anonymous ? handleAnonymousCommentEdit(comment) : startEditComment(comment)}
@@ -919,45 +1078,44 @@ function PostDetail() {
                   />
                 </div>
 
-                <div className="flex items-center mb-4">
-                  <input
-                    type="checkbox"
-                    name="is_anonymous"
-                    checked={commentForm.is_anonymous}
-                    onChange={handleCommentInputChange}
-                    className="mr-3 text-primary focus:ring-primary"
-                  />
-                  <label className="text-gray-700">익명으로 작성</label>
-                </div>
-
-                {commentForm.is_anonymous ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <input
-                      type="email"
-                      name="anonymous_email"
-                      value={commentForm.anonymous_email}
-                      onChange={handleCommentInputChange}
-                      placeholder="이메일"
-                      className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                      required={commentForm.is_anonymous}
-                    />
-                    <input
-                      type="password"
-                      name="anonymous_pwd"
-                      value={commentForm.anonymous_pwd}
-                      onChange={handleCommentInputChange}
-                      placeholder="비밀번호"
-                      className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                      required={commentForm.is_anonymous}
-                    />
-                  </div>
-                ) : (
-                  <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
+                {/* 로그인 상태에 따른 작성자 정보 표시 */}
+                {isLoggedIn ? (
+                  <div className="p-3 bg-blue-50 rounded-lg border border-blue-200 mb-4">
                     <p className="text-sm text-blue-800">
                       <i className="fas fa-user mr-2"></i>
-                      로그인된 사용자로 댓글을 작성합니다
+                      {currentUser?.username || '사용자'}로 댓글을 작성합니다
                     </p>
                   </div>
+                ) : (
+                  <>
+                    <div className="p-3 bg-orange-50 rounded-lg border border-orange-200 mb-4">
+                      <p className="text-sm text-orange-800">
+                        <i className="fas fa-user-secret mr-2"></i>
+                        익명으로 댓글을 작성합니다
+                      </p>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <input
+                        type="email"
+                        name="anonymous_email"
+                        value={commentForm.anonymous_email}
+                        onChange={handleCommentInputChange}
+                        placeholder="이메일 (수정/삭제 시 사용)"
+                        className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                        required
+                      />
+                      <input
+                        type="password"
+                        name="anonymous_pwd"
+                        value={commentForm.anonymous_pwd}
+                        onChange={handleCommentInputChange}
+                        placeholder="비밀번호 (수정/삭제 시 사용)"
+                        className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                        required
+                      />
+                    </div>
+                  </>
                 )}
 
                 <div className="flex justify-end">
@@ -983,6 +1141,32 @@ function PostDetail() {
                     <i className="fas fa-fire text-red-500 mr-2"></i>
                     인기 게시글
                   </h3>
+
+                  {/* 탭 메뉴 */}
+                  <div className="flex space-x-1 mb-4 bg-gray-100 rounded-lg p-1">
+                    <button
+                      onClick={() => setPopularTab('views')}
+                      className={`flex-1 py-2 px-3 rounded-md text-sm font-medium transition-colors ${
+                        popularTab === 'views'
+                          ? 'bg-white text-blue-600 shadow-sm'
+                          : 'text-gray-600 hover:text-gray-800'
+                      }`}
+                    >
+                      <i className="fas fa-eye mr-1"></i>
+                      조회수
+                    </button>
+                    <button
+                      onClick={() => setPopularTab('likes')}
+                      className={`flex-1 py-2 px-3 rounded-md text-sm font-medium transition-colors ${
+                        popularTab === 'likes'
+                          ? 'bg-white text-red-600 shadow-sm'
+                          : 'text-gray-600 hover:text-gray-800'
+                      }`}
+                    >
+                      <i className="fas fa-heart mr-1"></i>
+                      좋아요
+                    </button>
+                  </div>
                   <div className="space-y-3">
                     {popularPosts.length > 0 ? (
                       popularPosts.slice(0, 3).map(post => (
@@ -998,7 +1182,11 @@ function PostDetail() {
                           <div className="flex items-center text-xs text-gray-500">
                             <span>{post.is_anonymous ? '익명' : post.author_name}</span>
                             <span className="mx-2">•</span>
-                            <span>{post.views}회</span>
+                            {popularTab === 'views' ? (
+                              <span><i className="fas fa-eye mr-1"></i>{post.views}회</span>
+                            ) : (
+                              <span><i className="fas fa-heart mr-1"></i>{post.likes}</span>
+                            )}
                           </div>
                         </div>
                       ))

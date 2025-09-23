@@ -2,6 +2,7 @@ package com.example.authservice.auth.controller;
 
 import java.util.Optional;
 
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 
 import org.springframework.http.HttpStatus;
@@ -18,6 +19,7 @@ import com.example.authservice.auth.dto.LoginResponse;
 import com.example.authservice.auth.dto.PhoneVerificationConfirmRequest;
 import com.example.authservice.auth.dto.PhoneVerificationRequest;
 import com.example.authservice.auth.dto.RegisterRequest;
+import com.example.authservice.auth.dto.TwoFactorVerifyRequest;
 import com.example.authservice.auth.security.JwtTokenProvider;
 import com.example.authservice.auth.service.AuthService;
 import com.example.authservice.auth.service.SmsService;
@@ -79,9 +81,12 @@ public class AuthController {
   @Operation(summary = "Login", description = "User login")
   @PostMapping("/login")
   public ResponseEntity<ApiResponse<LoginResponse>> login(
-      @Valid @RequestBody LoginRequest request) {
+      @Valid @RequestBody LoginRequest request, HttpServletRequest httpRequest) {
     try {
-      LoginResponse response = authService.login(request);
+      String ipAddress = getClientIpAddress(httpRequest);
+      String userAgent = httpRequest.getHeader("User-Agent");
+
+      LoginResponse response = authService.login(request, ipAddress, userAgent);
       return ResponseEntity.ok(ApiResponse.success("Login successful", response));
     } catch (Exception e) {
       log.error("Login failed: ", e);
@@ -243,10 +248,39 @@ public class AuthController {
     }
   }
 
+  @Operation(summary = "2FA 코드 검증", description = "2단계 인증 코드를 검증합니다")
+  @PostMapping("/verify-2fa")
+  public ResponseEntity<ApiResponse<LoginResponse>> verifyTwoFactor(
+      @Valid @RequestBody TwoFactorVerifyRequest request) {
+    try {
+      LoginResponse response = authService.verifyTwoFactor(request.tempToken(), request.code());
+      return ResponseEntity.ok(ApiResponse.success("2FA verification successful", response));
+    } catch (Exception e) {
+      log.error("2FA verification failed: ", e);
+      throw e;
+    }
+  }
+
   private String extractToken(String bearerToken) {
     if (StringUtils.hasText(bearerToken) && bearerToken.startsWith("Bearer ")) {
       return bearerToken.substring(7);
     }
     return null;
+  }
+
+  private String getClientIpAddress(HttpServletRequest request) {
+    String xForwardedFor = request.getHeader("X-Forwarded-For");
+    if (xForwardedFor != null
+        && !xForwardedFor.isEmpty()
+        && !"unknown".equalsIgnoreCase(xForwardedFor)) {
+      return xForwardedFor.split(",")[0].trim();
+    }
+
+    String xRealIp = request.getHeader("X-Real-IP");
+    if (xRealIp != null && !xRealIp.isEmpty() && !"unknown".equalsIgnoreCase(xRealIp)) {
+      return xRealIp;
+    }
+
+    return request.getRemoteAddr();
   }
 }

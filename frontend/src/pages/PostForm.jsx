@@ -1,14 +1,17 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import { getEnglishCategory, KOREAN_CATEGORIES } from '../utils/categoryUtils';
 import { useFileUpload } from '../hooks/useFileUpload';
-import { createPostWithFiles, fetchPopularPosts } from '../services/api';
+import { createPostWithFiles, fetchPopularPosts, fetchPopularPostsByLikes } from '../services/api';
 import { categorizeAttachments } from '../utils/fileUtils';
+import authService from '../services/authService';
 
 function PostForm() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [currentUser, setCurrentUser] = useState(null);
   const [formData, setFormData] = useState({
     category: '',
     title: '',
@@ -20,25 +23,74 @@ function PostForm() {
     attachments: []
   });
 
+  // 태그 상태 관리
+  const [tagInput, setTagInput] = useState('');
+  const [tagList, setTagList] = useState([]);
+  const [popularTab, setPopularTab] = useState('views'); // 'views' 또는 'likes'
+
   // 파일 업로드 훅 사용
   const { previewImages, handleFileUpload, removeFile } = useFileUpload(formData, setFormData);
 
   const categories = KOREAN_CATEGORIES;
 
-  // 인기 게시글 조회 (전체 카테고리, 첫 번째 페이지, 조회수 순 정렬)
+  // 로그인 상태 확인
+  useEffect(() => {
+    const checkAuthStatus = async () => {
+      const loggedIn = authService.isLoggedIn();
+      setIsLoggedIn(loggedIn);
+
+      if (loggedIn) {
+        try {
+          const user = await authService.getCurrentUser();
+          setCurrentUser(user);
+          // 로그인한 사용자는 익명 체크 해제
+          setFormData(prev => ({ ...prev, is_anonymous: false }));
+        } catch (error) {
+          console.error('사용자 정보 조회 실패:', error);
+          // 토큰이 유효하지 않을 경우 로그아웃 처리
+          await authService.logout();
+          setIsLoggedIn(false);
+          setCurrentUser(null);
+        }
+      } else {
+        // 비로그인 사용자는 무조건 익명으로 설정
+        setFormData(prev => ({ ...prev, is_anonymous: true }));
+        setCurrentUser(null);
+      }
+    };
+
+    checkAuthStatus().catch(console.error);
+  }, []);
+
+  // 인기 게시글 조회 (조회수 순)
   const { data: popularPostsData } = useQuery({
     queryKey: ['popularPosts', '전체', 1],
     queryFn: fetchPopularPosts,
+    enabled: popularTab === 'views',
     staleTime: 5 * 60 * 1000, // 5분간 fresh 상태 유지
   });
 
-  const popularPosts = popularPostsData?.posts || [];
+  // 인기 게시글 조회 (좋아요 순)
+  const { data: popularPostsByLikesData } = useQuery({
+    queryKey: ['popularPostsByLikes', '전체', 1],
+    queryFn: fetchPopularPostsByLikes,
+    enabled: popularTab === 'likes',
+    staleTime: 5 * 60 * 1000, // 5분간 fresh 상태 유지
+  });
+
+  const popularPosts = popularTab === 'views'
+    ? (popularPostsData?.posts || [])
+    : (popularPostsByLikesData?.posts || []);
 
   const { mutate, isLoading: isSubmitting } = useMutation({
     mutationFn: createPostWithFiles,
-    onSuccess: (data) => {
-      // 'posts' 쿼리를 무효화하여 목록 페이지가 최신 데이터를 다시 불러오도록 함
-      queryClient.invalidateQueries({ queryKey: ['posts'] });
+    onSuccess: async (data) => {
+      // 모든 관련 쿼리를 무효화하여 최신 데이터를 다시 불러오도록 함
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['posts'] }), // 모든 posts 관련 쿼리
+        queryClient.invalidateQueries({ queryKey: ['popularPosts'] }), // 모든 popularPosts 관련 쿼리
+        queryClient.invalidateQueries({ queryKey: ['allTags'] }), // 태그 목록
+      ]);
       alert('게시글이 성공적으로 작성되었습니다!');
       navigate(`/post/${data.postId}`);
     },
@@ -56,6 +108,50 @@ function PostForm() {
     }));
   };
 
+  // 태그 추가 함수
+  const addTag = (tagText) => {
+    const cleanTag = tagText.trim().replace(/^#+/, ''); // # 제거
+    if (cleanTag && !tagList.includes(cleanTag)) {
+      const newTagList = [...tagList, cleanTag];
+      setTagList(newTagList);
+      setFormData(prev => ({ ...prev, tags: JSON.stringify(newTagList) }));
+    }
+  };
+
+  // 태그 제거 함수
+  const removeTag = (tagToRemove) => {
+    const newTagList = tagList.filter(tag => tag !== tagToRemove);
+    setTagList(newTagList);
+    setFormData(prev => ({ ...prev, tags: JSON.stringify(newTagList) }));
+  };
+
+  // 태그 입력 처리
+  const handleTagInputChange = (e) => {
+    setTagInput(e.target.value);
+  };
+
+  const handleTagInputKeyDown = (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      // IME 조합 중인지 확인
+      if (e.isComposing || e.nativeEvent?.isComposing) {
+        return;
+      }
+      if (tagInput.trim()) {
+        addTag(tagInput);
+        setTagInput('');
+      }
+    }
+  };
+
+  // 태그 입력 완료 (blur 시)
+  const handleTagInputBlur = () => {
+    if (tagInput.trim()) {
+      addTag(tagInput);
+      setTagInput('');
+    }
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
     if (isSubmitting) return;
@@ -64,11 +160,11 @@ function PostForm() {
       category: getEnglishCategory(formData.category),
       title: formData.title,
       content: formData.content,
-      tags: formData.tags,
-      isAnonymous: formData.is_anonymous,
-      authorName: formData.is_anonymous ? '익명' : '현재사용자', // TODO: 실제 로그인된 사용자 정보로 교체
-      anonymousEmail: formData.is_anonymous ? formData.anonymous_email : null,
-      anonymousPassword: formData.is_anonymous ? formData.anonymous_pwd : null
+      tags: JSON.stringify(tagList),
+      isAnonymous: !isLoggedIn, // 로그인한 사용자는 false, 비로그인은 무조건 true
+      authorName: isLoggedIn ? currentUser?.username : '익명',
+      anonymousEmail: !isLoggedIn ? formData.anonymous_email : null,
+      anonymousPassword: !isLoggedIn ? formData.anonymous_pwd : null
     };
 
     mutate({ postData, files: formData.attachments });
@@ -133,15 +229,45 @@ function PostForm() {
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     태그 (선택)
                   </label>
+
+                  {/* 태그 표시 영역 */}
+                  <div className="mb-2">
+                    <div className="flex flex-wrap gap-2 min-h-[32px] p-2 border border-gray-200 rounded-lg bg-gray-50">
+                      {tagList.map((tag, index) => (
+                        <span
+                          key={index}
+                          className="inline-flex items-center px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium"
+                        >
+                          #{tag}
+                          <button
+                            type="button"
+                            onClick={() => removeTag(tag)}
+                            className="ml-2 text-blue-600 hover:text-blue-800 focus:outline-none"
+                          >
+                            ×
+                          </button>
+                        </span>
+                      ))}
+                      {tagList.length === 0 && (
+                        <span className="text-gray-400 text-sm">태그를 입력해보세요</span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* 태그 입력 필드 */}
                   <input
                     type="text"
-                    name="tags"
-                    value={formData.tags}
-                    onChange={handleInputChange}
-                    placeholder="예: #소주 #추천 #가격비교 (공백으로 구분)"
+                    value={tagInput}
+                    onChange={handleTagInputChange}
+                    onKeyDown={handleTagInputKeyDown}
+                    onBlur={handleTagInputBlur}
+                    placeholder="태그 입력 후 스페이스바 또는 엔터"
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                   />
-                  <p className="text-sm text-gray-500 mt-1">관련 태그를 입력하면 다른 사용자들이 쉽게 찾을 수 있습니다.</p>
+                  <p className="text-sm text-gray-500 mt-1">
+                    태그를 입력하고 스페이스바나 엔터를 누르세요.
+                    <span className="text-blue-600 ml-1">#{tagList.length > 0 ? tagList.join(', #') : '예시: 와인, 추천'}</span>
+                  </p>
                 </div>
 
                 <div className="md:col-span-2">
@@ -289,62 +415,70 @@ function PostForm() {
               </h2>
 
               <div className="space-y-4">
-                <div className="flex items-center">
-                  <input
-                    type="checkbox"
-                    name="is_anonymous"
-                    checked={formData.is_anonymous}
-                    onChange={handleInputChange}
-                    className="mr-3 text-primary focus:ring-primary"
-                  />
-                  <label className="text-gray-700 font-medium">익명으로 작성</label>
-                </div>
-
-                {formData.is_anonymous ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        이메일 *
-                      </label>
-                      <input
-                        type="email"
-                        name="anonymous_email"
-                        value={formData.anonymous_email}
-                        onChange={handleInputChange}
-                        placeholder="익명 사용자 이메일"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                        required={formData.is_anonymous}
-                      />
-                      <p className="text-sm text-gray-500 mt-1">게시글 수정/삭제 시 사용</p>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        비밀번호 *
-                      </label>
-                      <input
-                        type="password"
-                        name="anonymous_pwd"
-                        value={formData.anonymous_pwd}
-                        onChange={handleInputChange}
-                        placeholder="게시글 비밀번호"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                        required={formData.is_anonymous}
-                      />
-                      <p className="text-sm text-gray-500 mt-1">게시글 수정/삭제 시 사용</p>
-                    </div>
-                  </div>
-                ) : (
+                {isLoggedIn ? (
+                  // 로그인된 사용자의 경우
                   <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
                     <h4 className="text-sm font-medium text-blue-800 mb-2">로그인된 사용자</h4>
                     <p className="text-blue-700">
-                      <strong>사용자명:</strong> {/* TODO: 실제 로그인된 사용자 정보로 교체 */}
-                      현재사용자
+                      <strong>사용자명:</strong> {currentUser?.username || '사용자'}
                     </p>
-                    <p className="text-xs text-blue-600 mt-1">
+                    <p className="text-blue-700">
+                      <strong>이메일:</strong> {currentUser?.email || ''}
+                    </p>
+                    <p className="text-xs text-blue-600 mt-2">
                       * 로그인된 사용자 정보로 게시글이 작성됩니다.
                     </p>
                   </div>
+                ) : (
+                  // 비로그인 사용자의 경우 - 무조건 익명으로 작성
+                  <>
+                    <div className="p-4 bg-orange-50 rounded-lg border border-orange-200 mb-4">
+                      <h4 className="text-sm font-medium text-orange-800 mb-2 flex items-center">
+                        <i className="fas fa-user-secret mr-2"></i>
+                        익명 작성
+                      </h4>
+                      <p className="text-orange-700">
+                        비회원은 익명으로만 게시글을 작성할 수 있습니다.
+                      </p>
+                      <p className="text-xs text-orange-600 mt-2">
+                        * 회원가입 후 로그인하시면 본인 이름으로 게시글을 작성할 수 있습니다.
+                      </p>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          이메일 *
+                        </label>
+                        <input
+                          type="email"
+                          name="anonymous_email"
+                          value={formData.anonymous_email}
+                          onChange={handleInputChange}
+                          placeholder="익명 사용자 이메일"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                          required
+                        />
+                        <p className="text-sm text-gray-500 mt-1">게시글 수정/삭제 시 사용</p>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          비밀번호 *
+                        </label>
+                        <input
+                          type="password"
+                          name="anonymous_pwd"
+                          value={formData.anonymous_pwd}
+                          onChange={handleInputChange}
+                          placeholder="게시글 비밀번호"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                          required
+                        />
+                        <p className="text-sm text-gray-500 mt-1">게시글 수정/삭제 시 사용</p>
+                      </div>
+                    </div>
+                  </>
                 )}
               </div>
             </div>
@@ -405,6 +539,32 @@ function PostForm() {
                     <i className="fas fa-fire text-red-500 mr-2"></i>
                     인기 게시글
                   </h3>
+
+                  {/* 탭 메뉴 */}
+                  <div className="flex space-x-1 mb-4 bg-gray-100 rounded-lg p-1">
+                    <button
+                      onClick={() => setPopularTab('views')}
+                      className={`flex-1 py-2 px-3 rounded-md text-sm font-medium transition-colors ${
+                        popularTab === 'views'
+                          ? 'bg-white text-blue-600 shadow-sm'
+                          : 'text-gray-600 hover:text-gray-800'
+                      }`}
+                    >
+                      <i className="fas fa-eye mr-1"></i>
+                      조회수
+                    </button>
+                    <button
+                      onClick={() => setPopularTab('likes')}
+                      className={`flex-1 py-2 px-3 rounded-md text-sm font-medium transition-colors ${
+                        popularTab === 'likes'
+                          ? 'bg-white text-red-600 shadow-sm'
+                          : 'text-gray-600 hover:text-gray-800'
+                      }`}
+                    >
+                      <i className="fas fa-heart mr-1"></i>
+                      좋아요
+                    </button>
+                  </div>
                   <div className="space-y-3">
                     {popularPosts.length > 0 ? (
                       popularPosts.slice(0, 3).map(post => (
@@ -420,7 +580,11 @@ function PostForm() {
                           <div className="flex items-center text-xs text-gray-500">
                             <span>{post.is_anonymous ? '익명' : post.author_name}</span>
                             <span className="mx-2">•</span>
-                            <span>{post.views}회</span>
+                            {popularTab === 'views' ? (
+                              <span><i className="fas fa-eye mr-1"></i>{post.views}회</span>
+                            ) : (
+                              <span><i className="fas fa-heart mr-1"></i>{post.likes}</span>
+                            )}
                           </div>
                         </div>
                       ))

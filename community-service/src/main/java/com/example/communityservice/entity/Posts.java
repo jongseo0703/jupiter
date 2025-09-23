@@ -53,7 +53,7 @@ public class Posts {
   @Builder.Default
   private Integer likes = 0;
 
-  @Column(name = "tags", length = 1000)
+  @Column(name = "tags", columnDefinition = "JSON")
   private String tags;
 
   @CreationTimestamp

@@ -10,6 +10,9 @@ const Login = () => {
   });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [twoFactorRequired, setTwoFactorRequired] = useState(false);
+  const [tempToken, setTempToken] = useState('');
+  const [verificationCode, setVerificationCode] = useState('');
   const navigate = useNavigate();
 
   const handleInputChange = (e) => {
@@ -28,11 +31,46 @@ const Login = () => {
     setError('');
 
     try {
-      await authService.login(formData.email, formData.password, formData.rememberMe);
-      // 로그인 성공 시 홈으로 리다이렉트
-      navigate('/');
+      const loginResponse = await authService.login(formData.email, formData.password, formData.rememberMe);
+
+      // 2FA가 필요한 경우
+      if (loginResponse.data.twoFactorRequired) {
+        setTwoFactorRequired(true);
+        setTempToken(loginResponse.data.tempToken);
+        return;
+      }
+
+      // 비밀번호 변경이 필요한 경우
+      if (loginResponse.data.passwordChangeRequired) {
+        navigate('/password-change-required');
+      } else {
+        // 로그인 성공 시 홈으로 리다이렉트
+        navigate('/');
+      }
     } catch (error) {
       setError(error.message || '로그인에 실패했습니다.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleTwoFactorSubmit = async (e) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setError('');
+
+    try {
+      const verifyResponse = await authService.verifyTwoFactor(tempToken, verificationCode, formData.rememberMe);
+
+      // 비밀번호 변경이 필요한 경우
+      if (verifyResponse.data.passwordChangeRequired) {
+        navigate('/password-change-required');
+      } else {
+        // 로그인 성공 시 홈으로 리다이렉트
+        navigate('/');
+      }
+    } catch (error) {
+      setError(error.message || '2단계 인증에 실패했습니다.');
     } finally {
       setIsLoading(false);
     }
@@ -73,8 +111,62 @@ const Login = () => {
             </div>
           )}
 
-          {/* 일반 로그인 폼 */}
-          <form className="space-y-6" onSubmit={handleSubmit}>
+          {/* 2FA 폼 */}
+          {twoFactorRequired ? (
+            <form className="space-y-6" onSubmit={handleTwoFactorSubmit}>
+              <div className="text-center">
+                <h3 className="text-lg font-medium text-gray-900 mb-2">2단계 인증</h3>
+                <p className="text-sm text-gray-600 mb-4">
+                  Google Authenticator 앱에서 6자리 인증 코드를 입력해주세요.
+                </p>
+              </div>
+
+              <div>
+                <label htmlFor="verificationCode" className="block text-sm font-medium text-gray-700">
+                  인증 코드
+                </label>
+                <div className="mt-1">
+                  <input
+                    id="verificationCode"
+                    name="verificationCode"
+                    type="text"
+                    maxLength="6"
+                    pattern="[0-9]{6}"
+                    autoComplete="off"
+                    required
+                    value={verificationCode}
+                    onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                    className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm text-center text-xl tracking-widest"
+                    placeholder="000000"
+                  />
+                </div>
+              </div>
+
+              <div className="flex space-x-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setTwoFactorRequired(false);
+                    setTempToken('');
+                    setVerificationCode('');
+                    setError('');
+                  }}
+                  className="flex-1 py-2 px-4 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
+                >
+                  돌아가기
+                </button>
+                <button
+                  type="submit"
+                  disabled={isLoading || verificationCode.length !== 6}
+                  className="flex-1 py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-primary hover:bg-blue-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50"
+                >
+                  {isLoading ? '인증 중...' : '인증'}
+                </button>
+              </div>
+            </form>
+          ) : (
+            /* 일반 로그인 폼 */
+            <form className="space-y-6" onSubmit={handleSubmit}>
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-700">
                 이메일
@@ -152,9 +244,13 @@ const Login = () => {
               </button>
             </div>
           </form>
+          )}
 
-          {/* 구분선 */}
-          <div className="mt-6">
+          {/* 소셜 로그인은 2FA 상태가 아닐 때만 표시 */}
+          {!twoFactorRequired && (
+            <>
+              {/* 구분선 */}
+              <div className="mt-6">
             <div className="relative">
               <div className="absolute inset-0 flex items-center">
                 <div className="w-full border-t border-gray-300" />
@@ -199,6 +295,8 @@ const Login = () => {
               <span>카카오톡으로 로그인</span>
             </button>
           </div>
+              </>
+            )}
 
           {/* 이용약관 */}
           <div className="mt-6 text-center text-sm text-gray-500">

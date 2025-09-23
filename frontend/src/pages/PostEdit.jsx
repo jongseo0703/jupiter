@@ -1,16 +1,17 @@
 import { useState, useEffect } from 'react';
 import { Link, useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { getKoreanCategory, getEnglishCategory, KOREAN_CATEGORIES } from '../utils/categoryUtils';
+import { getEnglishCategory, KOREAN_CATEGORIES } from '../utils/categoryUtils';
 import { useFileUpload } from '../hooks/useFileUpload';
 import { categorizeAttachments } from '../utils/fileUtils';
-import { fetchPopularPosts } from '../services/api';
+import { fetchPopularPosts, fetchPost, updatePost, deleteAttachment, uploadAttachments } from '../services/api';
+import authService from '../services/authService';
 
 function PostEdit() {
   const { id } = useParams();
   const navigate = useNavigate();
   const location = useLocation(); // 현재 URL 정보를 가져오는 Hook
-  const [loading, setLoading] = useState(true);
+  const [currentUser, setCurrentUser] = useState(null);
   const [formData, setFormData] = useState({
     category: '',
     title: '',
@@ -18,12 +19,15 @@ function PostEdit() {
     tags: '',
     attachments: []
   });
-  const [originalPost, setOriginalPost] = useState(null);
+
+  // 태그 상태 관리
+  const [tagInput, setTagInput] = useState('');
+  const [tagList, setTagList] = useState([]);
   const [currentIconIndex, setCurrentIconIndex] = useState(0);
   const [deletedAttachments, setDeletedAttachments] = useState([]); // 삭제된 첨부파일 ID 추적
 
   // 파일 업로드 훅 사용
-  const { previewImages, setPreviewImages, handleFileUpload, removeFile } = useFileUpload(formData, setFormData);
+  const { previewImages, handleFileUpload, removeFile } = useFileUpload(formData, setFormData);
 
   const alcoholIcons = [
     '🍷', // 와인잔
@@ -45,14 +49,42 @@ function PostEdit() {
 
   const popularPosts = popularPostsData?.posts || [];
 
-  // TODO: 실제 로그인 상태를 가져오는 hook 또는 context 사용
-  const currentUser = {
-    user_id: 1,
-    author_name: '익명',
-    is_logged_in: false
-  }; // MOCK DATA
+  // currentUser는 useState로 관리됨
 
   const categories = KOREAN_CATEGORIES;
+
+  // React Query를 사용한 게시글 조회
+  const { data: originalPost, isLoading: loading, isError, error } = useQuery({
+    queryKey: ['post', id],
+    queryFn: fetchPost
+  });
+
+  // 게시글 데이터가 로드되면 폼 채우기
+  useEffect(() => {
+    if (originalPost) {
+      // 태그 파싱하여 태그 리스트 설정
+      const parsedTags = originalPost.tags ? JSON.parse(originalPost.tags) : [];
+      setTagList(parsedTags);
+
+      // 폼 데이터 설정
+      setFormData({
+        category: originalPost.category, // api.js에서 이미 한글 변환됨
+        title: originalPost.title,
+        content: originalPost.content,
+        tags: originalPost.tags || JSON.stringify([]),
+        attachments: []
+      });
+    }
+  }, [originalPost]);
+
+  // 에러 처리
+  useEffect(() => {
+    if (isError) {
+      console.error('게시글 조회 실패:', error);
+      alert('게시글을 불러오는데 실패했습니다.');
+      navigate('/community');
+    }
+  }, [isError, error, navigate]);
 
   // 아이콘 회전 애니메이션
   useEffect(() => {
@@ -65,53 +97,21 @@ function PostEdit() {
     return () => clearInterval(interval);
   }, [loading, alcoholIcons.length]);
 
+  // 사용자 정보 로드
   useEffect(() => {
-    const fetchPost = async () => {
-      setLoading(true);
-      try {
-        const response = await fetch(`http://localhost:8080/community/api/posts/${id}`);
-        const result = await response.json();
-
-        if (!response.ok) {
-          console.error('Failed to fetch post:', response.status);
-          alert('게시글을 불러오는데 실패했습니다.');
-          navigate('/community');
-          return;
+    const loadCurrentUser = async () => {
+      const loggedIn = authService.isLoggedIn();
+      if (loggedIn) {
+        try {
+          const user = await authService.getCurrentUser();
+          setCurrentUser(user);
+        } catch (error) {
+          console.error('사용자 정보 조회 실패:', error);
         }
-
-        const postData = result.data;
-
-        // 백엔드 데이터를 프론트엔드 형식으로 변환
-        const transformedPost = {
-          post_id: postData.postId,
-          title: postData.title,
-          content: postData.content,
-          author_name: postData.authorName,
-          category: postData.category,
-          tags: postData.tags,
-          is_anonymous: postData.isAnonymous,
-          attachments: postData.attachments || []
-        };
-
-        setOriginalPost(transformedPost);
-        setFormData({
-          category: getKoreanCategory(transformedPost.category),
-          title: transformedPost.title,
-          content: transformedPost.content,
-          tags: transformedPost.tags,
-          attachments: []
-        });
-      } catch (error) {
-        console.error('Failed to fetch post:', error);
-        alert('게시글을 불러오는데 실패했습니다.');
-        navigate('/community');
-      } finally {
-        setLoading(false);
       }
     };
-
-    fetchPost().catch(console.error);
-  }, [id, navigate]);
+    loadCurrentUser().catch(console.error);
+  }, []);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -127,6 +127,51 @@ function PostEdit() {
   };
 
 
+  // 태그 추가 함수
+  const addTag = (tagText) => {
+    const cleanTag = tagText.trim().replace(/^#+/, ''); // # 제거
+    if (cleanTag && !tagList.includes(cleanTag)) {
+      const newTagList = [...tagList, cleanTag];
+      setTagList(newTagList);
+      setFormData(prev => ({ ...prev, tags: JSON.stringify(newTagList) }));
+    }
+  };
+
+  // 태그 제거 함수
+  const removeTag = (tagToRemove) => {
+    const newTagList = tagList.filter(tag => tag !== tagToRemove);
+    setTagList(newTagList);
+    setFormData(prev => ({ ...prev, tags: JSON.stringify(newTagList) }));
+  };
+
+  // 태그 입력 처리
+  const handleTagInputChange = (e) => {
+    setTagInput(e.target.value);
+  };
+
+  const handleTagInputKeyDown = (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      // IME 조합 중인지 확인
+      if (e.isComposing || e.nativeEvent?.isComposing) {
+        return;
+      }
+      if (tagInput.trim()) {
+        addTag(tagInput);
+        setTagInput('');
+      }
+    }
+  };
+
+  // 태그 입력 완료 (blur 시)
+  const handleTagInputBlur = () => {
+    if (tagInput.trim()) {
+      addTag(tagInput);
+      setTagInput('');
+    }
+  };
+
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -137,10 +182,13 @@ function PostEdit() {
         title: formData.title,
         content: formData.content,
         category: getEnglishCategory(formData.category),
-        tags: formData.tags,
+        tags: JSON.stringify(tagList),
         // 작성자 정보는 원본 게시글에서 가져옴
+        authorId: originalPost.author_id || currentUser?.id, // author_id가 없으면 현재 사용자 ID 사용
         authorName: originalPost.author_name,
-        isAnonymous: originalPost.is_anonymous
+        isAnonymous: originalPost.is_anonymous,
+        anonymousEmail: null,
+        anonymousPassword: null
       };
 
       // 익명 게시글인 경우 PostDetail에서 전달받은 인증 정보 추가
@@ -150,60 +198,24 @@ function PostEdit() {
         requestData.anonymousPassword = location.state.anonymousPassword;
       }
 
-      const response = await fetch(`http://localhost:8080/community/api/posts/${id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(requestData)
-      });
+      // 1. 게시글 수정 - api.js 함수 사용
+      await updatePost({ postId: id, postData: requestData });
 
-      if (!response.ok) {
-        console.error('Failed to update post:', response.status);
-        alert('게시글 수정 중 오류가 발생했습니다.');
-        return;
-      }
-
-      // 삭제된 파일들 처리 (개별 파일별로 삭제)
+      // 2. 삭제된 파일들 처리 - api.js 함수 사용
       if (deletedAttachments.length > 0) {
-        try {
-          const deletePromises = deletedAttachments.map(attachmentId =>
-            fetch(`http://localhost:8080/community/api/posts/attachments/${attachmentId}`, {
-              method: 'DELETE'
-            })
-          );
-
-          const deleteResults = await Promise.all(deletePromises);
-
-          // 실패한 삭제가 있는지 확인
-          const failedDeletes = deleteResults.filter(response => !response.ok);
-          if (failedDeletes.length > 0) {
-            console.error('Some files failed to delete:', failedDeletes.length);
-          }
-        } catch (error) {
-          console.error('Failed to delete files:', error);
-        }
+        await Promise.all(deletedAttachments.map(attachmentId =>
+          deleteAttachment(attachmentId).catch(error => {
+            console.error(`첨부파일 삭제 실패 (ID: ${attachmentId}):`, error);
+          })
+        ));
       }
 
-      // 새 파일들 업로드
+      // 3. 새 파일들 업로드 - api.js 함수 사용
       if (formData.attachments && formData.attachments.length > 0) {
         try {
-          const uploadFormData = new FormData();
-          formData.attachments.forEach(file => {
-            uploadFormData.append('files', file);
-          });
-
-          const uploadResponse = await fetch(`http://localhost:8080/community/api/posts/${id}/attachments`, {
-            method: 'POST',
-            body: uploadFormData
-          });
-
-          if (!uploadResponse.ok) {
-            console.error('Failed to upload new files:', uploadResponse.status);
-            alert('게시글은 수정되었지만 새 파일 업로드에 실패했습니다.');
-          }
+          await uploadAttachments(id, formData.attachments);
         } catch (error) {
-          console.error('Failed to upload new files:', error);
+          console.error('파일 업로드 실패:', error);
           alert('게시글은 수정되었지만 새 파일 업로드에 실패했습니다.');
         }
       }
@@ -211,8 +223,9 @@ function PostEdit() {
       alert('게시글이 성공적으로 수정되었습니다!');
       navigate(`/post/${id}`);
     } catch (error) {
-      console.error('Failed to update post:', error);
-      alert('게시글 수정 중 오류가 발생했습니다.');
+      // 예상치 못한 에러 처리 (API 에러는 헬퍼 함수에서 처리됨)
+      console.error('게시글 수정 처리 중 예상치 못한 오류:', error);
+      alert('게시글 수정 처리 중 예상치 못한 오류가 발생했습니다.');
     }
   };
 
@@ -331,14 +344,45 @@ function PostEdit() {
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     태그 (선택)
                   </label>
+
+                  {/* 태그 표시 영역 */}
+                  <div className="mb-2">
+                    <div className="flex flex-wrap gap-2 min-h-[32px] p-2 border border-gray-200 rounded-lg bg-gray-50">
+                      {tagList.map((tag, index) => (
+                        <span
+                          key={index}
+                          className="inline-flex items-center px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium"
+                        >
+                          #{tag}
+                          <button
+                            type="button"
+                            onClick={() => removeTag(tag)}
+                            className="ml-2 text-blue-600 hover:text-blue-800 focus:outline-none"
+                          >
+                            ×
+                          </button>
+                        </span>
+                      ))}
+                      {tagList.length === 0 && (
+                        <span className="text-gray-400 text-sm">태그를 입력해보세요</span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* 태그 입력 필드 */}
                   <input
                     type="text"
-                    name="tags"
-                    value={formData.tags}
-                    onChange={handleInputChange}
-                    placeholder="예: #소주 #추천 #가격비교 (공백으로 구분)"
+                    value={tagInput}
+                    onChange={handleTagInputChange}
+                    onKeyDown={handleTagInputKeyDown}
+                    onBlur={handleTagInputBlur}
+                    placeholder="태그 입력 후 스페이스바 또는 엔터"
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                   />
+                  <p className="text-sm text-gray-500 mt-1">
+                    태그를 입력하고 스페이스바나 엔터를 누르세요.
+                    <span className="text-blue-600 ml-1">#{tagList.length > 0 ? tagList.join(', #') : '예시: 와인, 추천'}</span>
+                  </p>
                 </div>
 
                 <div className="md:col-span-2">
