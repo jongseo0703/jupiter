@@ -18,7 +18,9 @@ import com.example.authservice.global.exception.BusinessException;
 import com.example.authservice.global.util.PasswordGenerator;
 import com.example.authservice.user.dto.UserResponse;
 import com.example.authservice.user.entity.Role;
+import com.example.authservice.user.entity.SecuritySettings;
 import com.example.authservice.user.entity.User;
+import com.example.authservice.user.repository.SecuritySettingsRepository;
 import com.example.authservice.user.repository.UserRepository;
 
 import lombok.RequiredArgsConstructor;
@@ -37,6 +39,8 @@ public class AuthServiceImpl implements AuthService {
   private final EmailService emailService;
   private final PasswordGenerator passwordGenerator;
   private final SmsService smsService;
+  private final SecuritySettingsRepository securitySettingsRepository;
+  private final TotpService totpService;
 
   @Override
   @Transactional
@@ -100,7 +104,90 @@ public class AuthServiceImpl implements AuthService {
     // 4. Refresh Token을 Redis에 저장
     refreshTokenService.saveTokenInfo(user.getEmail(), refreshToken, accessToken);
 
-    return LoginResponse.of(accessToken, refreshToken);
+    // 5. 2FA 및 비밀번호 변경 필요 여부 확인
+    boolean passwordChangeRequired = false;
+    boolean twoFactorRequired = false;
+
+    try {
+      SecuritySettings securitySettings = securitySettingsRepository.findByUser(user).orElse(null);
+      if (securitySettings != null) {
+        passwordChangeRequired = securitySettings.isPasswordChangeRequired();
+        twoFactorRequired =
+            securitySettings.getTwoFactorEnabled() && securitySettings.getTwoFactorSecret() != null;
+      }
+    } catch (Exception e) {
+      log.warn("보안 설정 확인 중 오류 발생: {}", e.getMessage());
+    }
+
+    // 6. 2FA가 필요한 경우 임시 토큰 생성하고 2FA 요구
+    if (twoFactorRequired) {
+      String tempToken = jwtTokenProvider.generateTempToken(user.getId(), user.getEmail());
+      log.info("2FA required for user: {}, temp token generated", user.getEmail());
+      return LoginResponse.requireTwoFactor(tempToken);
+    }
+
+    return LoginResponse.of(accessToken, refreshToken, passwordChangeRequired);
+  }
+
+  @Override
+  @Transactional
+  public LoginResponse verifyTwoFactor(String tempToken, String code) {
+    try {
+      log.debug("2FA verification started with tempToken: {}, code: {}", tempToken, code);
+
+      // 1. 임시 토큰에서 사용자 ID 추출
+      Long userId = jwtTokenProvider.getUserIdFromTempToken(tempToken);
+      log.debug("Extracted userId from temp token: {}", userId);
+
+      User user =
+          userRepository
+              .findById(userId)
+              .orElseThrow(() -> new BusinessException("사용자를 찾을 수 없습니다", 404, "USER_NOT_FOUND"));
+
+      log.debug("Found user: {}", user.getEmail());
+
+      // 2. 사용자의 2FA 시크릿 조회
+      SecuritySettings securitySettings =
+          securitySettingsRepository
+              .findByUser(user)
+              .orElseThrow(
+                  () ->
+                      new BusinessException(
+                          "보안 설정을 찾을 수 없습니다", 404, "SECURITY_SETTINGS_NOT_FOUND"));
+
+      if (!securitySettings.getTwoFactorEnabled()
+          || securitySettings.getTwoFactorSecret() == null) {
+        throw new BusinessException("2단계 인증이 설정되지 않았습니다", 400, "TWO_FACTOR_NOT_ENABLED");
+      }
+
+      // 3. TOTP 코드 검증
+      boolean isValid = totpService.verifyCode(securitySettings.getTwoFactorSecret(), code);
+      if (!isValid) {
+        throw new BusinessException("인증 코드가 올바르지 않습니다", 400, "INVALID_VERIFICATION_CODE");
+      }
+
+      // 4. 2FA 검증 성공 - 정상 토큰 생성
+      Authentication authentication =
+          new UsernamePasswordAuthenticationToken(user, null, user.getAuthorities());
+      String accessToken = jwtTokenProvider.generateAccessToken(authentication);
+      String refreshToken = jwtTokenProvider.generateRefreshToken(user.getId());
+
+      // 5. Refresh Token을 Redis에 저장
+      refreshTokenService.saveTokenInfo(user.getEmail(), refreshToken, accessToken);
+
+      // 6. 비밀번호 변경 필요 여부 확인
+      boolean passwordChangeRequired = securitySettings.isPasswordChangeRequired();
+
+      log.info("2FA verification successful for user: {}", user.getEmail());
+      return LoginResponse.of(accessToken, refreshToken, passwordChangeRequired);
+
+    } catch (BusinessException e) {
+      log.warn("2FA verification failed: {}", e.getMessage());
+      throw e;
+    } catch (Exception e) {
+      log.error("2FA verification error: {}", e.getMessage(), e);
+      throw new BusinessException("2단계 인증 처리 중 오류가 발생했습니다", 500, "TWO_FACTOR_VERIFICATION_ERROR");
+    }
   }
 
   @Override
