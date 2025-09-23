@@ -69,7 +69,7 @@ function Community() {
         <div className="flex flex-col lg:flex-row gap-8">
           {/* 사이드바 */}
           <div className="lg:w-1/4">
-            <div className="sticky top-8 space-y-6">
+            <div className="space-y-6">
             <div className="bg-white rounded-lg shadow-sm p-6">
               <h3 className="text-xl font-bold mb-4 text-gray-800">카테고리</h3>
               <div className="space-y-2">
@@ -111,12 +111,14 @@ function Community() {
               <div className="space-y-3">
                 {popularPosts.slice(0, 3).map(post => (
                   <div key={post.post_id} className="border-b border-gray-100 pb-3 last:border-b-0">
-                    <h4 className="text-sm font-semibold text-gray-800 mb-1 line-clamp-1 flex items-center">
-                      {post.title}
-                      {post.has_attachments && (
-                        <i className="fas fa-paperclip ml-1 text-red-400 text-xs" title="첨부파일 있음"></i>
-                      )}
-                    </h4>
+                    <Link to={`/post/${post.post_id}`}>
+                      <h4 className="text-sm font-semibold text-gray-800 mb-1 line-clamp-1 flex items-center hover:text-primary transition-colors cursor-pointer">
+                        {post.title}
+                        {post.has_attachments && (
+                          <i className="fas fa-paperclip ml-1 text-red-400 text-xs" title="첨부파일 있음"></i>
+                        )}
+                      </h4>
+                    </Link>
                     <div className="flex items-center text-xs text-gray-500">
                       <span>{post.is_anonymous ? '익명' : post.author_name}</span>
                       <span className="mx-2">•</span>
