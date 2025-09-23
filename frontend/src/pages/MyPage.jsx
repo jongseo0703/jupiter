@@ -580,18 +580,25 @@ const MyPage = () => {
                 </button>
 
                 <button
-                  onClick={() => navigate('/notification-settings')}
+                  onClick={() => navigate(user?.role === 'ADMIN' ? '/admin/notifications' : '/notification-settings')}
                   className="flex flex-col items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
                 >
                   <i className="fas fa-bell text-primary text-2xl mb-2"></i>
-                  <span className="font-medium">알림 설정</span>
-                  <span className="text-sm text-gray-600 text-center">푸시 알림 및 이메일 설정</span>
+                  <span className="font-medium">
+                    {user?.role === 'ADMIN' ? '관리자 알림' : '알림 설정'}
+                  </span>
+                  <span className="text-sm text-gray-600 text-center">
+                    {user?.role === 'ADMIN' ? '시스템 알림 및 관리자 전용 알림' : '푸시 알림 및 이메일 설정'}
+                  </span>
                 </button>
 
-                <button className="flex flex-col items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                <button
+                  onClick={() => navigate('/security-settings')}
+                  className="flex flex-col items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                >
                   <i className="fas fa-shield-alt text-primary text-2xl mb-2"></i>
                   <span className="font-medium">개인정보 보호</span>
-                  <span className="text-sm text-gray-600 text-center">계정 보안 및 개인정보</span>
+                  <span className="text-sm text-gray-600 text-center">2FA, 보안 설정 및 개인정보</span>
                 </button>
               </div>
             </div>
