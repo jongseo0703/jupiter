@@ -1,5 +1,8 @@
 package com.example.crawlingservice.domain;
 
+import lombok.Data;
+
+@Data
 public class Product {
     //상품의 고유 키값
     private int productId;
