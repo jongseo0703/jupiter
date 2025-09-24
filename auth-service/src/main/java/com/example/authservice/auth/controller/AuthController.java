@@ -27,6 +27,7 @@ import com.example.authservice.auth.token.BlacklistTokenService;
 import com.example.authservice.auth.token.RefreshToken;
 import com.example.authservice.auth.token.RefreshTokenRepository;
 import com.example.authservice.auth.token.RefreshTokenService;
+import com.example.authservice.common.service.RecaptchaService;
 import com.example.authservice.global.common.ApiResponse;
 import com.example.authservice.global.exception.BusinessException;
 import com.example.authservice.user.dto.PasswordChangeRequest;
@@ -56,13 +57,21 @@ public class AuthController {
   private final UserService userService;
   private final SmsService smsService;
   private final AdminNotificationService adminNotificationService;
+  private final RecaptchaService recaptchaService;
 
   // 회원가입을 처리하는 매핑임.
   @Operation(summary = "Register user", description = "Register a new user")
   @PostMapping("/register")
   public ResponseEntity<ApiResponse<UserResponse>> register(
-      @Valid @RequestBody RegisterRequest request) {
+      @Valid @RequestBody RegisterRequest request, HttpServletRequest httpRequest) {
     try {
+      String ipAddress = getClientIpAddress(httpRequest);
+
+      // reCAPTCHA 검증
+      if (!recaptchaService.verifyRecaptcha(request.recaptchaResponse(), ipAddress)) {
+        throw new BusinessException("reCAPTCHA verification failed");
+      }
+
       UserResponse userResponse = authService.register(request);
 
       // 관리자에게 회원가입 알림 생성
@@ -85,6 +94,11 @@ public class AuthController {
     try {
       String ipAddress = getClientIpAddress(httpRequest);
       String userAgent = httpRequest.getHeader("User-Agent");
+
+      // reCAPTCHA 검증
+      if (!recaptchaService.verifyRecaptcha(request.recaptchaResponse(), ipAddress)) {
+        throw new BusinessException("reCAPTCHA verification failed");
+      }
 
       LoginResponse response = authService.login(request, ipAddress, userAgent);
       return ResponseEntity.ok(ApiResponse.success("Login successful", response));
