@@ -139,7 +139,7 @@ public interface SchemaMapper {
      */
     @Update("""
     CREATE TABLE IF NOT EXISTS price_log (
-        price_log INT AUTO_INCREMENT PRIMARY KEY,
+        price_log_id INT AUTO_INCREMENT PRIMARY KEY,
         price INT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         price_id INT NOT NULL,
