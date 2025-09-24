@@ -16,6 +16,7 @@ import org.springframework.stereotype.Service;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 /**
  * 크롤링 할 웹사이트를 자동으로 페이지 넘겨주는 서비스
@@ -61,36 +62,7 @@ public class CrawlingService {
 
                     //자동으로 상세페이지 들어가기
                     for (ProductDTO p : pageItems) {
-                        // 새로운 탭 열기
-                        ((JavascriptExecutor) driver).executeScript(
-                                "window.open(arguments[0], '_blank');", p.getDetailLink()
-                        );
-
-                        //새 탭이 열릴 때까지 대기 (핸들 수가 2개 이상이 될 때)
-                        new WebDriverWait(driver, Duration.ofSeconds(10))
-                                .until(d -> d.getWindowHandles().size() > 1);
-
-                        //새로 열린 상세 탭으로 전환
-                        String detailHandle = driver.getWindowHandles().stream()
-                                .filter(h -> !h.equals(originalTab))
-                                .findFirst().orElseThrow();
-                        driver.switchTo().window(detailHandle);
-
-                        // 상세 크롤링 (동일 드라이버 사용)
-                        ProductDTO product = detailPageService.detailPage(p, driver);
-
-                        // 상세페이지 탭만 닫고
-                        driver.close();
-
-                        //원래 '목록' 탭으로 복귀
-                        driver.switchTo().window(originalTab);
-
-                        // 결과 파싱
-                        p.setCategory(product.getCategory()); // 주종
-                        p.setProductKind(product.getProductKind()); // 종류
-                        p.setContent(product.getContent()); //상품정보
-                        p.setPrices(product.getPrices()); // 상품 가격리스트
-                        p.setReviews(product.getReviews()); // 상품 리뷰 리스트
+                        processDetailPage(p,originalTab);
                         allProducts.add(p);
                     }
 
@@ -99,7 +71,7 @@ public class CrawlingService {
 
                     //다음 페이지로 넘어가는 ui가져오기
 //                    List<WebElement> nextButtons = driver.findElements(By.cssSelector("div.num_nav_wrap a.num.now_on + a.num, div.num_nav_wrap a.edge_nav.nav_next, div.num_nav_wrap a.nav_next"));
-                    List<WebElement> nextButtons = driver.findElements(By.cssSelector("div.num_nav_wrap a.num.now_on + a.num")); // 테스트용
+                    List<WebElement> nextButtons = new ArrayList<>(); // 테스트용
                     if (nextButtons.isEmpty()) {
                         // 다음 페이지 버튼이 없으면 마지막 페이지
                         log.info("마지막 페이지 도달");
@@ -130,4 +102,137 @@ public class CrawlingService {
         log.debug("가져온 상품 수 {}",allProducts.size());
         return allProducts;
     }
+
+    public void processDetailPage(ProductDTO productDTO,String originalTab){
+        String detailHandle = null;
+
+        try {
+            // 현재 열려있는 모든 탭 수 확인 (새 탭 생성 전 상태)
+            int initialTabCount = driver.getWindowHandles().size();
+
+            // JavaScript를 사용하여 새 탭에서 상세 페이지 열기
+            ((JavascriptExecutor) driver).executeScript(
+                    "window.open(arguments[0], '_blank');", productDTO.getDetailLink()
+            );
+
+            // 새 탭이 생성될 때까지 대기 (최대 10초)
+            new WebDriverWait(driver, Duration.ofSeconds(10))
+                    .until(d -> d.getWindowHandles().size() > initialTabCount);
+
+            // 새로 생성된 탭의 핸들 찾기
+            detailHandle = findNewTabHandle(originalTab);
+
+            if (detailHandle == null) {
+                log.warn("새 탭을 찾을 수 없습니다: {}", productDTO.getProductName());
+                return;
+            }
+
+            // 상세 페이지 탭으로 전환
+            driver.switchTo().window(detailHandle);
+
+            //상세 정보 크롤링
+            ProductDTO detailedProduct = detailPageService.detailPage(productDTO, driver);
+
+            // 크롤링한 상세 정보를 원본 ProductDTO에 병합
+            mergeProductDetails(productDTO, detailedProduct);
+
+        } catch (Exception e) {
+            log.error("상품 '{}' 상세 정보 처리 실패: {}", productDTO.getProductName(), e.getMessage());
+        } finally {
+            //상세페이지 탭 닫기
+            cleanupDetailTab(detailHandle, originalTab);
+        }
+    }
+
+    /**
+     * 새로 생성된 탭의 핸들을 찾는 메서드
+     * 기존 탭과 구분하여 새 탭만 식별합니다.
+     * @param originalTab 기존 목록 페이지 탭 핸들
+     * @return 새 탭 핸들
+     */
+    private String findNewTabHandle(String originalTab) {
+        // 현재 열려있는 모든 탭 핸들 가져오기
+        Set<String> allHandles = driver.getWindowHandles();
+
+        //기존 탭이 아닌 새 탭 찾기
+        return allHandles.stream()
+                .filter(handle -> !handle.equals(originalTab)) // 원본 탭 제외
+                // 첫 번째 매치 결과 반환
+                .findFirst()
+                // 찾지 못하면 null 반환
+                .orElse(null);
+    }
+
+    /**
+     * 상세 정보를 원본 ProductDTO에 병합하는 메서드
+     * 각 필드별로 안전하게 데이터를 복사합니다.
+     * @param target 기존 ProductDTO
+     * @param detail 상세페이지의 ProductDTO
+     */
+    private void mergeProductDetails(ProductDTO target, ProductDTO detail) {
+        // 주종
+        if (detail.getCategory() != null) {
+            target.setCategory(detail.getCategory());
+        }
+        // 종류
+        if (detail.getProductKind() != null) {
+            target.setProductKind(detail.getProductKind());
+        }
+        // 상품정보
+        if (detail.getContent() != null) {
+            target.setContent(detail.getContent());
+        }
+        // 상품 가격리스트
+        if (detail.getPrices() != null) {
+            target.setPrices(detail.getPrices());
+        }
+        // 상품 리뷰 리스트
+        if (detail.getReviews() != null) {
+            target.setReviews(detail.getReviews());
+        }
+    }
+
+    /**
+     * 상세 페이지 탭을 안전하게 정리하는 메서드
+     * 목록페이지 탭으로 안전하게 복귀합니다.
+     * @param detailHandle 정리할 상세 페이지 탭 핸들
+     * @param originalTab 목록페이지 탭 핸들
+     */
+    private void cleanupDetailTab(String detailHandle, String originalTab) {
+        try {
+            // 상세 페이지 탭이 존재하는 경우에만 정리
+            if (detailHandle != null) {
+                // 현재 열려있는 탭들 확인
+                Set<String> currentHandles = driver.getWindowHandles();
+
+                // 해당 핸들이 실제로 존재하는지 확인 후 정리
+                if (currentHandles.contains(detailHandle)) {
+                    driver.switchTo().window(detailHandle);
+                    // 현재 탭만 닫기 (driver.quit()와 구분)
+                    driver.close();
+                }
+            }
+
+            // 원본 목록 페이지 탭으로 안전하게 복귀
+            Set<String> remainingHandles = driver.getWindowHandles();
+            if (remainingHandles.contains(originalTab)) {
+                driver.switchTo().window(originalTab);
+            } else if (!remainingHandles.isEmpty()) {
+                // 원본 탭이 없는 경우 남은 탭 중 첫 번째로 이동
+                driver.switchTo().window(remainingHandles.iterator().next());
+            }
+
+        } catch (Exception e) {
+            log.error("탭 정리 중 오류 발생: {}", e.getMessage());
+            // 오류 발생 시에도 최소한 원본 탭으로 복귀 시도
+            try {
+                if (driver.getWindowHandles().contains(originalTab)) {
+                    driver.switchTo().window(originalTab);
+                }
+            } catch (Exception ex) {
+                log.error("원본 탭 복귀 실패: {}", ex.getMessage());
+            }
+        }
+    }
+
 }

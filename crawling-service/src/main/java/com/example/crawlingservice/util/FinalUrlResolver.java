@@ -10,6 +10,7 @@ import org.openqa.selenium.support.ui.WebDriverWait;
 import org.springframework.stereotype.Component;
 
 import java.time.Duration;
+import java.util.HashSet;
 import java.util.Set;
 
 @Component
@@ -34,67 +35,31 @@ public class FinalUrlResolver {
         String originalTab =  driver.getWindowHandle();
         //새로운 탭을 저장할 변수 초기화
         String newTab = null;
+        // 처리 시작 전 기존 탭들
+        Set<String> initialTabs = new HashSet<>(driver.getWindowHandles());
 
         try {
-            //현재 있는 모든 탭 저장
-            Set<String>allTabs = driver.getWindowHandles();
-            //탭들이 있는지 확인
-            if(allTabs.isEmpty()){
-                return finalUrl;
-            }
 
-            //새로운 탭 열고 잠시 대기
-            ((JavascriptExecutor) driver).executeScript("window.open('', '_blank');");
-            Thread.sleep(1000);
-
-            //새로운 탭까지 포합한 모든 탭들 가져오기
-            Set<String> afterAllTabs = driver.getWindowHandles();
-            for (String handle : afterAllTabs) {
-                //기존 탭들에서 다른 탭 찾아서 대입
-                if (!allTabs.contains(handle)) {
-                    newTab = handle;
-                    break;
-                }
-            }
-
-            //구매사이트 탭이 존재 여부 확인
+            // 새 탭 생성
+            newTab = createIsolatedTab(driver, initialTabs);
             if (newTab == null) {
-                log.warn("새 탭을 찾을 수 없습니다");
                 return finalUrl;
             }
 
-            //구매사이트 탭으로 이동
+            // 생성된 탭으로 전환하여 URL 처리
             driver.switchTo().window(newTab);
-            //페이지 로딩 시간 제한(45초) 오버 시 에러
             driver.manage().timeouts().pageLoadTimeout(Duration.ofSeconds(45));
-            //사이트에 팝업이 있을 경우 무시하고 경로 가져오기
-            finalUrl = withOutPopup(driver, url);
 
-        }catch (InterruptedException e){
-            log.debug("링크 리졸빙 중 스레드 중단");
-            Thread.currentThread().interrupt();
-        }catch (TimeoutException e){
-            log.debug("구매 링크 로딩 초과 대기 발생");
-            try {
-                //시간 초과 시 현재 URL 시도
-                finalUrl= driver.getCurrentUrl();
-            } catch (Exception ex) {
-                log.debug("시간 초과로 URL 추출 실패 : {}", ex.getMessage());
-            }
+            // 실제 URL 추출
+            finalUrl = extractFinalUrl(driver, url);
 
-        }catch (WebDriverException e){
-            log.debug("Chrom Driver 오류 발생 : {}",e.getMessage());
-        }catch (Exception e) {
-            log.debug("구매사이트를 찾을 수 없습니다");
-        }finally {
-            try {
-                //구매사이트 탭 닫기
-                closeNewTab(driver,newTab);
-                //상세페이지로 돌아가기
-                toDetailPage(originalTab,driver);
-            } catch (Exception e) {
-                log.error("탭 정리 중 오류 발생 {}",e.getMessage());
-            }
+
+        } catch (Exception e) {
+            log.error("구매 사이트 URL 추출 중 오류: {}", e.getMessage());
+            finalUrl = getSafeCurrentUrl(driver, url);
+        } finally {
+            // 반드시 완전한 정리 수행
+            performCompleteCleanup(driver, newTab, originalTab, initialTabs);
         }
 
         //최종 URL 반환
@@ -102,127 +67,126 @@ public class FinalUrlResolver {
     }
 
     /**
-     * 더이상 사용하지 않는 구매사이트 탭 자동으로 닫기
-     * @param driver 현재 사용하고 있는 크롬 드라이버
-     * @param newTab 닫고 싶은 탭
+     * 새 탭을 생성하는 메서드
+     * @param driver 사용중이 드라이버
+     * @param initialTabs 초기 탭 목록
+     * @return 새 탭 핸들
      */
-    public void closeNewTab(WebDriver driver, String newTab) {
-        //닫고 싶은 탭의 존재 여부 확인
-        if (newTab == null) return;
-
+    private String createIsolatedTab(WebDriver driver, Set<String> initialTabs) {
         try {
-            // 현재 열린 탭들
-            Set<String> openTabs = driver.getWindowHandles();
+            // JavaScript로 빈 새 탭 생성
+            ((JavascriptExecutor) driver).executeScript("window.open('', '_blank');");
+            Thread.sleep(1000); // 탭 생성 대기
 
-            // 닫고 싶은 탭 위치 찾기
-            if (openTabs.contains(newTab)) {
-                //확인 후 닫기
-                driver.switchTo().window(newTab);
-                driver.close();
-            }
+            // 새로 생성된 탭 찾기
+            Set<String> currentTabs = driver.getWindowHandles();
+            return currentTabs.stream()
+                    .filter(handle -> !initialTabs.contains(handle))
+                    .findFirst()
+                    .orElse(null);
+
         } catch (Exception e) {
-            log.warn("탭 닫기 중 오류: {}", e.getMessage());
+            log.error("격리된 탭 생성 실패: {}", e.getMessage());
+            return null;
         }
     }
 
     /**
-     * 다시 상품 상세페이지로 돌아가는 메서드
-     * @param originalTab 상세페이지 탭
-     * @param driver 현재 사용하기 있는 드라이버
+     * 실제 최종 URL을 추출하는 메서드
+     * @param driver 사용중이 드라이버
+     * @param url 처리할 URL
+     * @return 최종 구매 링크
      */
-    public void toDetailPage(String originalTab, WebDriver driver) {
-        //상품 상세피이지의 존재 여부 확인
-        if (originalTab == null) return;
-
+    private String extractFinalUrl(WebDriver driver, String url) {
         try {
-            // 현재 열린 탭들 확인
-            Set<String> openTabs = driver.getWindowHandles();
-
-            //탭들 중에서 원하는 탭 찾기
-            if (openTabs.contains(originalTab)) {
-                //상세 페이지 탭으로 반환
-                driver.switchTo().window(originalTab);
-            }else {
-                if (!openTabs.isEmpty()) {
-                    driver.switchTo().window(openTabs.iterator().next());
-                }
-            }
-
-        } catch (Exception e) {
-            log.error("탭 전환 중 오류: {}", e.getMessage());
-        }
-    }
-
-    /**
-     * 팝업창 무시하고 링크 추출 후 반환<br>
-     * "성인 인증", "로그인 필요" 등과 같은 모든 팝업창 무시
-     * @param driver 현재 사용하고 있는 크롬 드라이버
-     * @param url 들어간 페이지 URL
-     * @return (String)최종 페이지 URL 반환
-     */
-    public String withOutPopup(WebDriver driver, String url) {
-        String finalUrl = url;
-        try {
-            log.debug("WaitUtils를 사용한 페이지 로딩 시작: {}", url);
-
             // 페이지 로드
             driver.get(url);
+            // 페이지 로딩 대기
+            Thread.sleep(3000);
 
-            // 페이지가 완전히 로드되는지 확인
-            boolean loadSuccess = WaitUtils.waitForPageLoad(driver, INITIAL_PAGE_LOAD_TIMEOUT);
+            // 리다이렉션 완료 대기
+            String currentUrl = getSafeCurrentUrl(driver, url);
+            // 추가 리다이렉션 대기
+            Thread.sleep(2000);
 
-            if (!loadSuccess) {
-                log.warn("페이지 로딩 시간 초과, 현재 상태로 진행");
-            } else {
-                log.debug("페이지 로딩 완료 확인");
-            }
+            // 최종 URL 확인
+            return getSafeCurrentUrl(driver, currentUrl);
 
-            //초기 URL 추출
-            String initialUrl = getSafeCurrentUrl(driver, url);
-
-            try {
-                //라디렉션 감지를 위한 대기
-                Thread.sleep(REDIRECTION_WAIT_TIME * 1000);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                //현재 URL를 안전하게 추출
-                return getSafeCurrentUrl(driver, url);
-            }
-
-            // 현재 URL를 안전하게 추출
-            String currentUrl = getSafeCurrentUrl(driver, initialUrl);
-            //최종 URL를 안전화가 된 후 추출
-            finalUrl = WaitUtils.waitForUrlStabilization(driver, currentUrl, URL_STABILIZATION_TIMEOUT);
-
-            // 안정화된 URL이 null인 경우 현재 URL 사용
-            if (finalUrl == null) {
-                finalUrl = getSafeCurrentUrl(driver, url);
-                log.warn("URL 안정화 실패, 현재 URL 사용: {}", finalUrl);
-            }
-
-            // 페이지를 안전하게 이동하기 위해 10초 대기
-            WaitUtils.waitAfterNavigation(driver, 10);
-
-            // 최종 URL 한 번 더 확인
-            String verifiedUrl = getSafeCurrentUrl(driver, finalUrl);
-            if (!verifiedUrl.equals(finalUrl)) {
-                finalUrl = verifiedUrl;
-            }
-
-            log.debug("최종 완료 URL: {}", finalUrl);
-
-        } catch (TimeoutException e) {
-            log.debug("페이지 로딩 시간초과 발생 - 현재 URL로 대체");
-            finalUrl = getSafeCurrentUrl(driver, url);
-        } catch (WebDriverException e) {
-            log.debug("WebDriver 예외 발생: {}", e.getMessage());
-            finalUrl = getSafeCurrentUrl(driver, url);
         } catch (Exception e) {
-            log.error("예기치 못한 오류 발생: {}", e.getMessage());
-            finalUrl = getSafeCurrentUrl(driver, url);
+            log.debug("URL 추출 중 오류: {}", e.getMessage());
+            return getSafeCurrentUrl(driver, url);
         }
+    }
 
-        return finalUrl;
+    /**
+     * 모든 생성된 리소스를 완전히 정리하는 메서드
+     * @param driver 사용중이 드라이버
+     * @param newTab 정리할 새 탭
+     * @param originalTab 복귀할 원본 탭
+     * @param initialTabs 초기 탭 목록
+     */
+    private void performCompleteCleanup(WebDriver driver, String newTab, String originalTab, Set<String> initialTabs) {
+        try {
+            // 새 탭 정리
+            if (newTab != null && driver.getWindowHandles().contains(newTab)) {
+                driver.switchTo().window(newTab);
+                driver.close();
+                log.debug("새 탭 정리 완료");
+            }
+
+            //원본 탭 제외한 모든 탭 닫기
+            cleanupLeakedTabs(driver, initialTabs, originalTab);
+
+            //원본 탭으로 복귀
+            if (driver.getWindowHandles().contains(originalTab)) {
+                driver.switchTo().window(originalTab);
+                log.debug("원본 탭 복귀 완료");
+            }
+
+        } catch (Exception e) {
+            log.error("정리 작업 중 오류: {}", e.getMessage());
+            // 비상 복귀
+            try {
+                Set<String> remainingTabs = driver.getWindowHandles();
+                if (remainingTabs.contains(originalTab)) {
+                    //원본 탭이 있을 경우
+                    driver.switchTo().window(originalTab);
+                } else if (!remainingTabs.isEmpty()) {
+                    //원본 탭을 못 찾을 경우 옆 다른 탭 선택
+                    driver.switchTo().window(remainingTabs.iterator().next());
+                }
+            } catch (Exception ex) {
+                log.error("비상 복귀 실패: {}", ex.getMessage());
+            }
+        }
+    }
+
+    /**
+     * 탭들을 정리하는 메서드
+     */
+    private void cleanupLeakedTabs(WebDriver driver, Set<String> initialTabs, String originalTab) {
+        try {
+            //현재 탭목록
+            Set<String> currentTabs = driver.getWindowHandles();
+            //비교를 위해 현재 탭목록 복사
+            Set<String> leakedTabs = new HashSet<>(currentTabs);
+            //현재 탭목록에서 초기(목록페이지, 상세페이지)탭들 삭제
+            leakedTabs.removeAll(initialTabs);
+
+            //누수 탭 발견
+            if (!leakedTabs.isEmpty()) {
+                log.warn("탭 누수 감지: {}개", leakedTabs.size());
+                for (String leakedTab : leakedTabs) {
+                    //원본 탭을 제외한 모든 탭 닫기
+                    if (!leakedTab.equals(originalTab) && currentTabs.contains(leakedTab)) {
+                        driver.switchTo().window(leakedTab);
+                        driver.close();
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.error("누수 탭 정리 중 오류: {}", e.getMessage());
+        }
     }
 
     /**
@@ -238,12 +202,10 @@ public class FinalUrlResolver {
             String currentUrl = driver.getCurrentUrl();
             // null 또는  빈 문자열 체크
             if (currentUrl == null || currentUrl.trim().isEmpty()) {
-                log.debug("현재 URL이 null 또는 빈 문자열, 대체 URL 사용");
                 return fallbackUrl;
             }
             return currentUrl;
         } catch (Exception ex) {
-            log.debug("현재 URL 획득 실패, 대체 URL 사용: {}", ex.getMessage());
             return fallbackUrl;
         }
     }
