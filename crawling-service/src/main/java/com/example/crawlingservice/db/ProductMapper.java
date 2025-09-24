@@ -6,6 +6,8 @@ import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Options;
 import org.apache.ibatis.annotations.Select;
 
+import java.util.List;
+
 /**
  * insert 상품 저장<br>
  * selectByProductName 상품명과 브랜드로 Product 조회
@@ -29,4 +31,11 @@ public interface ProductMapper {
      */
     @Select("select * from product where product_name = #{productName} and brand = #{brand}")
     Product selectByProductName(String productName,String brand);
+
+    /**
+     * 모든 상품 조회
+     * @return 상품 목록
+     */
+    @Select("SELECT * FROM product")
+    List<Product> selectAll();
 }
