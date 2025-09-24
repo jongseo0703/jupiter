@@ -37,20 +37,23 @@ public class CategoryService {
 
         String topName;
         String subName;
-        //상품 종류 =null일 경우 topName = "기타"로 파싱
-        if(StringUtils.hasText(productKind)){
+        if(StringUtils.hasText(category) && StringUtils.hasText(productKind)){
+            //상품 주종, 종류 전부 존재 할 경우
             topName = category;
             subName = productKind;
-        }else {
+        }else if(StringUtils.hasText(category) && !StringUtils.hasText(productKind)){
+            //상품 종류 =null일 경우 topName = "기타"로 파싱
             topName = "기타";
             subName = category;
+        }else {
+            //주종,종류 모두 null일 경우 "기타" 로 파싱
+            topName= "기타";
+            subName = "기타";
         }
         //상위 카테고리 저장
         TopCategory topCategory = saveTopCategory(topName);
         //하위 카테고리 저장
-        SubCategory subCategory = saveSubCategory(subName,topCategory);
-
-        return subCategory;
+        return saveSubCategory(subName,topCategory);
     }
 
     /**
@@ -86,7 +89,7 @@ public class CategoryService {
      */
     public SubCategory saveSubCategory(String subName, TopCategory topCategory) {
         // 먼저 기존 카테고리 조회
-        SubCategory existing = subCategoryMapper.getSubCategory(subName);
+        SubCategory existing = subCategoryMapper.getSubCategoryByName(subName);
         if (existing != null) {
             log.debug("📂 기존 하위카테고리 사용: {} (ID: {})", subName, existing.getSubCategoryId());
             return existing;
