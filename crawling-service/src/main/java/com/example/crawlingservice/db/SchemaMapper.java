@@ -135,6 +135,37 @@ public interface SchemaMapper {
     void createReviewTable();
 
     /**
+     * 가격로그 테이블 생성 메서드
+     */
+    @Update("""
+    CREATE TABLE IF NOT EXISTS price_log (
+        price_log INT AUTO_INCREMENT PRIMARY KEY,
+        price INT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        price_id INT NOT NULL,
+        FOREIGN KEY (price_id) REFERENCES price(price_id)
+            ON DELETE CASCADE
+            ON UPDATE CASCADE
+    )
+    """)
+    void createPriceLogTable();
+
+    /**
+     * 재고 테이블 생성 메서드
+     */
+    @Update("""
+    CREATE TABLE IF NOT EXISTS stock (
+        stock_id INT AUTO_INCREMENT PRIMARY KEY,
+        is_available BOOLEAN,
+        product_id INT NOT NULL,
+        FOREIGN KEY (product_id) REFERENCES product(product_id)
+            ON DELETE CASCADE
+            ON UPDATE CASCADE
+    )
+    """)
+    void createStockTable();
+
+    /**
      * 모든 테이블을 순서대로 생성하는 메서드
      */
     default void createAllTables() {
@@ -142,8 +173,10 @@ public interface SchemaMapper {
         createSubCategoryTable();
         createShopTable();
         createProductTable();
+        createStockTable();
         createProductShopTable();
         createPriceTable();
+        createPriceLogTable();
         createReviewTable();
     }
 
