@@ -1,7 +1,9 @@
 package com.example.crawlingservice.service;
 
+import com.example.crawlingservice.db.PriceLogMapper;
 import com.example.crawlingservice.db.PriceMapper;
 import com.example.crawlingservice.domain.Price;
+import com.example.crawlingservice.domain.PriceLog;
 import com.example.crawlingservice.domain.ProductShop;
 import com.example.crawlingservice.dto.PriceDTO;
 import lombok.RequiredArgsConstructor;
@@ -18,6 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class PriceService {
     private final PriceMapper priceMapper;
+    private final PriceLogMapper priceLogMapper;
 
     /**
      * 가격정보 저장하는 메서드<br>
@@ -28,8 +31,19 @@ public class PriceService {
     public void savePrice(PriceDTO priceDTO, ProductShop productShop) {
         // 기존 가격 정보 조회
         Price existing = priceMapper.selectByProductShopId(productShop.getProductShopId());
+        PriceLog priceLog = new PriceLog();
 
         if (existing != null) {
+
+            if(existing.getPrice() != priceDTO.getPrice()){
+                priceLog.setNewPrice(existing.getPrice());
+                priceLog.setPrice(existing);
+                int result =priceLogMapper.insert(priceLog);
+
+                if (result > 0) {
+                    log.debug("변경 가격 로그 저장");
+                }
+            }
             // 기존 가격이 있으면 업데이트
             existing.setPrice(priceDTO.getPrice());
             existing.setDeliveryFee(priceDTO.getDeliveryFee());
@@ -45,8 +59,15 @@ public class PriceService {
             newPrice.setProductShop(productShop);
 
             priceMapper.insert(newPrice);
-            log.debug("🆕 새 가격 정보 생성: {}원 (배송비: {}원)",
-                    priceDTO.getPrice(), priceDTO.getDeliveryFee());
+            log.debug("🆕 새 가격 정보 생성: {}원 (배송비: {}원)", priceDTO.getPrice(), priceDTO.getDeliveryFee());
+
+            //가격 로그 저장
+            priceLog.setNewPrice(newPrice.getPrice());
+            priceLog.setPrice(newPrice);
+            int result =priceLogMapper.insert(priceLog);
+            if (result > 0) {
+                log.debug("가격을 로그에 저장");
+            }
         }
     }
 }
