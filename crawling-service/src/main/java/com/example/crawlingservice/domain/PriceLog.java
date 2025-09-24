@@ -7,7 +7,7 @@ import java.sql.Timestamp;
 @Data
 public class PriceLog {
     //가격 로그 고유 아이디
-    private int priceId;
+    private int priceLogId;
     //변경 가격
     private int newPrice;
     //생성날짜
