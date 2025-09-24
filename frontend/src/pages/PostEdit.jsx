@@ -662,7 +662,7 @@ function PostEdit() {
                     </div>
                     <div className="flex items-start space-x-2">
                       <i className="fas fa-trash text-red-500 mt-1 text-xs"></i>
-                      <span>개별 첨부파일 삭제는 X 버튼을 클릭하세요</span>
+                      <span>개별 첨부파일 삭제는 <span className="inline-flex items-center justify-center w-4 h-4 bg-red-500 text-white rounded-full text-xs font-bold">×</span> 버튼을 클릭하세요</span>
                     </div>
                   </div>
                 </div>
