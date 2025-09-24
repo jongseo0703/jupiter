@@ -33,16 +33,15 @@ public class ReviewService {
         for (ReviewDTO reviewDTO : reviewDTOList) {
             ProductShop productShop = null;
             try {
-                // 1. 리뷰에서 언급된 상점 찾기
+                //리뷰의 상점 찾기
                 Integer productShopId =productShopMapper.getProductShopId(reviewDTO.getShopName(),product.getProductId());
-                log.info("productShopId:{}",productShopId);
                 if(productShopId != null){
                     productShop = productShopMapper.selectByProductShopId(productShopId);
                 }
 
                 if (productShop == null) {
-                    log.warn("🔗 상품-상점 연결을 찾을 수 없음");
-                    continue; // 연결이 없으면 리뷰 저장 스킵
+                    // 연결이 없으면 리뷰 저장 스킵
+                    continue;
                 }
 
                 // 3. 중복 리뷰 체크 (같은 작성자가 같은 상품-상점에 리뷰 작성)
@@ -50,9 +49,8 @@ public class ReviewService {
                         productShop.getProductShopId(),reviewDTO.getReviewer());
 
                 if (existingReview != null) {
-                    log.debug("📝 기존 리뷰 발견, 저장 스킵: {} - {}",
-                            reviewDTO.getReviewer(), reviewDTO.getTitle());
-                    continue; // 중복 리뷰는 저장하지 않음
+                    // 중복 리뷰는 저장하지 않음
+                    continue;
                 }
 
                 // 4. 새 리뷰 저장
@@ -65,8 +63,6 @@ public class ReviewService {
                 newReview.setProductShop(productShop);
 
                 reviewMapper.insert(newReview);
-                log.debug("🆕 새 리뷰 저장: {} - {} (평점: {}점)",
-                        reviewDTO.getReviewer(), reviewDTO.getTitle(), reviewDTO.getStar());
 
             } catch (Exception e) {
                 log.error("📝 리뷰 저장 실패: {} - {}", reviewDTO.getReviewer(), e.getMessage());

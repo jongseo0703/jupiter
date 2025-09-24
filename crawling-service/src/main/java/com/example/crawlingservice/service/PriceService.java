@@ -34,8 +34,9 @@ public class PriceService {
         PriceLog priceLog = new PriceLog();
 
         if (existing != null) {
-
+            //DB에 저장된 가격과 priceDTO 가격 비교
             if(existing.getPrice() != priceDTO.getPrice()){
+                //가격이 다를 경우 price_log에 저장
                 priceLog.setNewPrice(existing.getPrice());
                 priceLog.setPrice(existing);
                 int result =priceLogMapper.insert(priceLog);
@@ -49,8 +50,6 @@ public class PriceService {
             existing.setDeliveryFee(priceDTO.getDeliveryFee());
 
             priceMapper.update(existing);
-            log.debug("💰 가격 정보 업데이트: {}원 (배송비: {}원)",
-                    priceDTO.getPrice(), priceDTO.getDeliveryFee());
         } else {
             // 새 가격 정보 생성
             Price newPrice = new Price();
@@ -59,9 +58,8 @@ public class PriceService {
             newPrice.setProductShop(productShop);
 
             priceMapper.insert(newPrice);
-            log.debug("🆕 새 가격 정보 생성: {}원 (배송비: {}원)", priceDTO.getPrice(), priceDTO.getDeliveryFee());
 
-            //가격 로그 저장
+            //초기가격 로그 저장
             priceLog.setNewPrice(newPrice.getPrice());
             priceLog.setPrice(newPrice);
             int result =priceLogMapper.insert(priceLog);

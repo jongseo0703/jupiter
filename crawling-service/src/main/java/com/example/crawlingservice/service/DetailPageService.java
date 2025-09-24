@@ -150,12 +150,10 @@ public class DetailPageService {
 
                 //최대페이지 도달
                 if(pageCount > MAX_PAGES){
-                    log.debug("최대 패이지 도달했습니다");
                     break;
                 }
                 //마지막페이지 도달
                 if(next.isEmpty()){
-                    log.debug("리뷰 마지막패이지 도달했습니다");
                     break;
                 }
 
@@ -178,11 +176,9 @@ public class DetailPageService {
                 html = driver.getPageSource();
 
             }catch (InterruptedException e){
-                log.debug("리뷰 수집 중 스레드 중단");
                 Thread.currentThread().interrupt();
                 break;
             }catch (TimeoutException e){
-                log.debug("페이딩 로딩 시간 초과");
                 break;
             }catch (NoSuchElementException e){
                 log.debug("다음 버튼을 찾을 수 없음");
@@ -218,8 +214,9 @@ public class DetailPageService {
     public List<String> getCategory(Document doc){
         List<String> ck = new ArrayList<>();
         Element root =
-                doc.selectFirst("table:has(th:matchesOwn(^\\s*주종\\s*$)), " +   // '주종' th를 가진 테이블
-                        "#infoBottom, #productSpec, .prod_spec, .detail_info"); // 페이지별 ID/클래스
+                // '주종' th를 가진 테이블
+                doc.selectFirst("table:has(th:matchesOwn(^\\s*주종\\s*$)), " +
+                        "#infoBottom, #productSpec, .prod_spec, .detail_info");
         String category = null;
         String kind     = null;
         if(root != null){

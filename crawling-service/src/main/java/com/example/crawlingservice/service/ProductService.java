@@ -32,7 +32,6 @@ public class ProductService {
         Product existing = productMapper.selectByProductName(
                 productDTO.getProductName(), productDTO.getBrand());
         if (existing != null) {
-            log.debug("🔄 기존 상품 발견: {} (ID: {})", existing.getProductName(), existing.getProductId());
             return existing;
         }
 
@@ -47,7 +46,6 @@ public class ProductService {
         product.setSubCategory(subCategory);
 
         productMapper.insert(product);
-        log.debug("🆕 새 상품 생성: {} (ID: {})", product.getProductName(), product.getProductId());
 
         //재고 정보 저장
         Stock stock = new Stock();

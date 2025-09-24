@@ -66,7 +66,6 @@ public class CategoryService {
         // 먼저 기존 카테고리 조회
         TopCategory existing = topCategoryMapper.getTopCategory(topName);
         if (existing != null) {
-            log.debug("📁 기존 상위카테고리 사용: {} (ID: {})", topName, existing.getTopCategoryId());
             return existing;
         }
 
@@ -75,8 +74,6 @@ public class CategoryService {
         newTopCategory.setTopName(topName);
 
         topCategoryMapper.insert(newTopCategory);
-        log.debug("🆕 새 상위카테고리 생성: {} (ID: {})", topName, newTopCategory.getTopCategoryId());
-
         return newTopCategory;
     }
 
@@ -91,7 +88,6 @@ public class CategoryService {
         // 먼저 기존 카테고리 조회
         SubCategory existing = subCategoryMapper.getSubCategoryByName(subName);
         if (existing != null) {
-            log.debug("📂 기존 하위카테고리 사용: {} (ID: {})", subName, existing.getSubCategoryId());
             return existing;
         }
 
@@ -101,8 +97,6 @@ public class CategoryService {
         newSubCategory.setTopCategory(topCategory);
 
         subCategoryMapper.insert(newSubCategory);
-        log.debug("🆕 새 하위카테고리 생성: {} (ID: {})", subName, newSubCategory.getSubCategoryId());
-
         return newSubCategory;
     }
 }
