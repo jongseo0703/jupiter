@@ -2,6 +2,7 @@ package com.example.crawlingservice.service;
 
 import com.example.crawlingservice.db.ProductShopMapper;
 import com.example.crawlingservice.db.ReviewMapper;
+import com.example.crawlingservice.domain.Product;
 import com.example.crawlingservice.domain.ProductShop;
 import com.example.crawlingservice.domain.Review;
 import com.example.crawlingservice.dto.ReviewDTO;
@@ -28,11 +29,16 @@ public class ReviewService {
      * 같은 작성자 및 상품 리뷰을 경우 반환
      * @param reviewDTOList 리뷰 정보 목록
      */
-    public void saveReview(List<ReviewDTO> reviewDTOList) {
+    public void saveReview(List<ReviewDTO> reviewDTOList, Product product) {
         for (ReviewDTO reviewDTO : reviewDTOList) {
+            ProductShop productShop = null;
             try {
                 // 1. 리뷰에서 언급된 상점 찾기
-                ProductShop productShop = productShopMapper.selectByShopName(reviewDTO.getShopName());
+                Integer productShopId =productShopMapper.getProductShopId(reviewDTO.getShopName(),product.getProductId());
+                log.info("productShopId:{}",productShopId);
+                if(productShopId != null){
+                    productShop = productShopMapper.selectByProductShopId(productShopId);
+                }
 
                 if (productShop == null) {
                     log.warn("🔗 상품-상점 연결을 찾을 수 없음");
