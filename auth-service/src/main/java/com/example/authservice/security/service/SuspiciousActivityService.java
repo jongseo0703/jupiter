@@ -50,36 +50,9 @@ public class SuspiciousActivityService {
       return;
     }
 
-    // 의심스러운 활동 감지
-    if (successful) {
-      checkForSuspiciousLogin(user, ipAddress, userAgent);
-    } else {
+    // 비밀번호 실패 시에만 체크 (IP/브라우저 변경 감지 완전 제거)
+    if (!successful) {
       checkForMultipleFailedAttempts(user, ipAddress, userAgent);
-    }
-  }
-
-  private void checkForSuspiciousLogin(User user, String ipAddress, String userAgent) {
-    // 1. 새로운 IP 체크
-    List<String> knownIps = loginHistoryRepository.findDistinctSuccessfulIpsByUser(user);
-    if (!knownIps.contains(ipAddress)) {
-      recordSuspiciousActivity(
-          user,
-          SuspiciousActivity.ActivityType.UNUSUAL_IP_LOGIN,
-          ipAddress,
-          userAgent,
-          "새로운 IP 주소에서 로그인: " + ipAddress);
-    }
-
-    // 2. 새로운 기기/브라우저 체크
-    List<String> knownUserAgents =
-        loginHistoryRepository.findDistinctSuccessfulUserAgentsByUser(user);
-    if (!knownUserAgents.contains(userAgent)) {
-      recordSuspiciousActivity(
-          user,
-          SuspiciousActivity.ActivityType.NEW_DEVICE_LOGIN,
-          ipAddress,
-          userAgent,
-          "새로운 기기/브라우저에서 로그인: " + extractBrowserInfo(userAgent));
     }
   }
 
@@ -150,16 +123,5 @@ public class SuspiciousActivityService {
 
   public List<LoginHistory> getLoginHistory(User user) {
     return loginHistoryRepository.findByUserOrderByLoginTimeDesc(user);
-  }
-
-  private String extractBrowserInfo(String userAgent) {
-    if (userAgent == null) return "Unknown";
-
-    if (userAgent.contains("Chrome")) return "Chrome";
-    if (userAgent.contains("Firefox")) return "Firefox";
-    if (userAgent.contains("Safari")) return "Safari";
-    if (userAgent.contains("Edge")) return "Edge";
-
-    return "Unknown Browser";
   }
 }
