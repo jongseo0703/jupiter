@@ -30,7 +30,8 @@ public class DailyScheduler {
     /**
      * 매일 서울 기준으로 자정에 자동으로 실행되는 스케줄러 메서드
      */
-    @Scheduled(cron = "0 0 0 * * *", zone = "Asia/Seoul")
+//    @Scheduled(cron = "0 0 0 * * *", zone = "Asia/Seoul")
+    @Scheduled(initialDelay = 60000, fixedDelay = Long.MAX_VALUE) // 테스트용
     public void dailySchedule() {
 
         try {
