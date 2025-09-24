@@ -27,7 +27,7 @@ function PostEdit() {
   const [deletedAttachments, setDeletedAttachments] = useState([]); // 삭제된 첨부파일 ID 추적
 
   // 파일 업로드 훅 사용
-  const { previewImages, handleFileUpload, removeFile } = useFileUpload(formData, setFormData);
+  const { previewImages, handleFileUpload, removeFile } = useFileUpload(setFormData);
 
   const alcoholIcons = [
     '🍷', // 와인잔

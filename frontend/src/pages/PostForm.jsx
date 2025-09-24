@@ -29,7 +29,7 @@ function PostForm() {
   const [popularTab, setPopularTab] = useState('views'); // 'views' 또는 'likes'
 
   // 파일 업로드 훅 사용
-  const { previewImages, handleFileUpload, removeFile } = useFileUpload(formData, setFormData);
+  const { previewImages, handleFileUpload, removeFile } = useFileUpload(setFormData);
 
   const categories = KOREAN_CATEGORIES;
 
