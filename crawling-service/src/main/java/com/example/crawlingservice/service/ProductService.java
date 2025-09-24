@@ -2,6 +2,7 @@ package com.example.crawlingservice.service;
 
 import com.example.crawlingservice.db.*;
 import com.example.crawlingservice.domain.Product;
+import com.example.crawlingservice.domain.Stock;
 import com.example.crawlingservice.domain.SubCategory;
 import com.example.crawlingservice.dto.ProductDTO;
 import lombok.RequiredArgsConstructor;
@@ -18,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class ProductService {
     private final ProductMapper productMapper;
+    private final StockMapper stockMapper;
 
     /**
      *  상품정보 저장하는 메서드
@@ -46,6 +48,15 @@ public class ProductService {
 
         productMapper.insert(product);
         log.debug("🆕 새 상품 생성: {} (ID: {})", product.getProductName(), product.getProductId());
+
+        //재고 정보 저장
+        Stock stock = new Stock();
+        stock.setAvailable(true);
+        stock.setProduct(product);
+        int result = stockMapper.insert(stock);
+        if (result == 1) {
+            log.debug("재고 정보 저장 성공");
+        }
 
         return product;
     }
