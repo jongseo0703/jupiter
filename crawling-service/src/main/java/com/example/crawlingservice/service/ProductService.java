@@ -39,7 +39,7 @@ public class ProductService {
         product.setProductName(productDTO.getProductName());
         product.setDescription(productDTO.getContent());
         product.setBrand(productDTO.getBrand());
-        product.setAlcohol_percentage(productDTO.getAlcohol());
+        product.setAlcoholPercentage(productDTO.getAlcohol());
         product.setUrl(productDTO.getImageUrl());
         product.setVolume(productDTO.getVolume());
         product.setSubCategory(subCategory);
