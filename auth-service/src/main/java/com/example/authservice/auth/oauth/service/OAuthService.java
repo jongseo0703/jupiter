@@ -1,5 +1,6 @@
 package com.example.authservice.auth.oauth.service;
 
+import java.time.LocalDateTime;
 import java.util.Map;
 import java.util.Optional;
 
@@ -15,7 +16,9 @@ import com.example.authservice.auth.oauth.dto.OAuthUserInfo;
 import com.example.authservice.auth.security.JwtTokenProvider;
 import com.example.authservice.auth.token.RefreshTokenService;
 import com.example.authservice.user.entity.Role;
+import com.example.authservice.user.entity.SecuritySettings;
 import com.example.authservice.user.entity.User;
+import com.example.authservice.user.repository.SecuritySettingsRepository;
 import com.example.authservice.user.repository.UserRepository;
 
 import lombok.RequiredArgsConstructor;
@@ -27,6 +30,7 @@ import lombok.extern.slf4j.Slf4j;
 public class OAuthService {
 
   private final UserRepository userRepository;
+  private final SecuritySettingsRepository securitySettingsRepository;
   private final JwtTokenProvider jwtTokenProvider;
   private final RefreshTokenService refreshTokenService;
   private final AdminNotificationService adminNotificationService;
@@ -119,6 +123,17 @@ public class OAuthService {
 
     User savedUser = userRepository.save(newUser);
     log.info("Created new OAuth user: {}", savedUser.getUsername());
+
+    // 기본 보안 설정 생성
+    SecuritySettings securitySettings =
+        SecuritySettings.builder()
+            .user(savedUser)
+            .twoFactorEnabled(false)
+            .suspiciousActivityAlerts(true)
+            .passwordChangePeriodDays(90)
+            .lastPasswordChange(LocalDateTime.now())
+            .build();
+    securitySettingsRepository.save(securitySettings);
 
     // 관리자에게 OAuth 회원가입 알림 생성
     adminNotificationService.createUserRegistrationNotification(

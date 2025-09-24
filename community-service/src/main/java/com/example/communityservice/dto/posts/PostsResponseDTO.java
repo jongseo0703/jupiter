@@ -7,6 +7,7 @@ import java.util.stream.Collectors;
 import com.example.communityservice.dto.comments.CommentsResponseDTO;
 import com.example.communityservice.entity.PostCategory;
 import com.example.communityservice.entity.Posts;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
@@ -39,6 +40,10 @@ public class PostsResponseDTO {
   @Schema(description = "작성자명", example = "익명123")
   private String authorName;
 
+  @Schema(description = "작성자 ID (회원인 경우만)", example = "123")
+  @JsonProperty("author_id")
+  private Long authorId;
+
   @Schema(description = "익명 사용자 여부", example = "true")
   private Boolean isAnonymous;
 
@@ -47,6 +52,9 @@ public class PostsResponseDTO {
 
   @Schema(description = "좋아요 수", example = "25")
   private Integer likes;
+
+  @Schema(description = "현재 사용자가 좋아요를 눌렀는지 여부", example = "true")
+  private Boolean isLikedByCurrentUser;
 
   @Schema(description = "댓글 수", example = "8")
   private Integer commentsCount;
@@ -79,6 +87,7 @@ public class PostsResponseDTO {
         .title(post.getTitle())
         .content(post.getContent())
         .authorName(post.getAuthors().getDisplayAuthorName())
+        .authorId(post.getAuthors().getUserId()) // 회원 사용자의 ID 추가
         .isAnonymous(post.getAuthors().getIsAnonymous())
         .views(post.getViews())
         .likes(post.getLikes())

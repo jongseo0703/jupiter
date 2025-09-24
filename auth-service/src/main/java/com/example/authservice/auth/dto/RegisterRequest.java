@@ -37,5 +37,12 @@ public record RegisterRequest(
     if (phone != null && phone.trim().isEmpty()) {
       throw new IllegalArgumentException("Phone cannot be blank");
     }
+    // phone 번호에서 하이픈 제거하여 재할당
+    phone = phone != null ? phone.replaceAll("-", "") : phone;
+  }
+
+  // 하이픈이 제거된 phone 번호를 반환하는 메서드
+  public String normalizedPhone() {
+    return phone != null ? phone.replaceAll("-", "") : phone;
   }
 }

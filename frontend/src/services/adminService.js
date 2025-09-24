@@ -141,6 +141,49 @@ class AdminService {
       }, 500);
     });
   }
+
+  // 시스템 모니터링 기능들
+  async getSystemStatus() {
+    try {
+      const response = await apiService.get('/auth/api/v1/admin/system/status');
+      if (response.result === 'SUCCESS') {
+        return response.data;
+      } else {
+        throw new Error(response.message || '시스템 상태 조회에 실패했습니다.');
+      }
+    } catch (error) {
+      console.error('System status error:', error);
+      throw error;
+    }
+  }
+
+  async getDetailedMetrics() {
+    try {
+      const response = await apiService.get('/auth/api/v1/admin/system/metrics');
+      if (response.result === 'SUCCESS') {
+        return response.data;
+      } else {
+        throw new Error(response.message || '메트릭스 조회에 실패했습니다.');
+      }
+    } catch (error) {
+      console.error('Detailed metrics error:', error);
+      throw error;
+    }
+  }
+
+  async healthCheck() {
+    try {
+      const response = await apiService.get('/auth/api/v1/admin/system/health');
+      if (response.result === 'SUCCESS') {
+        return response.data;
+      } else {
+        throw new Error(response.message || '헬스체크에 실패했습니다.');
+      }
+    } catch (error) {
+      console.error('Health check error:', error);
+      throw error;
+    }
+  }
 }
 
 export default new AdminService();

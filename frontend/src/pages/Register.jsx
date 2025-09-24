@@ -142,7 +142,7 @@ const Register = () => {
 
         try {
             const response = await apiService.post('/auth/api/v1/auth/send-verification', {
-                phoneNumber: formData.phone
+                phoneNumber: formData.phone.replace(/-/g, '')
             });
 
             // apiService는 성공 시 JSON을 반환하므로 별도 체크 불필요
@@ -183,7 +183,7 @@ const Register = () => {
 
         try {
             const response = await apiService.post('/auth/api/v1/auth/verify-phone', {
-                phoneNumber: formData.phone,
+                phoneNumber: formData.phone.replace(/-/g, ''),
                 verificationCode: phoneVerification.verificationCode
             });
 
@@ -220,7 +220,7 @@ const Register = () => {
                 name: formData.name, // authService에서 username으로 변환됨
                 email: formData.email,
                 password: formData.password,
-                phone: formData.phone
+                phone: formData.phone.replace(/-/g, '')
             };
 
             await authService.register(registerData);

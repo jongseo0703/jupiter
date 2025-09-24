@@ -53,7 +53,7 @@ public class Posts {
   @Builder.Default
   private Integer likes = 0;
 
-  @Column(name = "tags", length = 1000)
+  @Column(name = "tags", columnDefinition = "JSON")
   private String tags;
 
   @CreationTimestamp
@@ -72,6 +72,10 @@ public class Posts {
   @OneToMany(mappedBy = "post", cascade = CascadeType.ALL, orphanRemoval = true)
   @Builder.Default
   private List<PostAttachments> attachments = new ArrayList<>();
+
+  @OneToMany(mappedBy = "post", cascade = CascadeType.ALL, orphanRemoval = true)
+  @Builder.Default
+  private List<PostLikes> postLikes = new ArrayList<>();
 
   // 비즈니스 메서드
   public void increaseViews() {

@@ -26,6 +26,11 @@ import AdminPanel from './pages/AdminPanel';
 import AdminUsers from './pages/AdminUsers';
 import AdminProducts from './pages/AdminProducts';
 import AdminNotifications from './pages/AdminNotifications';
+import LikedPosts from './pages/LikedPosts';
+import MyPosts from './pages/MyPosts';
+import AdminSystemMonitoring from './pages/AdminSystemMonitoring';
+import SecuritySettings from './pages/SecuritySettings';
+import PasswordChangeRequired from './pages/PasswordChangeRequired';
 
 function ScrollToTop() {
   const { pathname } = useLocation();
@@ -59,17 +64,22 @@ function App() {
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
             <Route path="/mypage" element={<MyPage />} />
+            <Route path="/mypage/liked-posts" element={<LikedPosts />} />
+            <Route path="/mypage/my-posts" element={<MyPosts />} />
             <Route path="/terms" element={<Terms />} />
             <Route path="/privacy" element={<Privacy />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/pages" element={<PagesList />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/notification-settings" element={<NotificationSettings />} />
+            <Route path="/security-settings" element={<SecuritySettings />} />
+            <Route path="/password-change-required" element={<PasswordChangeRequired />} />
             <Route path="/help" element={<Help />} />
             <Route path="/admin" element={<AdminPanel />} />
             <Route path="/admin/users" element={<AdminUsers />} />
             <Route path="/admin/products" element={<AdminProducts />} />
             <Route path="/admin/notifications" element={<AdminNotifications />} />
+            <Route path="/admin/system-monitoring" element={<AdminSystemMonitoring />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </main>

@@ -106,4 +106,44 @@ public class JwtTokenProvider {
         Jwts.parser().verifyWith(key).build().parseSignedClaims(token).getPayload().getExpiration();
     return expiration.getTime() - System.currentTimeMillis();
   }
+
+  /** 2FA를 위한 임시 토큰 생성 (5분 유효) */
+  public String generateTempToken(Long userId, String email) {
+    Date now = new Date();
+    Date expiration = new Date(now.getTime() + 5 * 60 * 1000); // 5분
+
+    return Jwts.builder()
+        .subject(email)
+        .claim("userId", userId.toString())
+        .claim("type", "temp") // 임시 토큰 표시
+        .issuedAt(now)
+        .expiration(expiration)
+        .signWith(key)
+        .compact();
+  }
+
+  /** 임시 토큰에서 사용자 ID 추출 */
+  public Long getUserIdFromTempToken(String token) {
+    try {
+      log.debug("Parsing temp token: {}", token);
+      Claims claims = Jwts.parser().verifyWith(key).build().parseSignedClaims(token).getPayload();
+
+      // 임시 토큰인지 확인
+      String tokenType = claims.get("type", String.class);
+      log.debug("Token type: {}", tokenType);
+      if (!"temp".equals(tokenType)) {
+        throw new IllegalArgumentException("Invalid token type");
+      }
+
+      String userIdStr = claims.get("userId", String.class);
+      log.debug("UserIdStr from temp token: {}", userIdStr);
+      return Long.parseLong(userIdStr);
+    } catch (NumberFormatException e) {
+      log.error("Number format error in temp token parsing: {}", e.getMessage());
+      throw new IllegalArgumentException("Invalid user ID in temp token", e);
+    } catch (Exception e) {
+      log.error("Error parsing temp token: {}", e.getMessage());
+      throw e;
+    }
+  }
 }
