@@ -29,7 +29,7 @@ function PostForm() {
   const [popularTab, setPopularTab] = useState('views'); // 'views' 또는 'likes'
 
   // 파일 업로드 훅 사용
-  const { previewImages, handleFileUpload, removeFile } = useFileUpload(formData, setFormData);
+  const { previewImages, handleFileUpload, removeFile } = useFileUpload(setFormData);
 
   const categories = KOREAN_CATEGORIES;
 
@@ -67,7 +67,6 @@ function PostForm() {
     queryKey: ['popularPosts', '전체', 1],
     queryFn: fetchPopularPosts,
     enabled: popularTab === 'views',
-    staleTime: 5 * 60 * 1000, // 5분간 fresh 상태 유지
   });
 
   // 인기 게시글 조회 (좋아요 순)
@@ -75,7 +74,6 @@ function PostForm() {
     queryKey: ['popularPostsByLikes', '전체', 1],
     queryFn: fetchPopularPostsByLikes,
     enabled: popularTab === 'likes',
-    staleTime: 5 * 60 * 1000, // 5분간 fresh 상태 유지
   });
 
   const popularPosts = popularTab === 'views'

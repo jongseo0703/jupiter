@@ -194,7 +194,7 @@ export const fetchPosts = async ({ queryKey }) => {
   }
 
   queryParams.append('page', (page - 1).toString());
-  queryParams.append('size', '5');
+  queryParams.append('size', '10');
 
   const response = await fetch(`${COMMUNITY_API_URL}/posts?${queryParams.toString()}`);
   const pageData = await handleQueryApiResponse(response);
@@ -304,9 +304,10 @@ export const fetchPopularPostsByLikes = async ({ queryKey }) => {
 /**
  * 게시물 상세 정보를 조회하는 API 함수 (React Query용)
  * @param {object} queryKey - React Query에서 제공하는 쿼리 키
+ * @param {object} context - React Query context (meta 정보 포함)
  * @returns {Promise<Object>} - 변환된 게시물 상세 정보
  */
-export const fetchPost = async ({ queryKey }) => {
+export const fetchPost = async ({ queryKey, meta }) => {
   const [_key, postId] = queryKey;
 
   // 로그인한 경우 Authorization 헤더 추가
@@ -316,7 +317,11 @@ export const fetchPost = async ({ queryKey }) => {
     headers.Authorization = `Bearer ${token}`;
   }
 
-  const response = await fetch(`${COMMUNITY_API_URL}/posts/${postId}`, {
+  // meta에서 incrementView 값 확인 (기본값: true)
+  const incrementView = meta?.incrementView !== false;
+  const url = `${COMMUNITY_API_URL}/posts/${postId}${incrementView ? '' : '?incrementView=false'}`;
+
+  const response = await fetch(url, {
     headers,
   });
   const postData = await handleQueryApiResponse(response);
@@ -597,7 +602,7 @@ export const fetchAllTags = async () => {
  */
 export const fetchUserLikedPosts = async ({ queryKey }) => {
   const [, userId, page] = queryKey;
-  const size = 5; // 페이지 당 게시물 수
+  const size = 10; // 페이지 당 게시물 수
 
   const headers = {};
   const token = localStorage.getItem('accessToken');
@@ -648,7 +653,7 @@ export const fetchUserLikedPosts = async ({ queryKey }) => {
  */
 export const fetchUserPosts = async ({ queryKey }) => {
   const [, userId, page] = queryKey;
-  const size = 5; // 페이지 당 게시물 수
+  const size = 10; // 페이지 당 게시물 수
 
   const headers = {};
   const token = localStorage.getItem('accessToken');

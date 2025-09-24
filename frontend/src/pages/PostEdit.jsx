@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { getEnglishCategory, KOREAN_CATEGORIES } from '../utils/categoryUtils';
 import { useFileUpload } from '../hooks/useFileUpload';
 import { categorizeAttachments } from '../utils/fileUtils';
-import { fetchPopularPosts, fetchPost, updatePost, deleteAttachment, uploadAttachments } from '../services/api';
+import { fetchPopularPosts, fetchPopularPostsByLikes, fetchPost, updatePost, deleteAttachment, uploadAttachments } from '../services/api';
 import authService from '../services/authService';
 
 function PostEdit() {
@@ -25,9 +25,10 @@ function PostEdit() {
   const [tagList, setTagList] = useState([]);
   const [currentIconIndex, setCurrentIconIndex] = useState(0);
   const [deletedAttachments, setDeletedAttachments] = useState([]); // 삭제된 첨부파일 ID 추적
+  const [popularTab, setPopularTab] = useState('views'); // 'views' 또는 'likes'
 
   // 파일 업로드 훅 사용
-  const { previewImages, handleFileUpload, removeFile } = useFileUpload(formData, setFormData);
+  const { previewImages, handleFileUpload, removeFile } = useFileUpload(setFormData);
 
   const alcoholIcons = [
     '🍷', // 와인잔
@@ -40,14 +41,23 @@ function PostEdit() {
     '🍸'  // 칵테일
   ];
 
-  // 인기 게시글 조회 (전체 카테고리, 첫 번째 페이지, 조회수 순 정렬)
+  // 인기 게시글 조회 (조회수 순)
   const { data: popularPostsData } = useQuery({
     queryKey: ['popularPosts', '전체', 1],
     queryFn: fetchPopularPosts,
-    staleTime: 5 * 60 * 1000, // 5분간 fresh 상태 유지
+    enabled: popularTab === 'views',
   });
 
-  const popularPosts = popularPostsData?.posts || [];
+  // 인기 게시글 조회 (좋아요 순)
+  const { data: popularPostsByLikesData } = useQuery({
+    queryKey: ['popularPostsByLikes', '전체', 1],
+    queryFn: fetchPopularPostsByLikes,
+    enabled: popularTab === 'likes',
+  });
+
+  const popularPosts = popularTab === 'views'
+    ? (popularPostsData?.posts || [])
+    : (popularPostsByLikesData?.posts || []);
 
   // currentUser는 useState로 관리됨
 
@@ -221,7 +231,9 @@ function PostEdit() {
       }
 
       alert('게시글이 성공적으로 수정되었습니다!');
-      navigate(`/post/${id}`);
+      navigate(`/post/${id}`, {
+        state: { incrementView: false } // 수정 후 이동 시 조회수 증가 방지
+      });
     } catch (error) {
       // 예상치 못한 에러 처리 (API 에러는 헬퍼 함수에서 처리됨)
       console.error('게시글 수정 처리 중 예상치 못한 오류:', error);
@@ -571,6 +583,33 @@ function PostEdit() {
                     <i className="fas fa-fire text-red-500 mr-2"></i>
                     인기 게시글
                   </h3>
+
+                  {/* 탭 메뉴 */}
+                  <div className="flex space-x-1 mb-4 bg-gray-100 rounded-lg p-1">
+                    <button
+                      onClick={() => setPopularTab('views')}
+                      className={`flex-1 py-2 px-3 rounded-md text-sm font-medium transition-colors ${
+                        popularTab === 'views'
+                          ? 'bg-white text-blue-600 shadow-sm'
+                          : 'text-gray-600 hover:text-gray-800'
+                      }`}
+                    >
+                      <i className="fas fa-eye mr-1"></i>
+                      조회수
+                    </button>
+                    <button
+                      onClick={() => setPopularTab('likes')}
+                      className={`flex-1 py-2 px-3 rounded-md text-sm font-medium transition-colors ${
+                        popularTab === 'likes'
+                          ? 'bg-white text-red-600 shadow-sm'
+                          : 'text-gray-600 hover:text-gray-800'
+                      }`}
+                    >
+                      <i className="fas fa-heart mr-1"></i>
+                      좋아요
+                    </button>
+                  </div>
+
                   <div className="space-y-3">
                     {popularPosts.length > 0 ? (
                       popularPosts.slice(0, 3).map(post => (
@@ -586,7 +625,11 @@ function PostEdit() {
                           <div className="flex items-center text-xs text-gray-500">
                             <span>{post.is_anonymous ? '익명' : post.author_name}</span>
                             <span className="mx-2">•</span>
-                            <span>{post.views}회</span>
+                            {popularTab === 'views' ? (
+                              <span><i className="fas fa-eye mr-1"></i>{post.views}회</span>
+                            ) : (
+                              <span><i className="fas fa-heart mr-1"></i>{post.likes}</span>
+                            )}
                           </div>
                         </div>
                       ))
@@ -619,7 +662,7 @@ function PostEdit() {
                     </div>
                     <div className="flex items-start space-x-2">
                       <i className="fas fa-trash text-red-500 mt-1 text-xs"></i>
-                      <span>개별 첨부파일 삭제는 X 버튼을 클릭하세요</span>
+                      <span>개별 첨부파일 삭제는 <span className="inline-flex items-center justify-center w-4 h-4 bg-red-500 text-white rounded-full text-xs font-bold">×</span> 버튼을 클릭하세요</span>
                     </div>
                   </div>
                 </div>
