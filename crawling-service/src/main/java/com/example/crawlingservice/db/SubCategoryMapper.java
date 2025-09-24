@@ -19,8 +19,8 @@ public interface SubCategoryMapper {
      * 하위 카테고리 저장
      * @param subCategory 하위 카테고리 정보
      */
-    @Insert("insert into subcategory(sub_name,topcategory_id) values (#{subName},#{topCategoryId})")
-    @Options(useGeneratedKeys = true,keyProperty = "subcategory_id")
+    @Insert("insert into subcategory(sub_name,topcategory_id) values (#{subName},#{topCategory.topCategoryId})")
+    @Options(useGeneratedKeys = true,keyProperty = "subCategoryId")
     void insert(SubCategory subCategory);
 
     /**

@@ -17,8 +17,8 @@ public interface ProductMapper {
      * @param product
      */
     @Insert("insert into product(product_name,brand,alcohol_percentage,volume,description,url,subcategory_id)" +
-            " values (#{productName},#{brand},#{alcohol},#{volume},#{description},#{url},#{subCategoryId})")
-    @Options(useGeneratedKeys = true,keyProperty = "product_id")
+            " values (#{productName},#{brand},#{alcoholPercentage},#{volume},#{description},#{url},#{subCategory.subCategoryId})")
+    @Options(useGeneratedKeys = true,keyProperty = "productId")
     void insert(Product product);
 
     /**
