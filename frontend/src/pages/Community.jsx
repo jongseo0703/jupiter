@@ -314,9 +314,9 @@ function Community() {
                     {/* 테이블 헤더 */}
                     <thead>
                       <tr className="bg-gray-50 border-b border-gray-200">
-                        <th className="text-left py-3 px-4 font-semibold text-gray-700" style={{width: '14%'}}>분류</th>
-                        <th className="text-left py-3 px-4 font-semibold text-gray-700" style={{width: '31%'}}>제목</th>
-                        <th className="text-center py-3 px-4 font-semibold text-gray-700" style={{width: '12%'}}>작성자</th>
+                        <th className="text-left py-3 px-9 font-semibold text-gray-700" style={{width: '14%'}}>분류</th>
+                        <th className="text-left py-3 px-6 font-semibold text-gray-700" style={{width: '31%'}}>제목</th>
+                        <th className="text-left py-3 px-6 font-semibold text-gray-700" style={{width: '12%'}}>작성자</th>
                         <th className="text-center py-3 px-4 font-semibold text-gray-700" style={{width: '17%'}}>작성일</th>
                         <th className="text-center py-3 px-4 font-semibold text-gray-700" style={{width: '8%'}}>조회</th>
                         <th className="text-center py-3 px-4 font-semibold text-gray-700" style={{width: '9%'}}>댓글</th>
@@ -388,8 +388,8 @@ function Community() {
                           </td>
 
                           {/* 작성자 */}
-                          <td className="py-4 px-4 text-center">
-                            <span className="text-sm text-gray-700 flex items-center justify-center gap-1">
+                          <td className="py-4 px-4">
+                            <span className="text-sm text-gray-700 flex items-center gap-1">
                               <i className="fas fa-user text-gray-500"></i>
                               {post.is_anonymous ? '익명' : post.author_name}
                             </span>
