@@ -1,5 +1,8 @@
 package com.example.crawlingservice.domain;
 
+import lombok.Data;
+
+@Data
 public class Stock {
     //재고 고유 아이디
     private int stockId;
