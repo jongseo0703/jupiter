@@ -54,6 +54,11 @@ public class SecuritySettings {
   private LocalDateTime lastPasswordChange;
 
   public Boolean isPasswordChangeRequired() {
+    // OAuth 사용자는 비밀번호 변경 불필요
+    if (user != null && user.isOAuthUser()) {
+      return false;
+    }
+
     if (lastPasswordChange == null) {
       return true;
     }

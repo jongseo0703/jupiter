@@ -12,6 +12,7 @@ public record UserResponse(
     String phone,
     Role role,
     boolean enabled,
+    boolean isOAuthUser,
     LocalDateTime createdAt,
     LocalDateTime updatedAt) {
   public static UserResponse from(User user) {
@@ -22,6 +23,7 @@ public record UserResponse(
         user.getPhone(),
         user.getRole(),
         user.isEnabled(),
+        user.isOAuthUser(),
         user.getCreatedAt(),
         user.getUpdatedAt());
   }
