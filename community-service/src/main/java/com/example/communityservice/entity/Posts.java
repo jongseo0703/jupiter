@@ -82,10 +82,6 @@ public class Posts {
     this.views++;
   }
 
-  public void increaseLikes() {
-    this.likes++;
-  }
-
   public void updatePost(String title, String content, PostCategory category, String tags) {
     this.title = title;
     this.content = content;

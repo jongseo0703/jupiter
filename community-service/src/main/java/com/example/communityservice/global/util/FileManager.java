@@ -44,7 +44,7 @@ public class FileManager {
    * @param subDirectory 하위 디렉토리 (예: "posts", "profiles")
    * @return 웹 접근 가능한 URL (예: /uploads/posts/2025/09/18/filename.jpg)
    */
-  public String saveFile(MultipartFile file, String subDirectory) throws IOException {
+  public String saveFile(MultipartFile file, String subDirectory) {
     validateFile(file);
 
     // 날짜별 디렉토리 구조 생성 (예: uploads/posts/2024/01/15/)
@@ -52,33 +52,38 @@ public class FileManager {
     String fullDirectoryPath =
         baseUploadPath + File.separator + subDirectory + File.separator + datePath;
 
-    // 디렉토리 생성
-    createDirectories(fullDirectoryPath);
+    try {
+      // 디렉토리 생성
+      createDirectories(fullDirectoryPath);
 
-    // 고유한 파일명 생성
-    String originalFilename = file.getOriginalFilename();
-    String uniqueFileName = generateUniqueFileName(originalFilename);
-    String fullFilePath = fullDirectoryPath + File.separator + uniqueFileName;
+      // 고유한 파일명 생성
+      String originalFilename = file.getOriginalFilename();
+      String uniqueFileName = generateUniqueFileName(originalFilename);
+      String fullFilePath = fullDirectoryPath + File.separator + uniqueFileName;
 
-    // 파일 저장
-    Path filePath = Paths.get(fullFilePath);
-    Files.write(filePath, file.getBytes());
+      // 파일 저장
+      Path filePath = Paths.get(fullFilePath);
+      Files.write(filePath, file.getBytes());
 
-    // 웹 접근 가능한 URL 생성 (예: /uploads/posts/2025/09/18/filename.jpg)
-    String webUrl = String.format("/uploads/%s/%s/%s", subDirectory, datePath, uniqueFileName);
+      // 웹 접근 가능한 URL 생성 (예: /uploads/posts/2025/09/18/filename.jpg)
+      String webUrl = String.format("/uploads/%s/%s/%s", subDirectory, datePath, uniqueFileName);
 
-    log.info("파일 저장 완료: {} -> {} (URL: {})", originalFilename, fullFilePath, webUrl);
+      log.info("파일 저장 완료: {} -> {} (URL: {})", originalFilename, fullFilePath, webUrl);
 
-    return webUrl;
+      return webUrl;
+    } catch (IOException e) {
+      log.error("파일 저장 실패: {}, 오류: {}", file.getOriginalFilename(), e.getMessage(), e);
+      throw new BusinessException(ErrorCode.FILE_SAVE_FAILED, e.getMessage());
+    }
   }
 
   /**
    * 파일 삭제 (웹 URL을 받아서 실제 파일 경로로 변환 후 삭제)
    *
    * @param fileUrl 삭제할 파일의 웹 URL (예: /uploads/posts/2025/09/18/file.jpg)
-   * @return 삭제 성공 여부
+   * @throws BusinessException 파일 삭제 실패 시
    */
-  public boolean deleteFile(String fileUrl) {
+  public void deleteFile(String fileUrl) {
     try {
       // URL을 실제 파일 경로로 변환 (예: /uploads/posts/... -> ./uploads/posts/...)
       String relativePath =
@@ -93,10 +98,9 @@ public class FileManager {
       } else {
         log.warn("삭제할 파일이 존재하지 않음: {} (URL: {})", fullFilePath, fileUrl);
       }
-      return deleted;
     } catch (IOException e) {
       log.error("파일 삭제 실패: {}, 오류: {}", fileUrl, e.getMessage());
-      return false;
+      throw new BusinessException(ErrorCode.FILE_DELETE_FAILED, e.getMessage());
     }
   }
 
