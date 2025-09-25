@@ -73,6 +73,10 @@ public class Posts {
   @Builder.Default
   private List<PostAttachments> attachments = new ArrayList<>();
 
+  @OneToMany(mappedBy = "post", cascade = CascadeType.ALL, orphanRemoval = true)
+  @Builder.Default
+  private List<PostLikes> postLikes = new ArrayList<>();
+
   // 비즈니스 메서드
   public void increaseViews() {
     this.views++;

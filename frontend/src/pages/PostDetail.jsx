@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link, useParams, useNavigate } from 'react-router-dom';
+import { Link, useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {fetchPost, fetchPopularPosts, fetchPopularPostsByLikes, likePost, unlikePost, createComment, updateComment, deleteComment, verifyAnonymousComment, deletePost as deletePostAPI, verifyAnonymousPost} from '../services/api';
 import { categorizeAttachments } from '../utils/fileUtils';
@@ -9,6 +9,7 @@ import authService from '../services/authService';
 function PostDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const queryClient = useQueryClient();
 
   const [commentForm, setCommentForm] = useState({
@@ -79,7 +80,10 @@ function PostDetail() {
   // React Query를 사용하여 게시글 상세 정보 조회
   const { data: post, isLoading: loading, isError, error } = useQuery({
     queryKey: ['post', id],
-    queryFn: fetchPost
+    queryFn: fetchPost,
+    meta: {
+      incrementView: location.state?.incrementView !== false // state로 전달된 값이 false가 아니면 조회수 증가 (기본값: true)
+    }
   });
 
   // 인기 게시글 조회 (조회수 순)
@@ -87,7 +91,6 @@ function PostDetail() {
     queryKey: ['popularPosts', '전체', 1],
     queryFn: fetchPopularPosts,
     enabled: popularTab === 'views',
-    staleTime: 5 * 60 * 1000, // 5분간 fresh 상태 유지
   });
 
   // 인기 게시글 조회 (좋아요 순)
@@ -95,7 +98,6 @@ function PostDetail() {
     queryKey: ['popularPostsByLikes', '전체', 1],
     queryFn: fetchPopularPostsByLikes,
     enabled: popularTab === 'likes',
-    staleTime: 5 * 60 * 1000, // 5분간 fresh 상태 유지
   });
 
   const popularPosts = popularTab === 'views'
@@ -320,13 +322,13 @@ function PostDetail() {
   };
 
   /**
-   * 서버와 클라이언트 데이터 동기화
-   * - Mutation 완료 후 서버에서 최신 데이터를 다시 가져옴
-   * - 낙관적 업데이트와 실제 서버 데이터 간의 차이를 해결
+   * 좋아요 관련해서는 서버 재조회 없이 낙관적 업데이트만 사용
+   * - 조회수 증가 방지를 위해 쿼리 무효화 하지 않음
    */
   const invalidatePostQuery = () => {
-    // 특정 게시글(id)의 React Query 캐시를 무효화해서, 최신 데이터를 다시 불러오도록 하는 함수
-    queryClient.invalidateQueries({ queryKey: ['post', id] }).catch(console.error);
+    // 좋아요 관련은 낙관적 업데이트만 사용하므로 서버 재조회 안 함
+    // 필요시에만 주석 해제
+    // queryClient.invalidateQueries({ queryKey: ['post', id] }).catch(console.error);
   };
 
   // 좋아요 토글 함수 - 로그인 체크 후 좋아요/취소 결정
