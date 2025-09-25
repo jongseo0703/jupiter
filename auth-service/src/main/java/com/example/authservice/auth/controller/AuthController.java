@@ -93,14 +93,13 @@ public class AuthController {
       @Valid @RequestBody LoginRequest request, HttpServletRequest httpRequest) {
     try {
       String ipAddress = getClientIpAddress(httpRequest);
-      String userAgent = httpRequest.getHeader("User-Agent");
 
       // reCAPTCHA 검증
       if (!recaptchaService.verifyRecaptcha(request.recaptchaResponse(), ipAddress)) {
         throw new BusinessException("reCAPTCHA verification failed");
       }
 
-      LoginResponse response = authService.login(request, ipAddress, userAgent);
+      LoginResponse response = authService.login(request);
       return ResponseEntity.ok(ApiResponse.success("Login successful", response));
     } catch (Exception e) {
       log.error("Login failed: ", e);

@@ -29,14 +29,11 @@ public class SuspiciousActivityService {
   private final EmailService emailService;
 
   @Transactional
-  public void recordLoginAttempt(
-      User user, String ipAddress, String userAgent, boolean successful, String failureReason) {
+  public void recordLoginAttempt(User user, boolean successful, String failureReason) {
     // 로그인 이력 저장
     LoginHistory loginHistory =
         LoginHistory.builder()
             .user(user)
-            .ipAddress(ipAddress)
-            .userAgent(userAgent)
             .loginTime(LocalDateTime.now())
             .successful(successful)
             .failureReason(failureReason)
@@ -52,11 +49,11 @@ public class SuspiciousActivityService {
 
     // 비밀번호 실패 시에만 체크 (IP/브라우저 변경 감지 완전 제거)
     if (!successful) {
-      checkForMultipleFailedAttempts(user, ipAddress, userAgent);
+      checkForMultipleFailedAttempts(user);
     }
   }
 
-  private void checkForMultipleFailedAttempts(User user, String ipAddress, String userAgent) {
+  private void checkForMultipleFailedAttempts(User user) {
     // 지난 15분간 실패한 로그인 시도 체크
     LocalDateTime fifteenMinutesAgo = LocalDateTime.now().minusMinutes(15);
     long failedAttempts = loginHistoryRepository.countFailedLoginsSince(user, fifteenMinutesAgo);
@@ -65,26 +62,20 @@ public class SuspiciousActivityService {
       recordSuspiciousActivity(
           user,
           SuspiciousActivity.ActivityType.MULTIPLE_FAILED_ATTEMPTS,
-          ipAddress,
-          userAgent,
           "15분 내 " + failedAttempts + "번의 로그인 실패");
     }
   }
 
   @Transactional
   public void recordSuspiciousActivity(
-      User user,
-      SuspiciousActivity.ActivityType activityType,
-      String ipAddress,
-      String userAgent,
-      String details) {
+      User user, SuspiciousActivity.ActivityType activityType, String details) {
 
     SuspiciousActivity activity =
         SuspiciousActivity.builder()
             .user(user)
             .activityType(activityType)
-            .ipAddress(ipAddress)
-            .userAgent(userAgent)
+            .ipAddress("N/A") // IP 추적 제거
+            .userAgent("N/A") // User Agent 추적 제거
             .detectedAt(LocalDateTime.now())
             .details(details)
             .notified(false)
@@ -105,7 +96,7 @@ public class SuspiciousActivityService {
           activityType.getDescription());
 
       emailService.sendSuspiciousActivityAlert(
-          user.getEmail(), activityType.getDescription(), details, ipAddress, userAgent);
+          user.getEmail(), activityType.getDescription(), details, "N/A", "N/A");
 
       activity.setNotified(true);
       suspiciousActivityRepository.save(activity);
