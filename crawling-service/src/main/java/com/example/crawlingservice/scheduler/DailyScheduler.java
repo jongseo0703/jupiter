@@ -57,10 +57,26 @@ public class DailyScheduler {
             LocalDateTime endTime = LocalDateTime.now();
             //소유 시간
             long durationSeconds = java.time.Duration.between(startTime, endTime).getSeconds();
-            log.debug("-----일일 크롤링 작업 완료:{} 소요시간 : {}-----",endTime.format(formatter),durationSeconds);
+            String time = formatDuration(durationSeconds);
+            log.debug("-----일일 크롤링 작업 완료:{} 소요시간 : {}-----",endTime.format(formatter),time);
 
         } catch (Exception e) {
             log.error("스케줄된 크롤링 작업 중 오류 발생: {}",e.getMessage());
+        }
+    }
+
+    // 소요시간을 표기변환 메서드
+    private String formatDuration(long seconds) {
+        long hours = seconds / 3600;
+        long minutes = (seconds % 3600) / 60;
+        long secs = seconds % 60;
+
+        if (hours > 0) {
+            return String.format("%d시간 %d분 %d초", hours, minutes, secs);
+        } else if (minutes > 0) {
+            return String.format("%d분 %d초", minutes, secs);
+        } else {
+            return String.format("%d초", secs);
         }
     }
 }
