@@ -6,6 +6,8 @@ import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Options;
 import org.apache.ibatis.annotations.Select;
 
+import java.util.List;
+
 /**
  * insert 상품 저장<br>
  * selectByProductName 상품명과 브랜드로 Product 조회
@@ -17,8 +19,8 @@ public interface ProductMapper {
      * @param product
      */
     @Insert("insert into product(product_name,brand,alcohol_percentage,volume,description,url,subcategory_id)" +
-            " values (#{productName},#{brand},#{alcohol},#{volume},#{description},#{url},#{subCategoryId})")
-    @Options(useGeneratedKeys = true,keyProperty = "product_id")
+            " values (#{productName},#{brand},#{alcoholPercentage},#{volume},#{description},#{url},#{subCategory.subCategoryId})")
+    @Options(useGeneratedKeys = true,keyProperty = "productId")
     void insert(Product product);
 
     /**
@@ -29,4 +31,11 @@ public interface ProductMapper {
      */
     @Select("select * from product where product_name = #{productName} and brand = #{brand}")
     Product selectByProductName(String productName,String brand);
+
+    /**
+     * 모든 상품 조회
+     * @return 상품 목록
+     */
+    @Select("SELECT * FROM product")
+    List<Product> selectAll();
 }

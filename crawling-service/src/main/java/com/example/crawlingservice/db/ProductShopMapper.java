@@ -16,8 +16,8 @@ public interface ProductShopMapper {
      * @param productShop
      * @return
      */
-    @Insert("insert product_shop(product_id,shop_id,link) values (#{productId},#{shopId},#{link})")
-    @Options(useGeneratedKeys = true,keyProperty = "product_shop_id")
+    @Insert("insert product_shop(product_id,shop_id,link) values (#{product.productId},#{shop.shopId},#{link})")
+    @Options(useGeneratedKeys = true,keyProperty = "productShopId")
     int insert(ProductShop productShop);
 
     /**
@@ -31,21 +31,31 @@ public interface ProductShopMapper {
 
     /**
      * 구매 사이트 링크 업데이트
-     * @param link 변경된 링크 주소
+     *
+     * @param link      변경된 링크 주소
      * @param productId 상품 아이디
-     * @param shopId 상점 아이디
-     * @return
+     * @param shopId    상점 아이디
      */
     @Update("update product_shop set link = #{link} where product_id = #{productId} and shop_id =#{shopId}")
-    int updateLink(String link, int productId, int shopId);
+    void updateLink(String link, int productId, int shopId);
 
     /**
-     * 상점명으로 상품_상점 정보 조회
+     * 상품_상점 아이디 얻기
      * @param shopName 상점명
-     * @return 상품_상점 정보 반환
+     * @param productId 상품 아이디
+     * @return 상품_상점 아이디 반환
      */
-    @Select("SELECT ps.* FROM ProductShop ps JOIN Shop s ON ps.shopId = s.shopId WHERE s.shopName = #{shopName}")
-    ProductShop selectByShopName(String shopName);
+    @Select("SELECT ps.product_shop_id FROM product_shop ps " +
+            "JOIN shop s ON ps.shop_id = s.shop_id " +
+            "WHERE s.shop_name = #{shopName} AND ps.product_id = #{productId}")
+    Integer getProductShopId(String shopName,int productId);
 
+    /**
+     * 상품_상점 조회
+     * @param productShopId 조회할 아이디
+     * @return 상품_상점 정보
+     */
+    @Select("SELECT * FROM product_shop WHERE product_shop_id = #{productShopId}")
+    ProductShop selectByProductShopId(int productShopId);
 
 }

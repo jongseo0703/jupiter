@@ -16,8 +16,8 @@ public interface PriceMapper {
      * @return
      */
     @Insert("insert into price(price,delivery_fee,product_shop_id) " +
-            "values(#{price},#{deliveryFee},#{productShopId}) ")
-    @Options(useGeneratedKeys = true,keyProperty = "price_id")
+            "values(#{price},#{deliveryFee},#{productShop.productShopId}) ")
+    @Options(useGeneratedKeys = true,keyProperty = "priceId")
     int insert(Price price);
 
     /**
@@ -25,7 +25,7 @@ public interface PriceMapper {
      * @param productShopId 상품_상점 아이디
      * @return Price 반환
      */
-    @Select("select * from prie where product_shop_id = #{productShopId}")
+    @Select("select * from price where product_shop_id = #{productShopId}")
     Price selectByProductShopId(int productShopId);
 
     /**
@@ -33,7 +33,7 @@ public interface PriceMapper {
      * @param price 가격 클래스
      * @return
      */
-    @Update("update price set price = #{price}, delivery_fee  = #{deliveryFee } where product_shop_id = #{productShopId}")
+    @Update("update price set price = #{price}, delivery_fee  = #{deliveryFee } where product_shop_id = #{productShop.productShopId}")
     int update(Price price);
 
 }

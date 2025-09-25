@@ -57,12 +57,12 @@ public class ListPageService {
                     products.add(product);
                 }
             } catch (Exception e) {
-                log.warn("상품 정보 추출 중 오류: {}", e.getMessage());
+                log.debug("상품 정보 추출 중 오류: {}", e.getMessage());
             }
         }
 
         if (products.isEmpty()) {
-            log.warn("상품을 찾을 수 없습니다.");
+            log.debug("상품을 찾을 수 없습니다.");
         }
 
         return products;

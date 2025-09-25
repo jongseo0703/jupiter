@@ -18,7 +18,7 @@ public interface TopCategoryMapper {
      * @param topCategory 상위 카테고리
      */
     @Insert("insert into topcategory(top_name) values (#{topName})")
-    @Options(useGeneratedKeys = true,keyProperty = "topcategory_id")
+    @Options(useGeneratedKeys = true,keyProperty = "topCategoryId")
     void insert(TopCategory topCategory);
 
     /**
