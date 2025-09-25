@@ -15,8 +15,8 @@ public interface ReviewMapper {
      * @return
      */
     @Insert("insert review(writer,rating,title,comment,review_date,product_shop_id)" +
-            " values (#{writer},#{star},#{title},#{comment},#{regdate},#{productShopId})")
-    @Options(useGeneratedKeys = true,keyProperty = "review_id")
+            " values (#{writer},#{rating},#{title},#{comment},#{reviewDate},#{productShop.productShopId})")
+    @Options(useGeneratedKeys = true,keyProperty = "reviewId")
     int insert(Review review);
 
     /**

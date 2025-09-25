@@ -21,7 +21,4 @@ public interface PostAttachmentsRepository extends JpaRepository<PostAttachments
   /** 특정 게시글의 첨부파일 개수 조회 */
   @Query("SELECT COUNT(pa) FROM PostAttachments pa WHERE pa.post.postId = :postId")
   int countByPostId(@Param("postId") Long postId);
-
-  /** 특정 게시글의 첨부파일을 모두 삭제 */
-  void deleteByPost_PostId(Long postId);
 }

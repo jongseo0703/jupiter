@@ -6,6 +6,7 @@ import apiService from '../services/api';
 const SecuritySettings = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
+  const [currentUser, setCurrentUser] = useState(null);
   const [settings, setSettings] = useState({
     twoFactorEnabled: false,
     suspiciousActivityAlerts: true,
@@ -24,6 +25,10 @@ const SecuritySettings = () => {
         navigate('/login');
         return;
       }
+
+      // 현재 사용자 정보 가져오기
+      const userResult = await authService.getCurrentUser();
+      setCurrentUser(userResult);
 
       const result = await apiService.get('/auth/api/v1/user/security');
       if (result.result === 'SUCCESS') {
@@ -249,17 +254,18 @@ const SecuritySettings = () => {
             </div>
           </div>
 
-          {/* 비밀번호 변경 주기 */}
-          <div className="bg-white rounded-lg shadow-sm p-6">
-            <div className="mb-4">
-              <h3 className="text-lg font-medium text-gray-900 mb-2">
-                <i className="fas fa-key mr-2 text-purple-500"></i>
-                비밀번호 변경 주기
-              </h3>
-              <p className="text-sm text-gray-600">
-                정기적인 비밀번호 변경으로 계정 보안을 유지하세요.
-              </p>
-            </div>
+          {/* 비밀번호 변경 주기 - OAuth 사용자 제외 */}
+          {!currentUser?.isOAuthUser && (
+            <div className="bg-white rounded-lg shadow-sm p-6">
+              <div className="mb-4">
+                <h3 className="text-lg font-medium text-gray-900 mb-2">
+                  <i className="fas fa-key mr-2 text-purple-500"></i>
+                  비밀번호 변경 주기
+                </h3>
+                <p className="text-sm text-gray-600">
+                  정기적인 비밀번호 변경으로 계정 보안을 유지하세요.
+                </p>
+              </div>
 
             {/* 현재 상태 */}
             <div className="mb-4 p-4 bg-gray-50 rounded-lg">
@@ -299,7 +305,8 @@ const SecuritySettings = () => {
                 </button>
               ))}
             </div>
-          </div>
+            </div>
+          )}
 
           {/* 추가 보안 정보 */}
           <div className="bg-blue-50 rounded-lg p-6">
@@ -334,16 +341,30 @@ const SecuritySettings = () => {
               빠른 설정
             </h4>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <button
-                onClick={() => navigate('/mypage', { state: { openPasswordChange: true } })}
-                className="flex items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
-              >
-                <i className="fas fa-key text-orange-500 mr-3"></i>
-                <div className="text-left">
-                  <div className="font-medium">비밀번호 변경</div>
-                  <div className="text-sm text-gray-600">지금 바로 비밀번호 변경</div>
+              {/* OAuth 사용자가 아닌 경우에만 비밀번호 변경 버튼 표시 */}
+              {!currentUser?.isOAuthUser && (
+                <button
+                  onClick={() => navigate('/mypage', { state: { openPasswordChange: true } })}
+                  className="flex items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  <i className="fas fa-key text-orange-500 mr-3"></i>
+                  <div className="text-left">
+                    <div className="font-medium">비밀번호 변경</div>
+                    <div className="text-sm text-gray-600">지금 바로 비밀번호 변경</div>
+                  </div>
+                </button>
+              )}
+
+              {/* OAuth 사용자인 경우 안내 메시지 표시 */}
+              {currentUser?.isOAuthUser && (
+                <div className="flex items-center p-4 border border-gray-200 rounded-lg bg-gray-50">
+                  <i className="fas fa-info-circle text-blue-500 mr-3"></i>
+                  <div className="text-left">
+                    <div className="font-medium text-gray-700">소셜 로그인 계정</div>
+                    <div className="text-sm text-gray-600">소셜 로그인 사용자는 비밀번호 변경이 불필요합니다</div>
+                  </div>
                 </div>
-              </button>
+              )}
 
               <button
                 onClick={() => navigate('/settings')}

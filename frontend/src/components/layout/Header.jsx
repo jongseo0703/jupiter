@@ -6,6 +6,8 @@ const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [user, setUser] = useState(null);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -61,14 +63,24 @@ const Header = () => {
     };
   }, [location]);
 
+  const showToastMessage = (message) => {
+    setToastMessage(message);
+    setShowToast(true);
+    setTimeout(() => {
+      setShowToast(false);
+    }, 3000);
+  };
+
   const handleLogout = async () => {
     try {
       await authService.logout();
       setUser(null);
       setIsLoggedIn(false);
+      showToastMessage('로그아웃이 완료되었습니다.');
       navigate('/');
     } catch (error) {
       console.error('Logout failed:', error);
+      showToastMessage('로그아웃 중 오류가 발생했습니다.');
     }
   };
 
@@ -265,6 +277,14 @@ const Header = () => {
           </div>
         )}
       </nav>
+
+      {/* Toast Notification */}
+      {showToast && (
+        <div className="fixed top-20 left-1/2 transform -translate-x-1/2 z-50 bg-green-500 text-white px-8 py-4 rounded-lg shadow-xl flex items-center animate-fade-in">
+          <i className="fas fa-check-circle mr-3 text-lg"></i>
+          <span className="text-lg font-medium">{toastMessage}</span>
+        </div>
+      )}
 
     </div>
   );

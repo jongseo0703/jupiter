@@ -621,14 +621,23 @@ const MyPage = () => {
                 설정 및 기능
               </h2>
               <div className="grid md:grid-cols-3 gap-4">
-                <button
-                  onClick={() => setShowPasswordChange(!showPasswordChange)}
-                  className="flex flex-col items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
-                >
-                  <i className="fas fa-key text-primary text-2xl mb-2"></i>
-                  <span className="font-medium">비밀번호 변경</span>
-                  <span className="text-sm text-gray-600 text-center">계정 비밀번호 수정</span>
-                </button>
+                {/* OAuth 사용자가 아닌 경우에만 비밀번호 변경 버튼 표시 */}
+                {!user?.isOAuthUser ? (
+                  <button
+                    onClick={() => setShowPasswordChange(!showPasswordChange)}
+                    className="flex flex-col items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                  >
+                    <i className="fas fa-key text-primary text-2xl mb-2"></i>
+                    <span className="font-medium">비밀번호 변경</span>
+                    <span className="text-sm text-gray-600 text-center">계정 비밀번호 수정</span>
+                  </button>
+                ) : (
+                  <div className="flex flex-col items-center p-4 border border-gray-200 rounded-lg bg-gray-50">
+                    <i className="fas fa-info-circle text-blue-500 text-2xl mb-2"></i>
+                    <span className="font-medium text-gray-700">소셜 로그인 계정</span>
+                    <span className="text-sm text-gray-600 text-center">비밀번호 변경이 불필요합니다</span>
+                  </div>
+                )}
 
                 <button
                   onClick={() => navigate(user?.role === 'ADMIN' ? '/admin/notifications' : '/notification-settings')}
@@ -654,8 +663,8 @@ const MyPage = () => {
               </div>
             </div>
 
-            {/* 비밀번호 변경 카드 */}
-            {showPasswordChange && (
+            {/* 비밀번호 변경 카드 - OAuth 사용자 제외 */}
+            {showPasswordChange && !user?.isOAuthUser && (
               <div className="bg-white rounded-lg shadow-md p-6 md:col-span-2 mt-6">
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-xl font-semibold text-gray-900">

@@ -2,6 +2,7 @@ package com.example.crawlingservice.service;
 
 import com.example.crawlingservice.db.*;
 import com.example.crawlingservice.domain.Product;
+import com.example.crawlingservice.domain.Stock;
 import com.example.crawlingservice.domain.SubCategory;
 import com.example.crawlingservice.dto.ProductDTO;
 import lombok.RequiredArgsConstructor;
@@ -18,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class ProductService {
     private final ProductMapper productMapper;
+    private final StockMapper stockMapper;
 
     /**
      *  상품정보 저장하는 메서드
@@ -30,7 +32,6 @@ public class ProductService {
         Product existing = productMapper.selectByProductName(
                 productDTO.getProductName(), productDTO.getBrand());
         if (existing != null) {
-            log.debug("🔄 기존 상품 발견: {} (ID: {})", existing.getProductName(), existing.getProductId());
             return existing;
         }
 
@@ -39,13 +40,21 @@ public class ProductService {
         product.setProductName(productDTO.getProductName());
         product.setDescription(productDTO.getContent());
         product.setBrand(productDTO.getBrand());
-        product.setAlcohol_percentage(productDTO.getAlcohol());
+        product.setAlcoholPercentage(productDTO.getAlcohol());
         product.setUrl(productDTO.getImageUrl());
         product.setVolume(productDTO.getVolume());
         product.setSubCategory(subCategory);
 
         productMapper.insert(product);
-        log.debug("🆕 새 상품 생성: {} (ID: {})", product.getProductName(), product.getProductId());
+
+        //재고 정보 저장
+        Stock stock = new Stock();
+        stock.setAvailable(true);
+        stock.setProduct(product);
+        int result = stockMapper.insert(stock);
+        if (result == 1) {
+            log.debug("재고 정보 저장 성공");
+        }
 
         return product;
     }

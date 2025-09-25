@@ -21,12 +21,13 @@ class AuthService {
   }
 
   // 일반 로그인
-  async login(email, password, rememberMe = false) {
+  async login(email, password, rememberMe = false, recaptchaResponse = null) {
     try {
       const response = await apiService.post('/auth/api/v1/auth/login', {
         email,
         password,
         rememberMe,
+        recaptchaResponse,
       });
 
       if (response.result === 'SUCCESS') {
@@ -56,6 +57,7 @@ class AuthService {
         email: userData.email,
         password: userData.password,
         phone: userData.phone ? userData.phone.replace(/-/g, '') : userData.phone,
+        recaptchaResponse: userData.recaptchaResponse,
       });
 
       if (response.result === 'SUCCESS') {

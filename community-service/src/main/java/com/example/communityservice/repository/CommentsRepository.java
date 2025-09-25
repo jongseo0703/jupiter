@@ -7,13 +7,10 @@ import org.springframework.stereotype.Repository;
 
 import com.example.communityservice.entity.Comments;
 
-// Comments 엔티티 데이터베이스 접근 인터페이스
+/** Comments 엔티티 데이터베이스 접근 인터페이스 */
 @Repository
 public interface CommentsRepository extends JpaRepository<Comments, Long> {
 
   // 특정 작성자의 댓글 목록 조회 (User - MyPage용  내부 API)
   List<Comments> findByAuthors_AuthorIdOrderByCreatedAtDesc(Long authorId);
-
-  // 특정 게시글의 댓글 개수 조회
-  long countByPost_PostId(Long postId);
 }

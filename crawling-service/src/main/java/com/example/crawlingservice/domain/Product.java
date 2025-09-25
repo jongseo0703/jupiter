@@ -13,7 +13,7 @@ public class Product {
     //브랜드
     private String brand;
     //도수
-    private double alcohol_percentage;
+    private double alcoholPercentage;
     //상품 이미지
     private String url;
     //용량

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import ReCAPTCHA from 'react-google-recaptcha';
 import authService from '../services/authService';
 import apiService from '../services/api';
 
@@ -31,6 +32,9 @@ const Register = () => {
     const [errors, setErrors] = useState({});
     const [successMessage, setSuccessMessage] = useState('');
     const [showRestoredMessage, setShowRestoredMessage] = useState(false);
+    const [showPassword, setShowPassword] = useState(false);
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+    const [recaptchaValue, setRecaptchaValue] = useState(null);
     const [phoneVerification, setPhoneVerification] = useState({
         isVerified: false,
         isSending: false,
@@ -79,6 +83,16 @@ const Register = () => {
         }
     };
 
+    const handleRecaptchaChange = (value) => {
+        setRecaptchaValue(value);
+        if (errors.recaptcha) {
+            setErrors(prev => ({
+                ...prev,
+                recaptcha: ''
+            }));
+        }
+    };
+
     const validateForm = () => {
         const newErrors = {};
 
@@ -120,6 +134,10 @@ const Register = () => {
 
         if (!phoneVerification.isVerified) {
             newErrors.phoneVerification = '휴대폰 인증을 완료해주세요.';
+        }
+
+        if (!recaptchaValue) {
+            newErrors.recaptcha = 'reCAPTCHA 인증을 완료해주세요.';
         }
 
         setErrors(newErrors);
@@ -220,7 +238,8 @@ const Register = () => {
                 name: formData.name, // authService에서 username으로 변환됨
                 email: formData.email,
                 password: formData.password,
-                phone: formData.phone.replace(/-/g, '')
+                phone: formData.phone.replace(/-/g, ''),
+                recaptchaResponse: recaptchaValue
             };
 
             await authService.register(registerData);
@@ -235,6 +254,11 @@ const Register = () => {
             }, 3000);
         } catch (error) {
             setErrors({ general: error.message || '회원가입에 실패했습니다.' });
+            // 회원가입 실패 시 reCAPTCHA 리셋
+            setRecaptchaValue(null);
+            if (window.grecaptcha) {
+                window.grecaptcha.reset();
+            }
         } finally {
             setIsLoading(false);
         }
@@ -362,20 +386,27 @@ const Register = () => {
                             <label htmlFor="password" className="block text-sm font-medium text-gray-700">
                                 비밀번호 *
                             </label>
-                            <div className="mt-1">
+                            <div className="mt-1 relative">
                                 <input
                                     id="password"
                                     name="password"
-                                    type="password"
+                                    type={showPassword ? "text" : "password"}
                                     autoComplete="new-password"
                                     required
                                     value={formData.password}
                                     onChange={handleInputChange}
-                                    className={`appearance-none block w-full px-3 py-2 border rounded-md placeholder-gray-400 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm ${
+                                    className={`appearance-none block w-full px-3 py-2 pr-10 border rounded-md placeholder-gray-400 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm ${
                                         errors.password ? 'border-red-300' : 'border-gray-300'
                                     }`}
                                     placeholder="8자 이상의 비밀번호를 입력하세요"
                                 />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowPassword(!showPassword)}
+                                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+                                >
+                                    <i className={`fas ${showPassword ? 'fa-eye-slash' : 'fa-eye'}`}></i>
+                                </button>
                                 {errors.password && <p className="mt-1 text-sm text-red-600">{errors.password}</p>}
                             </div>
                         </div>
@@ -384,20 +415,27 @@ const Register = () => {
                             <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">
                                 비밀번호 확인 *
                             </label>
-                            <div className="mt-1">
+                            <div className="mt-1 relative">
                                 <input
                                     id="confirmPassword"
                                     name="confirmPassword"
-                                    type="password"
+                                    type={showConfirmPassword ? "text" : "password"}
                                     autoComplete="new-password"
                                     required
                                     value={formData.confirmPassword}
                                     onChange={handleInputChange}
-                                    className={`appearance-none block w-full px-3 py-2 border rounded-md placeholder-gray-400 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm ${
+                                    className={`appearance-none block w-full px-3 py-2 pr-10 border rounded-md placeholder-gray-400 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm ${
                                         errors.confirmPassword ? 'border-red-300' : 'border-gray-300'
                                     }`}
                                     placeholder="비밀번호를 다시 입력하세요"
                                 />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+                                >
+                                    <i className={`fas ${showConfirmPassword ? 'fa-eye-slash' : 'fa-eye'}`}></i>
+                                </button>
                                 {errors.confirmPassword && <p className="mt-1 text-sm text-red-600">{errors.confirmPassword}</p>}
                             </div>
                         </div>
@@ -525,10 +563,20 @@ const Register = () => {
                             </div>
                         </div>
 
+                        {/* reCAPTCHA */}
+                        <div className="flex justify-center">
+                            <ReCAPTCHA
+                                sitekey="6LdWT9MrAAAAAFUWaq_oebgAzfa8zWPoxtlH8vQy"
+                                onChange={handleRecaptchaChange}
+                                onExpired={() => setRecaptchaValue(null)}
+                            />
+                            {errors.recaptcha && <p className="mt-1 text-sm text-red-600">{errors.recaptcha}</p>}
+                        </div>
+
                         <div>
                             <button
                                 type="submit"
-                                disabled={isLoading}
+                                disabled={isLoading || !recaptchaValue}
                                 className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-primary hover:bg-blue-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50"
                             >
                                 {isLoading ? (

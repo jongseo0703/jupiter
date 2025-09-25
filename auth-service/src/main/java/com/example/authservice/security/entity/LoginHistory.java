@@ -26,12 +26,6 @@ public class LoginHistory extends BaseEntity {
   @JoinColumn(name = "user_id", nullable = false)
   private User user;
 
-  @Column(nullable = false, length = 45)
-  private String ipAddress;
-
-  @Column(length = 500)
-  private String userAgent;
-
   @Column(nullable = false)
   private LocalDateTime loginTime;
 

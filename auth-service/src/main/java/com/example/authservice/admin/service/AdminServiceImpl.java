@@ -67,9 +67,6 @@ public class AdminServiceImpl implements AdminService {
             .orElseThrow(() -> new BusinessException("User not found", 404, "USER_NOT_FOUND"));
 
     if (request.username() != null && !request.username().equals(user.getUsername())) {
-      if (userRepository.existsByUsername(request.username())) {
-        throw new BusinessException("Username already exists", 404, "DUPLICATE_USERNAME");
-      }
       user.setUsername(request.username());
     }
 

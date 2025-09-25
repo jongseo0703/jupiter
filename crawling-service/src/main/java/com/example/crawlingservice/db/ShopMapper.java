@@ -17,8 +17,8 @@ public interface ShopMapper {
      * @param shop 상점 정보
      */
     @Insert("insert into shop(shop_name,logo_icon)" +
-            " values (#{shopName},#{icon})")
-    @Options(useGeneratedKeys = true,keyProperty = "shop_id")
+            " values (#{shopName},#{logoIcon})")
+    @Options(useGeneratedKeys = true,keyProperty = "shopId")
     void insert(Shop shop);
 
     /**

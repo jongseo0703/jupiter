@@ -8,7 +8,9 @@ public record LoginRequest(
     // email이 비어있으면 메시지
     @NotBlank(message = "Email is required") @Email(message = "Invalid email format") String email,
     // password가 비어있으면 메시지
-    @NotBlank(message = "Password is required") String password) {
+    @NotBlank(message = "Password is required") String password,
+    // reCAPTCHA 응답 토큰
+    String recaptchaResponse) {
   public LoginRequest {
     // email에 공백이 존재하면
     if (email != null && email.trim().isEmpty()) {

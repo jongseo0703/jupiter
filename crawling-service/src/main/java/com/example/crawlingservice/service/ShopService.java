@@ -28,7 +28,6 @@ public class ShopService {
         // 상점명으로 기존 상점 조회
         Shop existing = shopMapper.selectByShopName(priceDTO.getShopName());
         if (existing != null) {
-            log.debug("🏪 기존 상점 사용: {} (ID: {})", priceDTO.getShopName(), existing.getShopId());
             return existing;
         }
 
@@ -38,7 +37,6 @@ public class ShopService {
         newShop.setLogoIcon(priceDTO.getShopIcon());
 
         shopMapper.insert(newShop);
-        log.debug("🆕 새 상점 생성: {} (ID: {})", newShop.getShopName(), newShop.getShopId());
 
         return newShop;
     }

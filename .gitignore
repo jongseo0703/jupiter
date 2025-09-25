@@ -30,6 +30,7 @@ application-dev.properties
 application-oauth.properties
 application-mail.properties
 application-sms.properties
+application-recaptcha.properties
 
 ### NetBeans ###
 /nbproject/private/

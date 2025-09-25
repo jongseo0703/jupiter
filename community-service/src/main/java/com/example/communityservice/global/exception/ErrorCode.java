@@ -38,6 +38,8 @@ public enum ErrorCode {
   EMPTY_FILE(HttpStatus.BAD_REQUEST, "F006", "빈 파일은 업로드할 수 없습니다."),
   INVALID_FILENAME(HttpStatus.BAD_REQUEST, "F007", "파일명이 올바르지 않습니다."),
   FILE_DELETE_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "F008", "파일 삭제에 실패했습니다."),
+  FILE_SAVE_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "F009", "파일 저장에 실패했습니다."),
+  FILE_PROCESSING_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "F010", "파일 처리 중 오류가 발생했습니다."),
 
   // 공통 에러
   INVALID_INPUT_VALUE(HttpStatus.BAD_REQUEST, "G001", "입력값이 유효하지 않습니다."),

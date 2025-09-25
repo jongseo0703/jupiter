@@ -97,8 +97,8 @@ public class AuthServiceImpl implements AuthService {
   }
 
   @Override
-  public LoginResponse login(LoginRequest request, String ipAddress, String userAgent) {
-    log.info("Attempting login for email: {} from IP: {}", request.email(), ipAddress);
+  public LoginResponse login(LoginRequest request) {
+    log.info("Attempting login for email: {}", request.email());
 
     User user = null;
     boolean loginSuccessful = false;
@@ -120,7 +120,7 @@ public class AuthServiceImpl implements AuthService {
       loginSuccessful = true;
 
       // 4. 의심스러운 활동 체크 (성공한 로그인)
-      suspiciousActivityService.recordLoginAttempt(user, ipAddress, userAgent, true, null);
+      suspiciousActivityService.recordLoginAttempt(user, true, null);
 
       // 5. JWT 토큰 생성
       String accessToken = jwtTokenProvider.generateAccessToken(authentication);
@@ -163,15 +163,10 @@ public class AuthServiceImpl implements AuthService {
       failureReason = e.getMessage();
 
       if (user != null) {
-        suspiciousActivityService.recordLoginAttempt(
-            user, ipAddress, userAgent, false, failureReason);
+        suspiciousActivityService.recordLoginAttempt(user, false, failureReason);
       }
 
-      log.warn(
-          "Login failed for email: {} from IP: {}, reason: {}",
-          request.email(),
-          ipAddress,
-          failureReason);
+      log.warn("Login failed for email: {}, reason: {}", request.email(), failureReason);
 
       // 사용자 친화적인 에러 메시지로 변경 - 400 상태코드로 변경
       throw new BusinessException("이메일 또는 비밀번호를 확인해주세요.", 400, "INVALID_CREDENTIALS");

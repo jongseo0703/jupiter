@@ -150,12 +150,10 @@ public class DetailPageService {
 
                 //최대페이지 도달
                 if(pageCount > MAX_PAGES){
-                    log.debug("최대 패이지 도달했습니다");
                     break;
                 }
                 //마지막페이지 도달
                 if(next.isEmpty()){
-                    log.debug("리뷰 마지막패이지 도달했습니다");
                     break;
                 }
 
@@ -178,11 +176,9 @@ public class DetailPageService {
                 html = driver.getPageSource();
 
             }catch (InterruptedException e){
-                log.debug("리뷰 수집 중 스레드 중단");
                 Thread.currentThread().interrupt();
                 break;
             }catch (TimeoutException e){
-                log.debug("페이딩 로딩 시간 초과");
                 break;
             }catch (NoSuchElementException e){
                 log.debug("다음 버튼을 찾을 수 없음");
@@ -218,8 +214,9 @@ public class DetailPageService {
     public List<String> getCategory(Document doc){
         List<String> ck = new ArrayList<>();
         Element root =
-                doc.selectFirst("table:has(th:matchesOwn(^\\s*주종\\s*$)), " +   // '주종' th를 가진 테이블
-                        "#infoBottom, #productSpec, .prod_spec, .detail_info"); // 페이지별 ID/클래스
+                // '주종' th를 가진 테이블
+                doc.selectFirst("table:has(th:matchesOwn(^\\s*주종\\s*$)), " +
+                        "#infoBottom, #productSpec, .prod_spec, .detail_info");
         String category = null;
         String kind     = null;
         if(root != null){
@@ -294,7 +291,30 @@ public class DetailPageService {
             //배송비
             Element delivery = element.selectFirst(".box__delivery");
             if (delivery != null) {
-                String d = delivery.text().trim();
+                String d = "";
+                //빠른배송 안내 확인
+                Element fastNotice = delivery.selectFirst(".box__fast-notice");
+                if (fastNotice != null) {
+                    //전체 문자열 가져오기
+                    d = delivery.ownText().trim();
+                    if(d.isEmpty()){
+                        // 숫자+"원"구조 찾기
+                        String fullText = delivery.text();
+                        Pattern pattern = Pattern.compile("(\\d{1,3}(?:,\\d{3})*)원");
+                        Matcher matcher = pattern.matcher(fullText);
+
+                        String lastMatch = "";
+                        while (matcher.find()) {
+                            //배송비를 문자열로 찾음
+                            lastMatch = matcher.group();
+                        }
+                        //배송비를 못 찾으면 "무료"로 처리
+                        d = lastMatch.isEmpty() ? "무료" : lastMatch;
+                    }
+                } else {
+                    //일반 배송일 경우
+                    d = delivery.text().trim();
+                }
                 //무료라고 적혀있으면 0, 배송비 끝 '원'제거하고 숫자로 저장
                 int fee = d.contains("무료") ? 0 : parseNum.getNum(d);
                 price.setDeliveryFee(fee);
