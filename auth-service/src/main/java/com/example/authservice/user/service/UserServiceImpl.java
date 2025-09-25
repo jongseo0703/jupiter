@@ -73,17 +73,26 @@ public class UserServiceImpl implements UserService {
             user.setEmail(request.email());
           }
 
-          if (request.phone() != null && !request.phone().trim().isEmpty()) {
-            // 하이픈 제거된 번호로 정규화
-            String normalizedPhone = request.normalizedPhone();
-            // 기존 휴대폰 번호와 다른 경우에만 인증 확인
-            if (!Objects.equals(user.getPhone(), normalizedPhone)) {
-              if (!smsService.isPhoneVerified(normalizedPhone)) {
-                throw new BusinessException("휴대폰 인증이 완료되지 않았습니다", 400, "PHONE_NOT_VERIFIED");
+          if (request.phone() != null) {
+            if (request.phone().trim().isEmpty()) {
+              // 빈 문자열인 경우 null로 설정 (OAuth 사용자 등)
+              user.setPhone(null);
+            } else {
+              // 하이픈 제거된 번호로 정규화
+              String normalizedPhone = request.normalizedPhone();
+              // phone 번호 길이 검증
+              if (normalizedPhone.length() < 8) {
+                throw new BusinessException("휴대폰 번호는 8자 이상이어야 합니다", 400, "PHONE_TOO_SHORT");
               }
-              user.setPhone(normalizedPhone);
-              // 휴대폰 인증 사용 완료 처리
-              smsService.markVerificationAsUsed(normalizedPhone);
+              // 기존 휴대폰 번호와 다른 경우에만 인증 확인
+              if (!Objects.equals(user.getPhone(), normalizedPhone)) {
+                if (!smsService.isPhoneVerified(normalizedPhone)) {
+                  throw new BusinessException("휴대폰 인증이 완료되지 않았습니다", 400, "PHONE_NOT_VERIFIED");
+                }
+                user.setPhone(normalizedPhone);
+                // 휴대폰 인증 사용 완료 처리
+                smsService.markVerificationAsUsed(normalizedPhone);
+              }
             }
           }
 
@@ -173,6 +182,14 @@ public class UserServiceImpl implements UserService {
                   .findById(userId)
                   .orElseThrow(
                       () -> new BusinessException("User not found", 404, "USER_NOT_FOUND"));
+
+          // OAuth 사용자는 비밀번호 변경 불가
+          if (user.isOAuthUser()) {
+            throw new BusinessException(
+                "OAuth users cannot change password",
+                400,
+                "OAUTH_USER_PASSWORD_CHANGE_NOT_ALLOWED");
+          }
 
           // 현재 비밀번호 검증
           if (!passwordEncoder.matches(request.currentPassword(), user.getPassword())) {
