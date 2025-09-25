@@ -291,7 +291,30 @@ public class DetailPageService {
             //배송비
             Element delivery = element.selectFirst(".box__delivery");
             if (delivery != null) {
-                String d = delivery.text().trim();
+                String d = "";
+                //빠른배송 안내 확인
+                Element fastNotice = delivery.selectFirst(".box__fast-notice");
+                if (fastNotice != null) {
+                    //전체 문자열 가져오기
+                    d = delivery.ownText().trim();
+                    if(d.isEmpty()){
+                        // 숫자+"원"구조 찾기
+                        String fullText = delivery.text();
+                        Pattern pattern = Pattern.compile("(\\d{1,3}(?:,\\d{3})*)원");
+                        Matcher matcher = pattern.matcher(fullText);
+
+                        String lastMatch = "";
+                        while (matcher.find()) {
+                            //배송비를 문자열로 찾음
+                            lastMatch = matcher.group();
+                        }
+                        //배송비를 못 찾으면 "무료"로 처리
+                        d = lastMatch.isEmpty() ? "무료" : lastMatch;
+                    }
+                } else {
+                    //일반 배송일 경우
+                    d = delivery.text().trim();
+                }
                 //무료라고 적혀있으면 0, 배송비 끝 '원'제거하고 숫자로 저장
                 int fee = d.contains("무료") ? 0 : parseNum.getNum(d);
                 price.setDeliveryFee(fee);
