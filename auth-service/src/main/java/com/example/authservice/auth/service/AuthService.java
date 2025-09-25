@@ -11,7 +11,7 @@ public interface AuthService {
 
   UserResponse register(RegisterRequest request);
 
-  LoginResponse login(LoginRequest request, String ipAddress, String userAgent);
+  LoginResponse login(LoginRequest request);
 
   LoginResponse verifyTwoFactor(String tempToken, String code);
 

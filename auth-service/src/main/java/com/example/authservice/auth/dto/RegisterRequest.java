@@ -19,7 +19,9 @@ public record RegisterRequest(
     // phone number는 최소 8자 이상이어야 함.
     @NotBlank(message = "Phone number is required")
         @Size(min = 8, message = "Phone number must be at least 8 characters long")
-        String phone) {
+        String phone,
+    // reCAPTCHA 응답 토큰
+    String recaptchaResponse) {
   public RegisterRequest {
     // username에 공백이 있으면
     if (username != null && username.trim().isEmpty()) {

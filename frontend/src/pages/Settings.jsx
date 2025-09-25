@@ -191,18 +191,34 @@ const Settings = () => {
               </div>
 
               <div className="p-6 space-y-4">
-                <button
-                  onClick={() => navigate('/mypage', { state: { openPasswordChange: true } })}
-                  className="w-full text-left p-4 border border-gray-200 rounded-lg hover:border-primary hover:bg-blue-50 transition-colors group"
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-3">
-                      <i className="fas fa-key text-blue-500"></i>
-                      <span className="font-medium text-gray-900 group-hover:text-primary">비밀번호 변경</span>
+                {/* OAuth 사용자가 아닌 경우에만 비밀번호 변경 버튼 표시 */}
+                {!userInfo?.isOAuthUser && (
+                  <button
+                    onClick={() => navigate('/mypage', { state: { openPasswordChange: true } })}
+                    className="w-full text-left p-4 border border-gray-200 rounded-lg hover:border-primary hover:bg-blue-50 transition-colors group"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-3">
+                        <i className="fas fa-key text-blue-500"></i>
+                        <span className="font-medium text-gray-900 group-hover:text-primary">비밀번호 변경</span>
+                      </div>
+                      <i className="fas fa-chevron-right text-gray-400 group-hover:text-primary"></i>
                     </div>
-                    <i className="fas fa-chevron-right text-gray-400 group-hover:text-primary"></i>
+                  </button>
+                )}
+
+                {/* OAuth 사용자인 경우 안내 메시지 표시 */}
+                {userInfo?.isOAuthUser && (
+                  <div className="w-full p-4 border border-gray-200 rounded-lg bg-gray-50">
+                    <div className="flex items-center space-x-3">
+                      <i className="fas fa-info-circle text-blue-500"></i>
+                      <div>
+                        <span className="font-medium text-gray-700">소셜 로그인 계정</span>
+                        <p className="text-sm text-gray-600 mt-1">소셜 로그인 사용자는 비밀번호 변경이 불필요합니다</p>
+                      </div>
+                    </div>
                   </div>
-                </button>
+                )}
 
                 <button
                   onClick={handleLogout}

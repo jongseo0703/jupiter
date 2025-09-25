@@ -98,6 +98,11 @@ public class User extends BaseEntity implements UserDetails {
     return enabled;
   }
 
+  // OAuth 사용자인지 확인하는 메서드
+  public boolean isOAuthUser() {
+    return "OAUTH_USER_NO_PASSWORD_12345678".equals(this.password);
+  }
+
   @Override
   public boolean equals(Object o) {
     if (this == o) return true;

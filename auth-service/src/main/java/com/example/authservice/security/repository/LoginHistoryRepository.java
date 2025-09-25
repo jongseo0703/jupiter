@@ -21,14 +21,6 @@ public interface LoginHistoryRepository extends JpaRepository<LoginHistory, Long
       "SELECT COUNT(l) FROM LoginHistory l WHERE l.user = :user AND l.successful = false AND l.loginTime >= :since")
   long countFailedLoginsSince(@Param("user") User user, @Param("since") LocalDateTime since);
 
-  @Query(
-      "SELECT DISTINCT l.ipAddress FROM LoginHistory l WHERE l.user = :user AND l.successful = true")
-  List<String> findDistinctSuccessfulIpsByUser(@Param("user") User user);
-
-  @Query(
-      "SELECT DISTINCT l.userAgent FROM LoginHistory l WHERE l.user = :user AND l.successful = true")
-  List<String> findDistinctSuccessfulUserAgentsByUser(@Param("user") User user);
-
   Optional<LoginHistory> findFirstByUserAndSuccessfulTrueOrderByLoginTimeDesc(User user);
 
   void deleteByUser(User user);

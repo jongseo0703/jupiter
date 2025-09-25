@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import ReCAPTCHA from 'react-google-recaptcha';
 import authService from '../services/authService';
 
 const Login = () => {
@@ -13,6 +14,8 @@ const Login = () => {
   const [twoFactorRequired, setTwoFactorRequired] = useState(false);
   const [tempToken, setTempToken] = useState('');
   const [verificationCode, setVerificationCode] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [recaptchaValue, setRecaptchaValue] = useState(null);
   const navigate = useNavigate();
 
   const handleInputChange = (e) => {
@@ -25,13 +28,25 @@ const Login = () => {
     if (error) setError('');
   };
 
+  const handleRecaptchaChange = (value) => {
+    setRecaptchaValue(value);
+    if (error) setError('');
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
     setError('');
 
+    // reCAPTCHA 검증
+    if (!recaptchaValue) {
+      setError('reCAPTCHA 인증을 완료해주세요.');
+      setIsLoading(false);
+      return;
+    }
+
     try {
-      const loginResponse = await authService.login(formData.email, formData.password, formData.rememberMe);
+      const loginResponse = await authService.login(formData.email, formData.password, formData.rememberMe, recaptchaValue);
 
       // 2FA가 필요한 경우
       if (loginResponse.data.twoFactorRequired) {
@@ -49,6 +64,11 @@ const Login = () => {
       }
     } catch (error) {
       setError(error.message || '로그인에 실패했습니다.');
+      // 로그인 실패 시 reCAPTCHA 리셋
+      setRecaptchaValue(null);
+      if (window.grecaptcha) {
+        window.grecaptcha.reset();
+      }
     } finally {
       setIsLoading(false);
     }
@@ -190,18 +210,25 @@ const Login = () => {
               <label htmlFor="password" className="block text-sm font-medium text-gray-700">
                 비밀번호
               </label>
-              <div className="mt-1">
+              <div className="mt-1 relative">
                 <input
                   id="password"
                   name="password"
-                  type="password"
+                  type={showPassword ? "text" : "password"}
                   autoComplete="current-password"
                   required
                   value={formData.password}
                   onChange={handleInputChange}
-                  className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm"
+                  className="appearance-none block w-full px-3 py-2 pr-10 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm"
                   placeholder="비밀번호를 입력하세요"
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+                >
+                  <i className={`fas ${showPassword ? 'fa-eye-slash' : 'fa-eye'}`}></i>
+                </button>
               </div>
             </div>
 
@@ -227,10 +254,19 @@ const Login = () => {
               </div>
             </div>
 
+            {/* reCAPTCHA */}
+            <div className="flex justify-center">
+              <ReCAPTCHA
+                sitekey="6LdWT9MrAAAAAFUWaq_oebgAzfa8zWPoxtlH8vQy"
+                onChange={handleRecaptchaChange}
+                onExpired={() => setRecaptchaValue(null)}
+              />
+            </div>
+
             <div>
               <button
                 type="submit"
-                disabled={isLoading}
+                disabled={isLoading || !recaptchaValue}
                 className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-primary hover:bg-blue-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50"
               >
                 {isLoading ? (
