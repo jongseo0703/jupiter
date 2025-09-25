@@ -101,11 +101,8 @@ public class FileUploadService {
             .findById(attachmentId)
             .orElseThrow(() -> new BusinessException(ErrorCode.ATTACHMENT_NOT_FOUND));
 
-    // FileManager를 사용하여 실제 파일 삭제
-    boolean deleted = fileManager.deleteFile(attachment.getFileUrl());
-    if (!deleted) {
-      log.warn("실제 파일 삭제 실패: {}", attachment.getFileUrl());
-    }
+    // FileManager를 사용하여 실제 파일 삭제 (예외 발생시 BusinessException으로 처리됨)
+    fileManager.deleteFile(attachment.getFileUrl());
 
     // 데이터베이스에서 삭제
     postAttachmentsRepository.delete(attachment);
