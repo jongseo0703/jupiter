@@ -311,7 +311,7 @@ export const fetchPost = async ({ queryKey, meta }) => {
   const [_key, postId] = queryKey;
 
   // 로그인한 경우 Authorization 헤더 추가
-  const token = localStorage.getItem('accessToken');
+  const token = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken');
   const headers = {};
   if (token) {
     headers.Authorization = `Bearer ${token}`;
@@ -362,7 +362,7 @@ export const fetchPost = async ({ queryKey, meta }) => {
  */
 export const createPostWithFiles = async ({ postData, files }) => {
   // 1. 게시글 생성 API 호출 (Authorization 헤더 포함)
-  const token = localStorage.getItem('accessToken');
+  const token = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken');
   const headers = {
     'Content-Type': 'application/json',
   };
@@ -404,7 +404,7 @@ export const createPostWithFiles = async ({ postData, files }) => {
  * @returns {Promise<object>} 성공 응답
  */
 export const likePost = async (postId) => {
-  const token = localStorage.getItem('accessToken');
+  const token = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken');
   const headers = {
     'Content-Type': 'application/json',
   };
@@ -426,7 +426,7 @@ export const likePost = async (postId) => {
  * @returns {Promise<object>} 성공 응답
  */
 export const unlikePost = async (postId) => {
-  const token = localStorage.getItem('accessToken');
+  const token = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken');
   const headers = {
     'Content-Type': 'application/json',
   };
@@ -605,7 +605,7 @@ export const fetchUserLikedPosts = async ({ queryKey }) => {
   const size = 10; // 페이지 당 게시물 수
 
   const headers = {};
-  const token = localStorage.getItem('accessToken');
+  const token = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken');
   if (token) {
     headers.Authorization = `Bearer ${token}`;
   }
@@ -656,7 +656,7 @@ export const fetchUserPosts = async ({ queryKey }) => {
   const size = 10; // 페이지 당 게시물 수
 
   const headers = {};
-  const token = localStorage.getItem('accessToken');
+  const token = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken');
   if (token) {
     headers.Authorization = `Bearer ${token}`;
   }
