@@ -175,7 +175,7 @@ public class FinalUrlResolver {
 
             //누수 탭 발견
             if (!leakedTabs.isEmpty()) {
-                log.warn("탭 누수 감지: {}개", leakedTabs.size());
+                log.debug("탭 누수 감지: {}개", leakedTabs.size());
                 for (String leakedTab : leakedTabs) {
                     //원본 탭을 제외한 모든 탭 닫기
                     if (!leakedTab.equals(originalTab) && currentTabs.contains(leakedTab)) {
