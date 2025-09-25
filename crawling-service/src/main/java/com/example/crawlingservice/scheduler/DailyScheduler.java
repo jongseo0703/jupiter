@@ -30,8 +30,8 @@ public class DailyScheduler {
     /**
      * 매일 서울 기준으로 자정에 자동으로 실행되는 스케줄러 메서드
      */
-//    @Scheduled(cron = "0 0 0 * * *", zone = "Asia/Seoul")
-    @Scheduled(initialDelay = 60000, fixedDelay = Long.MAX_VALUE) // 테스트용
+    @Scheduled(cron = "0 0 0 * * *", zone = "Asia/Seoul")
+//    @Scheduled(initialDelay = 60000, fixedDelay = Long.MAX_VALUE) // 테스트용, 1분 후 실행
     public void dailySchedule() {
 
         try {
@@ -57,7 +57,7 @@ public class DailyScheduler {
             LocalDateTime endTime = LocalDateTime.now();
             //소유 시간
             long durationSeconds = java.time.Duration.between(startTime, endTime).getSeconds();
-            log.debug("-----일일 크롤링 작업 완료:{} 소유시간 : {}-----",endTime.format(formatter),durationSeconds);
+            log.debug("-----일일 크롤링 작업 완료:{} 소요시간 : {}-----",endTime.format(formatter),durationSeconds);
 
         } catch (Exception e) {
             log.error("스케줄된 크롤링 작업 중 오류 발생: {}",e.getMessage());
