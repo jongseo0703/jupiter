@@ -715,3 +715,21 @@ export const fetchProducts = async()=>{
     const data = await response.json();
     return data;
 }
+/**
+ * 전체 카테고리 목록 API
+ * @returns 상위 카테고리, 하위카테고리 목록
+ */
+export const fethCategory = async()=>{
+  const response = await fetch(
+    `${PRODUCT_API_URL}/category`,
+    {
+      method:'GET',
+      headers:{
+        'Content-Type': 'application/json',
+         'Accept': 'application/json'
+      }
+  });
+
+  const data  = await response.json();
+  return data;
+}
