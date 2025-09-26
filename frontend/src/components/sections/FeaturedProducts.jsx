@@ -1,92 +1,53 @@
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { fetchMainProducts } from '../../services/api';
 
 const FeaturedProducts = () => {
-  const products = [
-    {
-      id: 1,
-      name: "참이슬 후레쉬",
-      lowestPrice: 1890,
-      prices: [
-        { store: "쿠팡", price: 1890 },
-        { store: "11번가", price: 1950 },
-        { store: "G마켓", price: 2100 }
-      ],
-      image: "https://images.unsplash.com/photo-1551538827-9c037cb4f32a?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80",
-      category: "소주",
-      rating: 4.3,
-      description: "대한민국 대표 소주, 깔끔하고 순한 맛"
-    },
-    {
-      id: 2,
-      name: "하이트 제로",
-      lowestPrice: 2680,
-      prices: [
-        { store: "신세계몰", price: 2680 },
-        { store: "롯데온", price: 2850 },
-        { store: "옥션", price: 2990 }
-      ],
-      image: "https://images.unsplash.com/photo-1608270586620-248524c67de9?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80",
-      category: "맥주",
-      rating: 4.1,
-      description: "상쾌하고 깔끔한 맛의 대한민국 대표 맥주"
-    },
-    {
-      id: 3,
-      name: "칠레 산타리타 와인",
-      lowestPrice: 8900,
-      prices: [
-        { store: "와인나라", price: 8900 },
-        { store: "하이트진로", price: 9800 },
-        { store: "이마트몰", price: 10500 }
-      ],
-      image: "https://images.unsplash.com/photo-1506377247377-2a5b3b417ebb?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80",
-      category: "와인",
-      rating: 4.2,
-      description: "부드럽고 풍부한 맛의 칠레 레드 와인"
-    },
-    {
-      id: 4,
-      name: "처음처럼",
-      lowestPrice: 1790,
-      prices: [
-        { store: "11번가", price: 1790 },
-        { store: "쿠팡", price: 1890 },
-        { store: "옥션", price: 1950 }
-      ],
-      image: "https://images.unsplash.com/photo-1569529465841-dfecdab7503b?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80",
-      category: "소주",
-      rating: 4.4,
-      description: "부드럽고 깔끔한 맛의 프리미엄 소주"
-    },
-    {
-      id: 5,
-      name: "카스 맥주",
-      lowestPrice: 2450,
-      prices: [
-        { store: "G마켓", price: 2450 },
-        { store: "신세계몰", price: 2580 },
-        { store: "롯데온", price: 2690 }
-      ],
-      image: "https://images.unsplash.com/photo-1608270586620-248524c67de9?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80",
-      category: "맥주",
-      rating: 4.0,
-      description: "오리온의 대표 맥주, 시원하고 깔끔한 맛"
-    },
-    {
-      id: 6,
-      name: "좋은데이 복분자주",
-      lowestPrice: 4900,
-      prices: [
-        { store: "현대백화점", price: 4900 },
-        { store: "갤러리아", price: 5200 },
-        { store: "롯데백화점", price: 5500 }
-      ],
-      image: "https://images.unsplash.com/photo-1506377247377-2a5b3b417ebb?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80",
-      category: "과실주",
-      rating: 4.5,
-      description: "달콤하고 부드러운 우리나라 전통 복분자주"
-    }
-  ];
+  const [products,setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+    useEffect(() => {
+    const loadProducts = async () => {
+      try {
+        setLoading(true);
+        const data = await fetchMainProducts();
+
+        const transformedProducts = data.map(item => {
+          const product = item.product;
+          const avgRating = item.avgRating;
+
+          const lowestPrice = Math.min(...product.priceDtoList.map(p =>p.price));
+
+          const prices = product.priceDtoList.map(priceInfo => ({
+            store: priceInfo.shopDto.shopName,
+            price: priceInfo.price
+          }));
+
+          return {
+            id: product.productId,
+            name: product.productName,
+            lowestPrice: lowestPrice,
+            prices: prices,
+            image: product.url,
+            category:product.subCategoryDto.subName,
+            rating: (avgRating /20).toFixed(1),
+            description: product.description ||`${product.subCategoryDto.subName} 상품`
+          };
+        });
+
+        setProducts(transformedProducts.slice(0, 6));
+      } catch (err) {
+        setError(err.message);
+        console.log(err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    loadProducts();
+  }, []);
+    
 
   const ProductCard = ({ product }) => (
     <div className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-xl transition-shadow duration-300 group">
