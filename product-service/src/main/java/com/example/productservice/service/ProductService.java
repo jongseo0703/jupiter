@@ -6,6 +6,7 @@ import com.example.productservice.dto.ShopDto;
 import com.example.productservice.dto.SubCategoryDto;
 import com.example.productservice.repository.ProductRepository;
 import com.example.productservice.repository.ReviewRepository;
+import com.example.productservice.util.UrlShrinkRemover;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -49,7 +50,8 @@ public class ProductService {
                 // 상품명
                 productDto.setProductName((String) item[1]);
                 // 상품 이미지 URL
-                productDto.setUrl((String) item[2]);
+                String url = (String) item[2];
+                productDto.setUrl(UrlShrinkRemover.removeShrinkFromUrl(url));
                 // 상품 설명
                 productDto.setDescription((String) item[3]);
 
@@ -76,6 +78,8 @@ public class ProductService {
                 productDto.setPriceDtoList(shopDtoList);
 
                 Map<String, Object> productWithRating = new HashMap<>();
+                productWithRating.put("product", productDto);
+                productWithRating.put("avgRating", avgRatings);
                 result.add(productWithRating);
 
             }
