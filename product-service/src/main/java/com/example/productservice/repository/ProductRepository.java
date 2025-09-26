@@ -8,7 +8,7 @@ import java.util.List;
 
 public interface ProductRepository extends JpaRepository<Product,Integer> {
     /**
-     * 재고가 있고 평균 별점이 높은 상품 아이디와 평균 별점 6개 조회
+     * 재고가 있고 평균 별점이 높은 상품 아이디와 평균 별점 조회
      * @return 상품 아이디와 평균 별점 목록
      */
     @Query("SELECT p.productId FROM Product p " +
@@ -17,9 +17,8 @@ public interface ProductRepository extends JpaRepository<Product,Integer> {
             "JOIN Review r ON ps.productShopId = r.productShop.productShopId " +
             "WHERE s.isAvailable = true " +
             "GROUP BY p.productId " +
-            "ORDER BY AVG(r.rating) DESC " +
-            "LIMIT 6")
-    List<Integer> findTop6AvailableProductIdsByRating();
+            "ORDER BY AVG(r.rating) DESC ")
+    List<Integer> findTopAvailableProductIdsByRating();
 
     /**
      * 상품정보(아이디,상품명,URL,설명)과 하위케테고리명과 가격정보(금액과 상점명)를 조회

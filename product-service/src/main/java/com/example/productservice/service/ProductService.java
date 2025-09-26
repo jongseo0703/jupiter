@@ -31,7 +31,7 @@ public class ProductService {
     public  List<Map<String, Object>> mainPageProducts(){
         List<Map<String, Object>> result = new ArrayList<>();
         //대표 상품 6개의 아이디 목록
-        List<Integer> productIdList = productRepository.findTop6AvailableProductIdsByRating();
+        List<Integer> productIdList = productRepository.findTopAvailableProductIdsByRating();
 
         //해당 상품들의 아이디로 상품 정보 조회(대표 가격 3개까지)
         for(Integer productId : productIdList){
