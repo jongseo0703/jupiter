@@ -1,24 +1,38 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import {fetchProducts } from '../services/api';
+import {fetchProducts, fethCategory} from '../services/api';
 import AlcoholPreloader from '../components/AlcoholPreloader';
 
 function Shop() {
-  const [selectedCategory, setSelectedCategory] = useState('전체');
+  const [selectedTopCategory, setSelectedTopCategory] = useState('전체');
+  const [selectedSubCategory, setSelectedSubCategory] = useState('전체');
   const [priceRange, setPriceRange] = useState([0, 300]);
   const [sortBy, setSortBy] = useState('기본순');
   const [isLoading, setIsLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageGroup, setPageGroup] = useState(1); // 페이지 그룹 관리
+  const [pageGroup, setPageGroup] = useState(1);
   const itemsPerPage = 6;
 
-  const categories = ['전체', '소주', '맥주', '와인', '과실주', '전통주'];
-
-  const [products,setProducts] = useState([]);
+  const [categoryData, setCategoryData] = useState({'전체': []});
+  const [topCategories, setTopCategories] = useState(['전체']);
+  const [products, setProducts] = useState([]);
 
 
   const filteredProducts = products.filter(product => {
-    const categoryMatch = selectedCategory === '전체' || product.category === selectedCategory;
+    let categoryMatch = true;
+
+    if (selectedTopCategory !== '전체') {
+      // 상위 카테고리가 선택된 경우
+      if (selectedSubCategory === '전체') {
+        // 하위 카테고리가 '전체'인 경우 상위 카테고리만 확인
+        categoryMatch = categoryData[selectedTopCategory].includes(product.category) ||
+                       product.category === selectedTopCategory;
+      } else {
+        // 하위 카테고리가 선택된 경우 하위 카테고리와 정확히 매칭
+        categoryMatch = product.category === selectedSubCategory;
+      }
+    }
+
     const priceMatch = product.lowestPrice >= priceRange[0] * 1000 &&
                       (priceRange[1] >= 300 ? true : product.lowestPrice <= priceRange[1] * 1000);
     return categoryMatch && priceMatch;
@@ -49,18 +63,60 @@ function Shop() {
   useEffect(() => {
     setCurrentPage(1);
     setPageGroup(1);
-  }, [selectedCategory, priceRange, sortBy]);
+  }, [selectedTopCategory, selectedSubCategory, priceRange, sortBy]);
 
    useEffect(() => {
-      const loadProducts = async () => {
+      const loadData = async () => {
         try {
           setIsLoading(true);
-          const data = await fetchProducts();
 
-          // 추가 로딩 시간
-          await new Promise(resolve => setTimeout(resolve, 5000));
+          // 카테고리 데이터와 상품 데이터를 병렬로 가져오기
+          const [categoryResponse, productsResponse] = await Promise.all([
+            fethCategory(),
+            fetchProducts()
+          ]);
 
-          const transformedProducts = data.map(item => {
+          // 카테고리 데이터 변환
+          const transformedCategoryData = {'전체': []};
+          const topCategoryNames = ['전체'];
+
+          Object.keys(categoryResponse).forEach(topCategoryKey => {
+            // "TopCategoryDto(topCategoryId=4, topName=와인)" 형태에서 topName 추출
+            const match = topCategoryKey.match(/topName=([^)]+)\)/);
+            if (match) {
+              const topCategoryName = match[1];
+              const subCategories = categoryResponse[topCategoryKey].map(sub => sub.subName);
+
+              transformedCategoryData[topCategoryName] = subCategories;
+              topCategoryNames.push(topCategoryName);
+            }
+          });
+
+          // "기타"가 포함된 카테고리를 맨 아래로 정렬
+          const sortedTopCategories = topCategoryNames.sort((a, b) => {
+            if (a === '전체') return -1; // '전체'는 항상 맨 위
+            if (b === '전체') return 1;
+            if (a.includes('기타')) return 1; // '기타'가 포함된 것은 아래로
+            if (b.includes('기타')) return -1;
+            return a.localeCompare(b); // 나머지는 알파벳 순
+          });
+
+          // 각 카테고리의 하위 카테고리들도 "기타"가 포함된 것을 아래로 정렬
+          Object.keys(transformedCategoryData).forEach(topCategory => {
+            if (transformedCategoryData[topCategory].length > 0) {
+              transformedCategoryData[topCategory].sort((a, b) => {
+                if (a.includes('기타')) return 1;
+                if (b.includes('기타')) return -1;
+                return a.localeCompare(b);
+              });
+            }
+          });
+
+          setCategoryData(transformedCategoryData);
+          setTopCategories(sortedTopCategories);
+
+          // 상품 데이터 변환
+          const transformedProducts = productsResponse.map(item => {
             const product = item.product;
             const avgRating = item.avgRating;
 
@@ -93,9 +149,9 @@ function Shop() {
         }
       };
 
-      loadProducts();
+      loadData();
     }, []);
-    
+
   return (
     <>
       <AlcoholPreloader isLoading={isLoading} />
@@ -118,21 +174,58 @@ function Shop() {
           <div className="lg:w-1/4">
             <div className="bg-white p-6 rounded-lg shadow-sm mb-6">
               <h3 className="text-xl font-bold mb-4 text-gray-800">카테고리</h3>
-              <div className="space-y-3">
-                {categories.map(category => (
+
+              {/* 상위 카테고리 */}
+              <div className="space-y-3 mb-4">
+                <h4 className="font-semibold text-gray-700 border-b pb-2">상위 카테고리</h4>
+                {topCategories.map(category => (
                   <label key={category} className="flex items-center cursor-pointer">
                     <input
                       type="radio"
-                      name="category"
+                      name="topCategory"
                       value={category}
-                      checked={selectedCategory === category}
-                      onChange={(e) => setSelectedCategory(e.target.value)}
+                      checked={selectedTopCategory === category}
+                      onChange={(e) => {
+                        setSelectedTopCategory(e.target.value);
+                        setSelectedSubCategory('전체'); // 상위 카테고리 변경시 하위 카테고리 초기화
+                      }}
                       className="text-primary focus:ring-primary"
                     />
                     <span className="ml-2 text-gray-700">{category}</span>
                   </label>
                 ))}
               </div>
+
+              {/* 하위 카테고리 */}
+              {selectedTopCategory !== '전체' && categoryData[selectedTopCategory]?.length > 0 && (
+                <div className="space-y-3">
+                  <h4 className="font-semibold text-gray-700 border-b pb-2">하위 카테고리</h4>
+                  <label className="flex items-center cursor-pointer">
+                    <input
+                      type="radio"
+                      name="subCategory"
+                      value="전체"
+                      checked={selectedSubCategory === '전체'}
+                      onChange={(e) => setSelectedSubCategory(e.target.value)}
+                      className="text-primary focus:ring-primary"
+                    />
+                    <span className="ml-2 text-gray-700">전체</span>
+                  </label>
+                  {categoryData[selectedTopCategory].map(subCategory => (
+                    <label key={subCategory} className="flex items-center cursor-pointer">
+                      <input
+                        type="radio"
+                        name="subCategory"
+                        value={subCategory}
+                        checked={selectedSubCategory === subCategory}
+                        onChange={(e) => setSelectedSubCategory(e.target.value)}
+                        className="text-primary focus:ring-primary"
+                      />
+                      <span className="ml-2 text-gray-700 pl-4">{subCategory}</span>
+                    </label>
+                  ))}
+                </div>
+              )}
             </div>
 
             <div className="bg-white p-6 rounded-lg shadow-sm mb-6">
