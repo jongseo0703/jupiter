@@ -678,9 +678,32 @@ export const fetchUserPosts = async ({ queryKey }) => {
 //----상품정보 조회를 위한 API 정의 ----
 const PRODUCT_API_URL = 'http://localhost:8080/product/api';
 
+/**
+ * 메인 페이지의 상품의 목록 API
+ * @returns 메인 페이지의 상품들의 정보
+ */
 export const fetchMainProducts = async()=>{
   const response = await fetch(
     `${PRODUCT_API_URL}/main`,
+    {
+      method:'GET',
+      headers:{
+        'Content-Type': 'application/json',
+         'Accept': 'application/json'
+      }
+    });
+
+    const data = await response.json();
+    return data;
+}
+
+/**
+ * 상품목록 페이지의 상품들의 목록 API
+ * @returns 전체 상품 정보
+ */
+export const fetchProducts = async()=>{
+  const response = await fetch(
+    `${PRODUCT_API_URL}/list`,
     {
       method:'GET',
       headers:{
