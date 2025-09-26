@@ -13,9 +13,10 @@ import lombok.Data;
  */
 @Entity
 @Data
+@Table(name = "subcategory")
 public class SubCategory {
     @Id
-    @Column(name = "category_id")
+    @Column(name = "subcategory_id")
     private int subcategoryId;
     
     private String subName;
