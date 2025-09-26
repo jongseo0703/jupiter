@@ -674,3 +674,21 @@ export const fetchUserPosts = async ({ queryKey }) => {
 
   return await handleQueryApiResponse(response);
 };
+
+//----상품정보 조회를 위한 API 정의 ----
+const PRODUCT_API_URL = 'http://localhost:8080/product/api';
+
+export const fetchMainProducts = async()=>{
+  const response = await fetch(
+    `${PRODUCT_API_URL}/main`,
+    {
+      method:'GET',
+      headers:{
+        'Content-Type': 'application/json',
+         'Accept': 'application/json'
+      }
+    });
+
+    const data = await response.json();
+    return data;
+}
