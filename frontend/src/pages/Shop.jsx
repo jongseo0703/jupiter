@@ -1,147 +1,104 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import {fetchProducts } from '../services/api';
 import AlcoholPreloader from '../components/AlcoholPreloader';
 
 function Shop() {
   const [selectedCategory, setSelectedCategory] = useState('전체');
-  const [priceRange, setPriceRange] = useState([0, 100]);
+  const [priceRange, setPriceRange] = useState([0, 300]);
   const [sortBy, setSortBy] = useState('기본순');
   const [isLoading, setIsLoading] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageGroup, setPageGroup] = useState(1); // 페이지 그룹 관리
+  const itemsPerPage = 6;
 
   const categories = ['전체', '소주', '맥주', '와인', '과실주', '전통주'];
 
-  const products = [
-    {
-      id: 1,
-      name: "참이슬 후레쉬",
-      lowestPrice: 1890,
-      prices: [
-        { store: "쿠팡", price: 1890 },
-        { store: "11번가", price: 1950 },
-        { store: "G마켓", price: 2100 }
-      ],
-      image: "https://images.unsplash.com/photo-1551538827-9c037cb4f32a?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80",
-      category: "소주",
-      rating: 4.3,
-      description: "대한민국 대표 소주, 깔끔하고 순한 맛"
-    },
-    {
-      id: 2,
-      name: "하이트 제로",
-      lowestPrice: 2680,
-      prices: [
-        { store: "신세계몰", price: 2680 },
-        { store: "롯데온", price: 2850 },
-        { store: "옥션", price: 2990 }
-      ],
-      image: "https://images.unsplash.com/photo-1608270586620-248524c67de9?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80",
-      category: "맥주",
-      rating: 4.1,
-      description: "상쾌하고 깔끔한 맛의 대한민국 대표 맥주"
-    },
-    {
-      id: 3,
-      name: "칠레 산타리타 와인",
-      lowestPrice: 8900,
-      prices: [
-        { store: "와인나라", price: 8900 },
-        { store: "하이트진로", price: 9800 },
-        { store: "이마트몰", price: 10500 }
-      ],
-      image: "https://images.unsplash.com/photo-1506377247377-2a5b3b417ebb?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80",
-      category: "와인",
-      rating: 4.2,
-      description: "부드럽고 풍부한 맛의 칠레 레드 와인"
-    },
-    {
-      id: 4,
-      name: "처음처럼",
-      lowestPrice: 1790,
-      prices: [
-        { store: "11번가", price: 1790 },
-        { store: "쿠팡", price: 1890 },
-        { store: "옥션", price: 1950 }
-      ],
-      image: "https://images.unsplash.com/photo-1569529465841-dfecdab7503b?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80",
-      category: "소주",
-      rating: 4.4,
-      description: "부드럽고 깔끔한 맛의 프리미엄 소주"
-    },
-    {
-      id: 5,
-      name: "카스 맥주",
-      lowestPrice: 2450,
-      prices: [
-        { store: "G마켓", price: 2450 },
-        { store: "신세계몰", price: 2580 },
-        { store: "롯데온", price: 2690 }
-      ],
-      image: "https://images.unsplash.com/photo-1608270586620-248524c67de9?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80",
-      category: "맥주",
-      rating: 4.0,
-      description: "오리온의 대표 맥주, 시원하고 깔끔한 맛"
-    },
-    {
-      id: 6,
-      name: "좋은데이 복분자주",
-      lowestPrice: 4900,
-      prices: [
-        { store: "현대백화점", price: 4900 },
-        { store: "갤러리아", price: 5200 },
-        { store: "롯데백화점", price: 5500 }
-      ],
-      image: "https://images.unsplash.com/photo-1506377247377-2a5b3b417ebb?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80",
-      category: "과실주",
-      rating: 4.5,
-      description: "달콤하고 부드러운 우리나라 전통 복분자주"
-    },
-    {
-      id: 7,
-      name: "안동소주",
-      lowestPrice: 3500,
-      prices: [
-        { store: "쿠팡", price: 3500 },
-        { store: "11번가", price: 3800 },
-        { store: "G마켓", price: 4000 }
-      ],
-      image: "https://images.unsplash.com/photo-1551538827-9c037cb4f32a?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80",
-      category: "전통주",
-      rating: 4.6,
-      description: "경상북도 안동의 전통 증류식 소주"
-    },
-    {
-      id: 8,
-      name: "프랑스 보르도 와인",
-      lowestPrice: 15000,
-      prices: [
-        { store: "롯데온", price: 15000 },
-        { store: "신세계몰", price: 16500 },
-        { store: "이마트몰", price: 18000 }
-      ],
-      image: "https://images.unsplash.com/photo-1506377247377-2a5b3b417ebb?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80",
-      category: "와인",
-      rating: 4.4,
-      description: "프랑스 보르도 지역의 고품질 레드 와인"
-    }
-  ];
+  const [products,setProducts] = useState([]);
+
 
   const filteredProducts = products.filter(product => {
     const categoryMatch = selectedCategory === '전체' || product.category === selectedCategory;
-    const priceMatch = product.lowestPrice >= priceRange[0] * 1000 && product.lowestPrice <= priceRange[1] * 1000;
+    const priceMatch = product.lowestPrice >= priceRange[0] * 1000 &&
+                      (priceRange[1] >= 300 ? true : product.lowestPrice <= priceRange[1] * 1000);
     return categoryMatch && priceMatch;
   });
 
+  // 정렬 적용
+  const sortedProducts = [...filteredProducts].sort((a, b) => {
+    switch (sortBy) {
+      case '가격낮은순':
+        return a.lowestPrice - b.lowestPrice;
+      case '가격높은순':
+        return b.lowestPrice - a.lowestPrice;
+      case '평점순':
+        return b.rating - a.rating;
+      case '기본순':
+      default:
+        return a.id - b.id; // ID 순으로 정렬
+    }
+  });
+
+  // 페이지네이션 로직
+  const totalPages = Math.ceil(sortedProducts.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentProducts = sortedProducts.slice(startIndex, endIndex);
+
+  // 카테고리나 필터, 정렬이 변경되면 첫 페이지로 이동
   useEffect(() => {
-    setIsLoading(true);
-  }, []);
+    setCurrentPage(1);
+    setPageGroup(1);
+  }, [selectedCategory, priceRange, sortBy]);
 
-  const handleLoadingComplete = () => {
-    setIsLoading(false);
-  };
+   useEffect(() => {
+      const loadProducts = async () => {
+        try {
+          setIsLoading(true);
+          const data = await fetchProducts();
 
+          // 추가 로딩 시간
+          await new Promise(resolve => setTimeout(resolve, 5000));
+
+          const transformedProducts = data.map(item => {
+            const product = item.product;
+            const avgRating = item.avgRating;
+
+            const lowestPrice = Math.min(...product.priceDtoList.map(p =>p.price));
+
+            const prices = product.priceDtoList.map(priceInfo => ({
+              store: priceInfo.shopDto.shopName,
+              price: priceInfo.price
+            }));
+
+            return {
+              id: product.productId,
+              name: product.productName,
+              lowestPrice: lowestPrice,
+              prices: prices,
+              image: product.url,
+              category:product.subCategoryDto.subName,
+              rating: (avgRating /20).toFixed(1),
+              description: product.description ||`${product.subCategoryDto.subName} 상품`
+            };
+          });
+
+          setProducts(transformedProducts);
+          
+          // 데이터 로드 완료 후 로딩 상태 해제
+          setIsLoading(false); 
+        } catch (err) {
+          console.log(err);
+          setIsLoading(false);
+        }
+      };
+
+      loadProducts();
+    }, []);
+    
   return (
     <>
-      <AlcoholPreloader isLoading={isLoading} handleLoadingComplete={handleLoadingComplete} />
+      <AlcoholPreloader isLoading={isLoading} />
     <div className="py-16 bg-gray-50">
       {/* 페이지 헤더 */}
       <div
@@ -185,14 +142,14 @@ function Shop() {
                   <input
                     type="range"
                     min="0"
-                    max="100"
+                    max="300"
                     value={priceRange[1]}
                     onChange={(e) => setPriceRange([priceRange[0], parseInt(e.target.value)])}
                     className="w-full"
                   />
                   <div className="flex justify-between text-sm text-gray-600 mt-2">
                     <span>{priceRange[0] * 1000}원</span>
-                    <span>{priceRange[1] * 1000}원</span>
+                    <span>{priceRange[1] >= 300 ? '300,000+원' : `${priceRange[1] * 1000}원`}</span>
                   </div>
                 </div>
               </div>
@@ -216,11 +173,11 @@ function Shop() {
           {/* 상품 목록 */}
           <div className="lg:w-3/4">
             <div className="flex justify-between items-center mb-6">
-              <p className="text-gray-600">{filteredProducts.length}개의 상품</p>
+              <p className="text-gray-600">{sortedProducts.length}개의 상품</p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredProducts.map(product => (
+              {currentProducts.map(product => (
                 <div key={product.id} className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-xl transition-shadow duration-300 group">
                   <Link to={`/product/${product.id}`}>
                     <div className="relative overflow-hidden">
@@ -287,25 +244,76 @@ function Shop() {
             </div>
 
             {/* 페이지네이션 */}
-            <div className="flex justify-center mt-12">
-              <nav className="flex space-x-2">
-                <button className="px-4 py-2 text-gray-600 bg-white border border-gray-300 rounded hover:bg-gray-50">
-                  이전
-                </button>
-                <button className="px-4 py-2 text-white bg-primary border border-primary rounded">
-                  1
-                </button>
-                <button className="px-4 py-2 text-gray-600 bg-white border border-gray-300 rounded hover:bg-gray-50">
-                  2
-                </button>
-                <button className="px-4 py-2 text-gray-600 bg-white border border-gray-300 rounded hover:bg-gray-50">
-                  3
-                </button>
-                <button className="px-4 py-2 text-gray-600 bg-white border border-gray-300 rounded hover:bg-gray-50">
-                  다음
-                </button>
-              </nav>
-            </div>
+            {totalPages > 1 && (
+              <div className="flex justify-center mt-12">
+                <nav className="flex space-x-2">
+                  <button
+                    onClick={() => {
+                      if (currentPage > 1) {
+                        setCurrentPage(prev => prev - 1);
+                        // 현재 페이지가 현재 그룹의 첫 번째 페이지면 이전 그룹으로 이동
+                        if (currentPage === (pageGroup - 1) * 5 + 1) {
+                          setPageGroup(prev => Math.max(prev - 1, 1));
+                        }
+                      }
+                    }}
+                    disabled={currentPage === 1}
+                    className={`px-4 py-2 border border-gray-300 rounded ${
+                      currentPage === 1
+                        ? 'text-gray-400 bg-gray-100 cursor-not-allowed'
+                        : 'text-gray-600 bg-white hover:bg-gray-50'
+                    }`}
+                  >
+                    이전
+                  </button>
+
+                  {(() => {
+                    const maxVisible = 5;
+                    const startPage = (pageGroup - 1) * maxVisible + 1;
+                    const endPage = Math.min(startPage + maxVisible - 1, totalPages);
+
+                    const pages = [];
+                    for (let i = startPage; i <= endPage; i++) {
+                      pages.push(i);
+                    }
+
+                    return pages.map(pageNum => (
+                      <button
+                        key={pageNum}
+                        onClick={() => setCurrentPage(pageNum)}
+                        className={`px-4 py-2 border rounded ${
+                          currentPage === pageNum
+                            ? 'text-white bg-primary border-primary'
+                            : 'text-gray-600 bg-white border-gray-300 hover:bg-gray-50'
+                        }`}
+                      >
+                        {pageNum}
+                      </button>
+                    ));
+                  })()}
+
+                  <button
+                    onClick={() => {
+                      if (currentPage < totalPages) {
+                        setCurrentPage(prev => prev + 1);
+                        // 현재 페이지가 현재 그룹의 마지막 페이지면 다음 그룹으로 이동
+                        if (currentPage === pageGroup * 5) {
+                          setPageGroup(prev => prev + 1);
+                        }
+                      }
+                    }}
+                    disabled={currentPage === totalPages}
+                    className={`px-4 py-2 border border-gray-300 rounded ${
+                      currentPage === totalPages
+                        ? 'text-gray-400 bg-gray-100 cursor-not-allowed'
+                        : 'text-gray-600 bg-white hover:bg-gray-50'
+                    }`}
+                  >
+                    다음
+                  </button>
+                </nav>
+              </div>
+            )}
           </div>
         </div>
       </div>
