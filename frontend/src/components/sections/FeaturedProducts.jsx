@@ -4,13 +4,11 @@ import { fetchMainProducts } from '../../services/api';
 
 const FeaturedProducts = () => {
   const [products,setProducts] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
     useEffect(() => {
     const loadProducts = async () => {
       try {
-        setLoading(true);
         const data = await fetchMainProducts();
 
         const transformedProducts = data.map(item => {
@@ -40,8 +38,6 @@ const FeaturedProducts = () => {
       } catch (err) {
         setError(err.message);
         console.log(err);
-      } finally {
-        setLoading(false);
       }
     };
     
