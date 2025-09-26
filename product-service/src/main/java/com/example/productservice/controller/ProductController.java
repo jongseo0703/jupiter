@@ -1,6 +1,9 @@
 package com.example.productservice.controller;
 
 import com.example.productservice.dto.ProductDto;
+import com.example.productservice.dto.SubCategoryDto;
+import com.example.productservice.dto.TopCategoryDto;
+import com.example.productservice.service.CategoryService;
 import com.example.productservice.service.ProductService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -16,6 +19,7 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class ProductController {
     private final ProductService productService;
+    private final CategoryService categoryService;
 
     /**
      * 메인 페이지 상품정보 조회
@@ -31,5 +35,11 @@ public class ProductController {
     public ResponseEntity<?> getProductList() {
         List<Map<String, Object>> productDtoList = productService.getProductList();
         return ResponseEntity.ok().body(productDtoList);
+    }
+
+    @GetMapping("/category")
+    public ResponseEntity<?> getCategory() {
+        Map<TopCategoryDto, List<SubCategoryDto>> category = categoryService.getAllCategoryList();
+        return ResponseEntity.ok().body(category);
     }
 }
