@@ -36,4 +36,9 @@ public interface ProductRepository extends JpaRepository<Product,Integer> {
             "ORDER BY pr.price ASC LIMIT 3")
     List<Object[]> findProductWithPricesByProductId(Integer productId);
 
+    @Query("SELECT p.productId FROM Product p" +
+            "  JOIN Stock s ON p.productId = s.product.productId" +
+            "  WHERE s.isAvailable = true GROUP BY p.productId")
+    List<Integer> findAvailableProductIdsByProductId();
+
 }
