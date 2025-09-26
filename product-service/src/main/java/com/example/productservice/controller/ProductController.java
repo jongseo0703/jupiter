@@ -1,5 +1,6 @@
 package com.example.productservice.controller;
 
+import com.example.productservice.dto.ProductDto;
 import com.example.productservice.service.ProductService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -24,5 +25,11 @@ public class ProductController {
     public ResponseEntity<?> getMain() {
         List<Map<String, Object>> mainProducts = productService.mainPageProducts();
         return ResponseEntity.ok().body(mainProducts);
+    }
+
+    @GetMapping("/list")
+    public ResponseEntity<?> getProductList() {
+        List<Map<String, Object>> productDtoList = productService.getProductList();
+        return ResponseEntity.ok().body(productDtoList);
     }
 }
