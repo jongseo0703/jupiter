@@ -157,7 +157,8 @@ public class ProductService {
             //상품 설명
             productDto.setDescription(product.getDescription());
             //상품 이미지
-            productDto.setUrl(product.getUrl());
+            String url = product.getUrl();
+            productDto.setUrl(UrlShrinkRemover.removeShrinkFromUrl(url));
 
             //카테고리
             SubCategory subCategory = subCategoryRepository.findById(product.getSubCategory().getSubcategoryId()).orElse(null);
