@@ -28,7 +28,8 @@ const FeaturedProducts = () => {
             lowestPrice: lowestPrice,
             prices: prices,
             image: product.url,
-            category:product.subCategoryDto.subName,
+            category: product.subCategoryDto.subName,
+            topCategory: product.subCategoryDto.topCategoryDto?.topName || null,
             rating: (avgRating /20).toFixed(1),
             description: product.description ||`${product.subCategoryDto.subName} 상품`
           };
@@ -55,9 +56,15 @@ const FeaturedProducts = () => {
             className="w-full h-48 object-cover group-hover:scale-110 transition-transform duration-300"
           />
           <div className="absolute top-3 left-3 z-10">
-            <span className="bg-secondary text-white px-2 py-1 rounded-full text-xs font-semibold">
-              {product.category}
-            </span>
+            {product.topCategory ? (
+              <span className="bg-secondary text-white px-2 py-1 rounded-full text-xs font-semibold">
+                {product.topCategory}
+              </span>
+            ) : (
+              <span className="bg-secondary text-white px-2 py-1 rounded-full text-xs font-semibold">
+                {product.category}
+              </span>
+            )}
           </div>
           <div className="absolute top-3 right-3 z-10">
             <button className="bg-white p-2 rounded-full shadow-md hover:bg-primary hover:text-white transition-colors">
