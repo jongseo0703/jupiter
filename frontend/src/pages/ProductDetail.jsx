@@ -311,13 +311,24 @@ function ProductDetail() {
                               </div>
                             )}
                             <div>
-                              <h3 className="font-semibold text-lg">{store.store}</h3>
-                              <div className="flex items-center space-x-2 text-sm text-gray-600">
-                                {store.shipping && <span>{store.shipping}</span>}
+                              <div className="flex items-center space-x-2">
+                                <h3 className="font-semibold text-lg">{store.store}</h3>
                                 {store.discount && store.discount !== "0%" && (
-                                  <span className="bg-red-100 text-red-600 px-2 py-1 rounded-full">
+                                  <span className="bg-red-100 text-red-600 px-2 py-1 rounded-full text-sm">
                                     {store.discount}
                                   </span>
+                                )}
+                              </div>
+                              <div className="flex items-center space-x-2 text-sm text-gray-600">
+                                {store.shipping && (
+                                  <div className="flex items-center space-x-1">
+                                    <img
+                                      src="/images/delivery_icon.png"
+                                      alt="배송"
+                                      className="w-4 h-4 object-contain"
+                                    />
+                                    <span>{store.shipping}</span>
+                                  </div>
                                 )}
                               </div>
                             </div>
