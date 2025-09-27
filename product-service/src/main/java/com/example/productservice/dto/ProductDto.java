@@ -9,6 +9,7 @@ import java.util.List;
  * <ul>
  *     <li>productId : 상품 아이디</li>
  *     <li>productName : 상품명</li>
+ *     <li>brand : 브랜드</li>
  *     <li>description : 상품 설명</li>
  *     <li>alcoholPercentage : 도수</li>
  *     <li>volume : 용량</li>
@@ -22,6 +23,7 @@ import java.util.List;
 public class ProductDto {
     private int productId;
     private String productName;
+    private String brand;
     private String description;
     private double alcoholPercentage;
     private int volume;
