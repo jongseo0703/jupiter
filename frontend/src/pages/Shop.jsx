@@ -101,14 +101,34 @@ function Shop() {
             return a.localeCompare(b); // 나머지는 알파벳 순
           });
 
-          // 각 카테고리의 하위 카테고리들도 "기타"가 포함된 것을 아래로 정렬
+          // 하위 카테고리 통합 및 정리
           Object.keys(transformedCategoryData).forEach(topCategory => {
             if (transformedCategoryData[topCategory].length > 0) {
-              transformedCategoryData[topCategory].sort((a, b) => {
+              // 카테고리 통합 로직
+              const categoryMap = {};
+              transformedCategoryData[topCategory].forEach(subCategory => {
+                if (subCategory === '레드' || subCategory === '레드와인') {
+                  categoryMap['레드와인'] = true;
+                } else if (subCategory === '로제' || subCategory === '로제와인') {
+                  categoryMap['로제와인'] = true;
+                } else if (subCategory === '화이트' || subCategory === '화이트와인') {
+                  categoryMap['화이트와인'] = true;
+                } else {
+                  categoryMap[subCategory] = true;
+                }
+              });
+
+              // 통합된 카테고리 배열로 변환
+              const mergedCategories = Object.keys(categoryMap);
+
+              // "기타"가 포함된 것을 아래로 정렬
+              mergedCategories.sort((a, b) => {
                 if (a.includes('기타')) return 1;
                 if (b.includes('기타')) return -1;
                 return a.localeCompare(b);
               });
+
+              transformedCategoryData[topCategory] = mergedCategories;
             }
           });
 
@@ -127,16 +147,26 @@ function Shop() {
               price: priceInfo.price
             }));
 
+            // 카테고리명 통합
+            let categoryName = product.subCategoryDto.subName;
+            if (categoryName === '레드' || categoryName === '레드와인') {
+              categoryName = '레드와인';
+            } else if (categoryName === '로제' || categoryName === '로제와인') {
+              categoryName = '로제와인';
+            } else if (categoryName === '화이트' || categoryName === '화이트와인') {
+              categoryName = '화이트와인';
+            }
+
             return {
               id: product.productId,
               name: product.productName,
               lowestPrice: lowestPrice,
               prices: prices,
               image: product.url,
-              category: product.subCategoryDto.subName,
+              category: categoryName,
               topCategory: product.subCategoryDto.topCategoryDto?.topName || null,
               rating: (avgRating /20).toFixed(1),
-              description: product.description ||`${product.subCategoryDto.subName} 상품`
+              description: product.description ||`${categoryName} 상품`
             };
           });
 
