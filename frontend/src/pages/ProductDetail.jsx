@@ -94,7 +94,7 @@ const transformApiProductData = (apiData) => {
     description: description,
     rating: parseFloat(averageRating),
     reviewCount: reviewCount,
-    image: (apiData.url && !apiData.url.includes('noImg')) ? apiData.url : "https://images.unsplash.com/photo-1551538827-9c037cb4f32a?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80",
+    image: (apiData.url && !apiData.url.includes('noImg')) ? apiData.url : "/images/no_image.png",
     features: features,
     priceComparison: priceComparison,
     priceHistory: priceHistory,
@@ -221,7 +221,7 @@ function ProductDetail() {
                 <img
                   src={product.image}
                   alt={product.name}
-                  className="w-full h-full object-contain rounded-lg"
+                  className="max-w-full max-h-full object-contain rounded-lg"
                 />
               </div>
               <div className="mb-3">
