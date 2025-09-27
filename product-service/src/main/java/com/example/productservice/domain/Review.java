@@ -30,7 +30,7 @@ public class Review {
 
     private String title;
 
-    private String content;
+    private String comment;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "product_shop_id")
