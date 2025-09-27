@@ -110,9 +110,17 @@ public class ProductService {
         // 상품 설명
         productDto.setDescription((String) item[3]);
 
-        //하위 카테고리명 파싱
+        //하위 카테고리명
         SubCategoryDto subCategoryDto = new SubCategoryDto();
-        subCategoryDto.setSubName((String) item[4]);
+        String subName = (String) item[4];
+        subCategoryDto.setSubName(subName);
+
+        //상위 카테고리명
+        TopCategoryDto topCategoryDto = new TopCategoryDto();
+        String topName = topCategoryRepository.findByTopCategoryTopcategoryName(subName);
+        topCategoryDto.setTopName(topName);
+        subCategoryDto.setTopCategoryDto(topCategoryDto);
+
         productDto.setSubCategoryDto(subCategoryDto);
 
         // 각 상점 별 가격 목록
