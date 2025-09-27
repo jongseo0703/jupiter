@@ -733,3 +733,20 @@ export const fethCategory = async()=>{
   const data  = await response.json();
   return data;
 }
+/**
+ * 특정 상품 정보 조회 API
+ * @param {int} productId 
+ * @returns 상품 정보 및 전체 가격 목록 및 리뷰 목록 
+ */
+export const fetchProduct = async(productId)=>{
+  const response = await fetch(
+    `${PRODUCT_API_URL}/${productId}`,{
+      method:'GET',
+      headers:{
+        'Content-Type': 'application/json',
+         'Accept': 'application/json'
+      }
+    });
+    const data = await response.json();
+    return data;
+}
