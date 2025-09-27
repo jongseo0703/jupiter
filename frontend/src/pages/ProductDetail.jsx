@@ -210,22 +210,6 @@ function ProductDetail() {
           <i className="fas fa-chevron-right"></i>
           <Link to="/shop" className="hover:text-blue-600 hover:underline transition-colors duration-200 cursor-pointer">가격비교</Link>
           <i className="fas fa-chevron-right"></i>
-          {product?.subCategoryDto?.topCategoryDto && (
-            <>
-              <Link to={`/shop?category=${product.subCategoryDto.topCategoryDto.topName}`} className="hover:text-blue-600 hover:underline transition-colors duration-200 cursor-pointer">
-                {product.subCategoryDto.topCategoryDto.topName}
-              </Link>
-              <i className="fas fa-chevron-right"></i>
-            </>
-          )}
-          {product?.subCategoryDto && (
-            <>
-              <Link to={`/shop?category=${product.subCategoryDto.subName}`} className="hover:text-blue-600 hover:underline transition-colors duration-200 cursor-pointer">
-                {product.subCategoryDto.subName}
-              </Link>
-              <i className="fas fa-chevron-right"></i>
-            </>
-          )}
           <span className="text-primary font-medium">{product?.name || '상품명 로딩 중...'}</span>
         </div>
 
