@@ -1,11 +1,11 @@
 package com.example.productservice.service;
 
-import com.example.productservice.dto.PriceDto;
-import com.example.productservice.dto.ProductDto;
-import com.example.productservice.dto.ShopDto;
-import com.example.productservice.dto.SubCategoryDto;
-import com.example.productservice.repository.ProductRepository;
-import com.example.productservice.repository.ReviewRepository;
+import com.example.productservice.domain.Price;
+import com.example.productservice.domain.Product;
+import com.example.productservice.domain.SubCategory;
+import com.example.productservice.domain.TopCategory;
+import com.example.productservice.dto.*;
+import com.example.productservice.repository.*;
 import com.example.productservice.util.UrlShrinkRemover;
 import jakarta.persistence.criteria.CriteriaBuilder;
 import lombok.RequiredArgsConstructor;
@@ -23,6 +23,9 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class ProductService {
     public final ProductRepository productRepository;
+    private final SubCategoryRepository subCategoryRepository;
+    private final TopCategoryRepository topCategoryRepository;
+    private final PriceRepository priceRepository;
     private final ReviewRepository reviewRepository;
 
     /**
@@ -129,5 +132,104 @@ public class ProductService {
         }
         productDto.setPriceDtoList(shopDtoList);
         return productDto;
+    }
+
+    /**
+     * 특정 상품의 모든 정보 조회 메서드
+     * @param productId 상품 아이디
+     * @return 상품 정보
+     */
+    public ProductDto isProduct(int productId){
+        // 아이디로 상품 조회
+        Product product = productRepository.findById(productId).orElse(null);
+        if(product != null){
+            ProductDto productDto = new ProductDto();
+            //상품 아이디
+            productDto.setProductId(productId);
+            //상품명
+            productDto.setProductName(product.getProductName());
+            //브랜드
+            productDto.setBrand(product.getBrand());
+            //용량
+            productDto.setVolume(product.getVolume());
+            //상품 도수
+            productDto.setAlcoholPercentage(product.getAlcoholPercentage());
+            //상품 설명
+            productDto.setDescription(product.getDescription());
+            //상품 이미지
+            productDto.setUrl(product.getUrl());
+
+            //카테고리
+            SubCategory subCategory = subCategoryRepository.findById(product.getSubCategory().getSubcategoryId()).orElse(null);
+            if(subCategory != null){
+                SubCategoryDto subCategoryDto = new SubCategoryDto();
+                subCategoryDto.setSubName(subCategory.getSubName());
+                subCategoryDto.setSubCategoryId(subCategory.getSubcategoryId());
+                TopCategory topCategory = topCategoryRepository.findById(subCategory.getTopCategory().getTopcategoryId()).orElse(null);
+                if (topCategory != null){
+                    TopCategoryDto topCategoryDto = new TopCategoryDto();
+                    topCategoryDto.setTopCategoryId(topCategory.getTopcategoryId());
+                    topCategoryDto.setTopName(topCategory.getTopName());
+                    subCategoryDto.setTopCategoryDto(topCategoryDto);
+                }
+                productDto.setSubCategoryDto(subCategoryDto);
+            }
+
+            List<Object[]>priceList = priceRepository.findByProductId(productId);
+            List<PriceDto>priceDtoList = new ArrayList<>();
+            for(Object[] price : priceList){
+                PriceDto priceDto = new PriceDto();
+                //가격 아이디
+                priceDto.setPriceId((Integer) price[0]);
+                //가격
+                priceDto.setPrice((Integer) price[1]);
+                //배송비
+                priceDto.setDeliveryFee((Integer) price[2]);
+                //구매링크
+                priceDto.setLink(price[3].toString());
+
+                //상점
+                ShopDto shopDto = new ShopDto();
+                shopDto.setShopName((String) price[4]);
+                shopDto.setLogoIcon((String) price[5]);
+                priceDto.setShopDto(shopDto);
+
+                priceDtoList.add(priceDto);
+            }
+            //가격 정보 목록
+            productDto.setPriceDtoList(priceDtoList);
+
+            List<Object[]>reviewList = reviewRepository.findReviewByProductId(productId);
+            List<ReviewDto>reviewDtoList = new ArrayList<>();
+            for(Object[] review : reviewList){
+                ReviewDto reviewDto = new ReviewDto();
+                //리뷰아이디
+                reviewDto.setReviewId((Integer) review[0]);
+                //작성자
+                reviewDto.setWriter(review[1].toString());
+                //별점
+                reviewDto.setRating((Integer) review[2]);
+                //작성일
+                reviewDto.setReviewDate(review[3].toString());
+                //제목
+                reviewDto.setTitle(review[4].toString());
+                //내용
+                reviewDto.setContent(review[5].toString());
+
+                //상점
+                ShopDto shopDto = new ShopDto();
+                shopDto.setShopName((String) review[6]);
+                shopDto.setLogoIcon((String) review[7]);
+                reviewDto.setShopDto(shopDto);
+
+                reviewDtoList.add(reviewDto);
+            }
+            //특정 상품의 라뷰목록
+            productDto.setReviewDtoList(reviewDtoList);
+
+            return productDto;
+
+        }
+        return null;
     }
 }
