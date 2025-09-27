@@ -1,4 +1,4 @@
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import PricePredictionChart from '../components/PricePredictionChart';
 import AlcoholPreloader from '../components/AlcoholPreloader';
@@ -49,7 +49,7 @@ const transformApiProductData = (apiData) => {
   ];
 
   // 리뷰 평점 계산 (rating이 100점 만점이므로 5점 만점으로 변환)
-  let averageRating = 4.0;
+  let averageRating = 0.0;
   let reviewCount = 0;
 
   if (apiData.reviewDtoList && apiData.reviewDtoList.length > 0) {
@@ -63,9 +63,14 @@ const transformApiProductData = (apiData) => {
   // features 배열 생성 (빈 값 제외)
   const features = [];
   if (apiData.alcoholPercentage) features.push(`${apiData.alcoholPercentage}% 알코올 도수`);
-  if (apiData.volume) features.push(`${apiData.volume}ml 용량`);
-  if (apiData.brand) features.push(apiData.brand);
-  if (apiData.subCategoryDto && apiData.subCategoryDto.subName) features.push(apiData.subCategoryDto.subName);
+  if (apiData.volume) {
+    const volumeText = apiData.volume >= 1000
+      ? `${(apiData.volume / 1000).toFixed(1)}L`
+      : `${apiData.volume}ml`;
+    features.push(volumeText);
+  }
+  if (apiData.brand) features.push(`브랜드: ${apiData.brand}`);
+  if (apiData.subCategoryDto && apiData.subCategoryDto.subName) features.push(`종류: ${apiData.subCategoryDto.subName}`);
 
   // description 생성
   let description = '';
@@ -75,7 +80,9 @@ const transformApiProductData = (apiData) => {
     // description이 없으면 기본 설명 생성
     const brandText = apiData.brand ? `${apiData.brand}의 ` : '';
     const alcoholText = apiData.alcoholPercentage ? ` 알코올 도수 ${apiData.alcoholPercentage}%` : '';
-    const volumeText = apiData.volume ? `, 용량 ${apiData.volume}ml` : '';
+    const volumeText = apiData.volume
+      ? `, ${apiData.volume >= 1000 ? `${(apiData.volume / 1000).toFixed(1)}L` : `${apiData.volume}ml`}`
+      : '';
     description = `${brandText}${apiData.productName}입니다.${alcoholText}${volumeText}`;
   }
 
@@ -91,182 +98,19 @@ const transformApiProductData = (apiData) => {
     features: features,
     priceComparison: priceComparison,
     priceHistory: priceHistory,
-    reviews: apiData.reviewDtoList || []
+    reviews: apiData.reviewDtoList || [],
+    subCategoryDto: apiData.subCategoryDto // 카테고리 정보 추가
   };
 };
 
 function ProductDetail() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(true);
   const [product, setProduct] = useState(null);
   const [error, setError] = useState(null);
   const [showAllReviews, setShowAllReviews] = useState(false);
 
-  // TODO: 하드코딩된 상품 데이터를 실제 API 또는 데이터베이스에서 가져오도록 수정 필요
-  // TODO: 크롤링 시스템과 연동하여 실시간 가격 정보 업데이트 구현 필요
-  const fallbackProducts = {
-    1: {
-      id: 1,
-      name: "참이슬 후레쉬",
-      lowestPrice: 1890,
-      category: "소주",
-      description: "대한민국 대표 소주, 깔끔하고 순한 맛으로 오랜 사랑을 받아온 국민 소주입니다.",
-      rating: 4.3,
-      reviewCount: 1247,
-      image: "https://images.unsplash.com/photo-1551538827-9c037cb4f32a?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80",
-      features: [
-        "20.1% 알코올 도수",
-        "360ml 용량",
-        "국내산 쌀",
-        "진로 대표 소주"
-      ],
-      // TODO: 실제 크롤링 데이터로 교체 필요 - 각 쇼핑몰의 실시간 가격 정보
-      priceComparison: [
-        { store: "쿠팡", price: 1890, shipping: "무료배송", link: "#", discount: "5%" },
-        { store: "11번가", price: 1950, shipping: "무료배송", link: "#", discount: "2%" },
-        { store: "G마켓", price: 2100, shipping: "2,500원", link: "#", discount: "0%" },
-        { store: "신세계몰", price: 2050, shipping: "무료배송", link: "#", discount: "0%" },
-        { store: "롯데온", price: 1980, shipping: "무료배송", link: "#", discount: "3%" }
-      ],
-      // TODO: 실제 가격 히스토리 데이터로 교체 필요 - 시계열 최저가 데이터
-      priceHistory: [
-        { date: "2025-08-26", price: 1820, weeksAgo: 3 },
-        { date: "2025-09-02", price: 1850, weeksAgo: 2 },
-        { date: "2025-09-09", price: 1890, weeksAgo: 1 }
-      ]
-    },
-    2: {
-      id: 2,
-      name: "하이트 제로",
-      lowestPrice: 2680,
-      category: "맥주",
-      description: "상쾌하고 깔끔한 맛의 대한민국 대표 맥주로 시원한 목넘김이 일품입니다.",
-      rating: 4.1,
-      reviewCount: 892,
-      image: "https://images.unsplash.com/photo-1608270586620-248524c67de9?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80",
-      features: [
-        "4.5% 알코올 도수",
-        "500ml 캔",
-        "국내 생산",
-        "라거 맥주"
-      ],
-      priceComparison: [
-        { store: "신세계몰", price: 2680, shipping: "무료배송", link: "#", discount: "8%" },
-        { store: "롯데온", price: 2850, shipping: "무료배송", link: "#", discount: "3%" },
-        { store: "옥션", price: 2990, shipping: "무료배송", link: "#", discount: "0%" },
-        { store: "G마켓", price: 2950, shipping: "3,000원", link: "#", discount: "1%" }
-      ],
-      priceHistory: [
-        { date: "2025-08-26", price: 2580, weeksAgo: 3 },
-        { date: "2025-09-02", price: 2630, weeksAgo: 2 },
-        { date: "2025-09-09", price: 2680, weeksAgo: 1 }
-      ]
-    },
-    3: {
-      id: 3,
-      name: "칠레 산타리타 와인",
-      lowestPrice: 8900,
-      category: "와인",
-      description: "부드럽고 풍부한 맛의 칠레 레드 와인으로 가성비가 뛰어난 데일리 와인입니다.",
-      rating: 4.2,
-      reviewCount: 623,
-      image: "https://images.unsplash.com/photo-1506377247377-2a5b3b417ebb?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80",
-      features: [
-        "13.5% 알코올 도수",
-        "750ml 병",
-        "칠레 산",
-        "레드 와인"
-      ],
-      priceComparison: [
-        { store: "와인나라", price: 8900, shipping: "무료배송", link: "#", discount: "12%" },
-        { store: "하이트진로", price: 9800, shipping: "무료배송", link: "#", discount: "7%" },
-        { store: "이마트몰", price: 10500, shipping: "2,500원", link: "#", discount: "3%" }
-      ],
-      priceHistory: [
-        { date: "2025-08-26", price: 8500, weeksAgo: 3 },
-        { date: "2025-09-02", price: 8700, weeksAgo: 2 },
-        { date: "2025-09-09", price: 8900, weeksAgo: 1 }
-      ]
-    },
-    4: {
-      id: 4,
-      name: "처음처럼",
-      lowestPrice: 1790,
-      category: "소주",
-      description: "부드럽고 깔끔한 맛의 프리미엄 소주로 목넘김이 부드러운 것이 특징입니다.",
-      rating: 4.4,
-      reviewCount: 985,
-      image: "https://images.unsplash.com/photo-1569529465841-dfecdab7503b?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80",
-      features: [
-        "20.1% 알코올 도수",
-        "360ml 용량",
-        "국내산 쌀",
-        "롯데칠성 소주"
-      ],
-      priceComparison: [
-        { store: "11번가", price: 1790, shipping: "무료배송", link: "#", discount: "6%" },
-        { store: "쿠팡", price: 1890, shipping: "무료배송", link: "#", discount: "3%" },
-        { store: "옥션", price: 1950, shipping: "무료배송", link: "#", discount: "0%" }
-      ],
-      priceHistory: [
-        { date: "2025-08-26", price: 1720, weeksAgo: 3 },
-        { date: "2025-09-02", price: 1750, weeksAgo: 2 },
-        { date: "2025-09-09", price: 1790, weeksAgo: 1 }
-      ]
-    },
-    5: {
-      id: 5,
-      name: "카스 맥주",
-      lowestPrice: 2450,
-      category: "맥주",
-      description: "오리온의 대표 맥주, 시원하고 깔끔한 맛으로 많은 사랑을 받고 있습니다.",
-      rating: 4.0,
-      reviewCount: 756,
-      image: "https://images.unsplash.com/photo-1608270586620-248524c67de9?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80",
-      features: [
-        "4.5% 알코올 도수",
-        "500ml 캔",
-        "국내 생산",
-        "라거 맥주"
-      ],
-      priceComparison: [
-        { store: "G마켓", price: 2450, shipping: "무료배송", link: "#", discount: "5%" },
-        { store: "신세계몰", price: 2580, shipping: "무료배송", link: "#", discount: "2%" },
-        { store: "롯데온", price: 2690, shipping: "무료배송", link: "#", discount: "0%" }
-      ],
-      priceHistory: [
-        { date: "2025-08-26", price: 2350, weeksAgo: 3 },
-        { date: "2025-09-02", price: 2400, weeksAgo: 2 },
-        { date: "2025-09-09", price: 2450, weeksAgo: 1 }
-      ]
-    },
-    6: {
-      id: 6,
-      name: "좋은데이 복분자주",
-      lowestPrice: 4900,
-      category: "과실주",
-      description: "달콤하고 부드러운 우리나라 전통 복분자주로 건강에도 좋은 과실주입니다.",
-      rating: 4.5,
-      reviewCount: 432,
-      image: "https://images.unsplash.com/photo-1506377247377-2a5b3b417ebb?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80",
-      features: [
-        "15% 알코올 도수",
-        "375ml 병",
-        "국내산 복분자",
-        "과실주"
-      ],
-      priceComparison: [
-        { store: "현대백화점", price: 4900, shipping: "무료배송", link: "#", discount: "10%" },
-        { store: "갤러리아", price: 5200, shipping: "무료배송", link: "#", discount: "5%" },
-        { store: "롯데백화점", price: 5500, shipping: "무료배송", link: "#", discount: "0%" }
-      ],
-      priceHistory: [
-        { date: "2025-08-26", price: 4700, weeksAgo: 3 },
-        { date: "2025-09-02", price: 4800, weeksAgo: 2 },
-        { date: "2025-09-09", price: 4900, weeksAgo: 1 }
-      ]
-    }
-  };
 
   useEffect(() => {
     const loadData = async () => {
@@ -282,22 +126,23 @@ function ProductDetail() {
         if (transformedProduct) {
           setProduct(transformedProduct);
         } else {
-          // API 데이터가 없으면 fallback 데이터 사용
-          const fallbackProduct = fallbackProducts[parseInt(id)] || fallbackProducts[1];
-          setProduct(fallbackProduct);
+          // API 데이터가 없으면 에러 페이지로 리디렉션
+          navigate('/err');
+          return;
         }
       } catch (err) {
         console.error('Failed to fetch product:', err);
         setError(err.message);
-        // 에러 발생 시 fallback 데이터 사용
-        const fallbackProduct = fallbackProducts[parseInt(id)] || fallbackProducts[1];
-        setProduct(fallbackProduct);
+
+        // 에러 발생 시 에러 페이지로 리디렉션
+        navigate('/err');
+        return;
       } finally {
         setIsLoading(false);
       }
     }
     loadData();
-  }, [id]);
+  }, [id, navigate]);
 
   const handleLoadingComplete = () => {
     setIsLoading(false);
@@ -365,7 +210,7 @@ function ProductDetail() {
           <i className="fas fa-chevron-right"></i>
           <Link to="/shop" className="hover:text-blue-600 hover:underline transition-colors duration-200 cursor-pointer">가격비교</Link>
           <i className="fas fa-chevron-right"></i>
-          {product.subCategoryDto && product.subCategoryDto.topCategoryDto && (
+          {product?.subCategoryDto?.topCategoryDto && (
             <>
               <Link to={`/shop?category=${product.subCategoryDto.topCategoryDto.topName}`} className="hover:text-blue-600 hover:underline transition-colors duration-200 cursor-pointer">
                 {product.subCategoryDto.topCategoryDto.topName}
@@ -373,7 +218,7 @@ function ProductDetail() {
               <i className="fas fa-chevron-right"></i>
             </>
           )}
-          {product.subCategoryDto && (
+          {product?.subCategoryDto && (
             <>
               <Link to={`/shop?category=${product.subCategoryDto.subName}`} className="hover:text-blue-600 hover:underline transition-colors duration-200 cursor-pointer">
                 {product.subCategoryDto.subName}
@@ -381,7 +226,7 @@ function ProductDetail() {
               <i className="fas fa-chevron-right"></i>
             </>
           )}
-          <span className="text-primary font-medium">{product.name}</span>
+          <span className="text-primary font-medium">{product?.name || '상품명 로딩 중...'}</span>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-16">
@@ -395,10 +240,27 @@ function ProductDetail() {
                   className="w-full h-full object-contain rounded-lg"
                 />
               </div>
-              <span className="text-sm text-gray-600 bg-gray-100 px-3 py-1 rounded-full">
-                {product.category}
-              </span>
-              <h1 className="text-2xl font-bold text-gray-800 mt-4 mb-2">{product.name}</h1>
+              <div className="mb-3">
+                {product?.subCategoryDto?.topCategoryDto?.topName ? (
+                  <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full mr-2">
+                    {product.subCategoryDto.topCategoryDto.topName}
+                  </span>
+                ) : (
+                  <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full mr-2">
+                    기타
+                  </span>
+                )}
+                {product?.subCategoryDto?.subName ? (
+                  <span className="text-xs text-gray-600 bg-blue-100 px-2 py-1 rounded-full">
+                    {product.subCategoryDto.subName}
+                  </span>
+                ) : (
+                  <span className="text-xs text-gray-600 bg-blue-100 px-2 py-1 rounded-full">
+                    {product?.category || '미분류'}
+                  </span>
+                )}
+              </div>
+              <h1 className="text-2xl font-bold text-gray-800 mb-2">{product.name}</h1>
               <div className="flex items-center mb-4">
                 <div className="flex items-center mr-4">
                   {[...Array(5)].map((_, i) => (
@@ -631,7 +493,6 @@ function ProductDetail() {
             <div className="text-center py-8">
               <i className="fas fa-comment-slash text-gray-400 text-3xl mb-4"></i>
               <p className="text-gray-600">아직 등록된 리뷰가 없습니다.</p>
-              <p className="text-gray-500 text-sm mt-1">첫 번째 리뷰를 작성해보세요!</p>
             </div>
           )}
 
