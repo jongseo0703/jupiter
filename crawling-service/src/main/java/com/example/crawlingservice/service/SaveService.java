@@ -52,6 +52,8 @@ public class SaveService {
             SubCategory subCategory =categoryService.saveCategory(productDTO.getCategory(),productDTO.getProductKind());
             //상품 저장
             Product product =productService.saveProduct(productDTO,subCategory);
+            //이미지 URL 검사 및 업데이트
+            updateImage(productDTO.getImageUrl(), productDTO.getProductName());
             for(PriceDTO priceDTO : priceDTOList) {
                 //상점 저장
                 Shop shop=shopService.saveShop(priceDTO);
@@ -63,11 +65,13 @@ public class SaveService {
             //리뷰 저장
             reviewService.saveReview(reviewDTOList,product);
             count++;
+
         }
         log.debug("데이터베이스에 저장한 상품 수 {}",count);
 
         //DB와 상품명 비교
         updateStockStatus(productNames);
+
     }
 
     /**
@@ -96,6 +100,45 @@ public class SaveService {
                 //DB에만 상품명이 존재 할 경우 is_available = false로 변경
                 stockMapper.updateProduct(false,productName);
             }
+        }
+    }
+
+    /**
+     * DB 상품 이미지 유효 검사 및 수정을 위한 메서드
+     * @param productDtoUrl 새 이미지 URL
+     * @param productName 상품명
+     */
+    public void updateImage(String productDtoUrl, String productName) {
+        // DB 상품 조회
+        Product product = productMapper.selectByProduct(productName);
+
+        if (product != null) {
+            // 현재 DB에 저장된 이미지 URL
+            String dbImageUrl = product.getUrl();
+
+            // 기본 "이미지 없음" URL 상수
+            final String NO_IMAGE_URL = "https://img.danawa.com/new/noData/img/noImg_160.gif";
+
+            // 새 이미지 유효 검사
+            boolean isDbUrlValid = !NO_IMAGE_URL.equals(dbImageUrl);
+            //기존 이미지 유효 검사
+            boolean isNewUrlValid = !NO_IMAGE_URL.equals(productDtoUrl);
+
+            // 올바른 업데이트 로직
+            if (isNewUrlValid && !productDtoUrl.equals(dbImageUrl)) {
+                // 새 URL이 유효하고 기존 URL과 다르면 업데이트
+                productMapper.updateUrl(product.getProductId(), productDtoUrl);
+                log.debug("{} 상품 이미지 업데이트",product.getProductName());
+
+            } else if (!isNewUrlValid && isDbUrlValid) {
+                // 새 URL이 유효하지 않지만 기존 URL이 유효하면 유지
+                log.debug("기존 이미지 유지");
+            } else {
+                // 둘 다 유효하지 않거나 기타 경우
+                log.debug("유효한 이미지 URL 없음");
+            }
+        } else {
+            log.debug("상품을 찾을 수 없습니다: {}", productName);
         }
     }
 }
