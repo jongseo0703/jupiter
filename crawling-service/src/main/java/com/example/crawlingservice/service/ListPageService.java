@@ -113,9 +113,16 @@ public class ListPageService {
         String imageUrl = null;
         Element imgElement = item.select("div.thumb_image a.thumb_link img").first();
         if (imgElement != null) {
-            imageUrl = imgElement.attr("src");
-            if (imageUrl.startsWith("//")) {
-                imageUrl = "https:" + imageUrl;
+            String url = imgElement.attr("data-original");
+            if(url == null ||url.isEmpty()){
+                url = imgElement.attr("src");
+            }
+            if (url.startsWith("//")) {
+                url = "https:" + url;
+                //이미지 존제 여부 확인
+                if (!url.contains("noImg") && !url.contains("noData")){
+                    imageUrl = url;
+                }
             }
         }
 
