@@ -220,10 +220,17 @@ public class ProductService {
                 reviewDto.setRating((Integer) review[2]);
                 //작성일
                 reviewDto.setReviewDate(review[3].toString());
-                //제목
-                reviewDto.setTitle(review[4].toString());
-                //내용
-                reviewDto.setContent(review[5].toString());
+
+                //리뷰 제목과 내용
+                String title = review[4].toString();
+                String comment = review[5].toString();
+                if(!title.equals(comment)){
+                    reviewDto.setTitle(title);
+                    reviewDto.setContent(comment);
+                }else {
+                    //제목과 내용이 같을 경우 제목만 파싱
+                    reviewDto.setTitle(title);
+                }
 
                 //상점
                 ShopDto shopDto = new ShopDto();
