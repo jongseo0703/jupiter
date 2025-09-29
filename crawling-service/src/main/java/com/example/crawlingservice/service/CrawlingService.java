@@ -9,6 +9,7 @@ import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.chrome.ChromeDriver;
+import org.openqa.selenium.chrome.ChromeOptions;
 import org.openqa.selenium.support.ui.WebDriverWait;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -17,6 +18,11 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.stream.Collectors;
 
 /**
  * 크롤링 할 웹사이트를 자동으로 페이지 넘겨주는 서비스
@@ -34,6 +40,84 @@ public class CrawlingService {
     //웹브라우저를 프로그래밍적으로 제어하는 인터페이스
     private WebDriver driver;
 
+    // 멀티스레딩을 위한 스레드풀 (16개 스레드로 병렬 처리)
+    private ThreadPoolExecutor executor;
+
+    /**
+     * 스레드풀을 초기화하는 메서드
+     * 16개의 스레드를 생성하여 병렬 처리 성능을 극대화합니다.
+     */
+    private void initializeThreadPool() {
+        if (executor == null || executor.isShutdown()) {
+            //초기 스레드 수(16개), 최대 스레드 수(16개) 대기사간(0초),시간단위 설정
+            executor = new ThreadPoolExecutor(16, 16, 0L, TimeUnit.MILLISECONDS,
+                //FIFO 구조의 메서드(큐가 비여있을 때는 대기)
+                new LinkedBlockingQueue<>()
+            );
+        }
+    }
+
+    /**
+     * 최적화된 Chrome 옵션을 생성하는 메서드
+     * 대부분의 브라우저 창의 기능 비활성화
+     */
+    private ChromeOptions createOptimizedChromeOptions() {
+        ChromeOptions options = new ChromeOptions();
+
+        // 헤드리스 모드 (브라우저 창 없이 실행) -->속도를 위해
+        options.addArguments("--headless");
+
+        // 성능 최적화 옵션들
+        //보안 프로세스 비활성화
+        options.addArguments("--no-sandbox");// 샌드박스 비활성화
+        options.addArguments("--disable-web-security");// 웹 보안 비활성화
+
+        //불필요한 그래픽 렌더링 제거
+        options.addArguments("--disable-gpu");// GPU 가속 비활성화
+        options.addArguments("--disable-images");// 이미지 로딩 안함 (더 빠름)
+        options.addArguments("--disable-features=VizDisplayCompositor"); // 렌더링 최적화
+
+        //불필요한 브라우저 기능 제거
+        options.addArguments("--disable-extensions"); // 확장프로그램 비활성화
+        options.addArguments("--disable-plugins");// 플러그인 비활성화
+        options.addArguments("--disable-translate");// 번역 기능 비활성화
+
+        options.addArguments("--disable-javascript");            // JS 비활성화 (필요시 제거)
+        options.addArguments("--disable-popup-blocking");        // 팝업 차단 비활성화
+        options.addArguments("--disable-background-timer-throttling"); // 백그라운드 타이머 제한 해제
+
+        // 메모리 최적화
+        options.addArguments("--disable-dev-shm-usage");// /dev/shm 사용 안함
+        options.addArguments("--memory-pressure-off");// 메모리 압박 모드 해제
+        options.addArguments("--max_old_space_size=4096");// 최대 메모리 4GB
+
+        //불필요한 네트와크 요청 차단
+        options.addArguments("--aggressive-cache-discard");// 캐시 적극 정리
+        options.addArguments("--disable-background-networking"); // 백그라운드 네트워킹 비활성화
+
+        return options;
+    }
+
+    /**
+     * 스레드풀을 안전하게 종료하는 메서드
+     */
+    private void shutdownThreadPool() {
+        if (executor != null && !executor.isShutdown()) {
+            executor.shutdown();
+            try {
+                // 30초 동안 작업 완료 대기(데이터 손실 방지)
+                if (!executor.awaitTermination(30, TimeUnit.SECONDS)) {
+                    // 강제 종료
+                    executor.shutdownNow();
+                }
+            } catch (InterruptedException e) {
+                executor.shutdownNow();
+                Thread.currentThread().interrupt();
+            }
+            log.info("스레드풀 종료 완료");
+        }
+    }
+
     /**
      * 자동으로 목록페이지를 다음페이지로 전환해주는 서비스
      * @param url 상품품목록 링크
@@ -43,8 +127,11 @@ public class CrawlingService {
         //전체 페이지에 있는 상품들을 저장한 리스트
         List<ProductDTO> allProducts = new ArrayList<>();
         try {
+            // 스레드풀 초기화 (병렬 처리를 위해)
+            initializeThreadPool();
+
             System.setProperty("webdriver.chrome.driver", WEB_DRIVER_PATH);
-            driver = new ChromeDriver();
+            driver = new ChromeDriver(createOptimizedChromeOptions());
             driver.get(url);
 
 
@@ -60,11 +147,20 @@ public class CrawlingService {
                     //각 페이지의 전체 상품을 담은 리스트 가져오기 가져오기
                     List<ProductDTO> pageItems = listPageService.crawler(html);
 
-                    //자동으로 상세페이지 들어가기
-                    for (ProductDTO p : pageItems) {
-                        processDetailPage(p,originalTab);
-                        allProducts.add(p);
-                    }
+
+                    // 각 상품을 병렬 처리
+                    List<CompletableFuture<ProductDTO>> futures = pageItems.stream()
+                            .map(product -> CompletableFuture.supplyAsync(
+                                    () -> processDetailPageParallel(product), executor))
+                            .toList();
+
+                    // 모든 병렬 작업 완료까지 대기 및 결과 수집
+                    List<ProductDTO> processedProducts = futures.stream()
+                            .map(CompletableFuture::join)  // 각 스레드의 결과를 기다림
+                            .toList();
+
+                    // 병렬 처리된 상품들을 최종 리스트에 추가
+                    allProducts.addAll(processedProducts);
 
                     //최종 상품리스트에 담기
                     log.info("현재 페이지에서 {}개 상품 수집, 총 {}개", pageItems.size(), allProducts.size());
@@ -97,70 +193,48 @@ public class CrawlingService {
                 //드라이버 닫기
                 driver.quit();
             }
+            // 스레드풀 안전하게 종료
+            shutdownThreadPool();
         }
         log.debug("가져온 상품 수 {}",allProducts.size());
         return allProducts;
     }
 
-    public void processDetailPage(ProductDTO productDTO,String originalTab){
-        String detailHandle = null;
-
+    /**
+     * 병렬 처리를 위한 독립적인 상세페이지 처리 메서드
+     * 각 스레드가 독립적인 WebDriver를 사용하여 동시에 여러 상품을 처리합니다.
+     * @param productDTO 처리할 상품 정보
+     * @return 상세정보가 추가된 상품 정보
+     */
+    private ProductDTO processDetailPageParallel(ProductDTO productDTO) {
+        WebDriver parallelDriver = null;
         try {
-            // 현재 열려있는 모든 탭 수 확인 (새 탭 생성 전 상태)
-            int initialTabCount = driver.getWindowHandles().size();
+            // 각 스레드마다 독립적인 최적화된 WebDriver 생성
+            System.setProperty("webdriver.chrome.driver", WEB_DRIVER_PATH);
+            parallelDriver = new ChromeDriver(createOptimizedChromeOptions());
 
-            // JavaScript를 사용하여 새 탭에서 상세 페이지 열기
-            ((JavascriptExecutor) driver).executeScript(
-                    "window.open(arguments[0], '_blank');", productDTO.getDetailLink()
-            );
+            // 상세 페이지로 직접 이동 (탭 생성/전환 오버헤드 제거)
+            parallelDriver.get(productDTO.getDetailLink());
 
-            // 새 탭이 생성될 때까지 대기 (최대 10초)
-            new WebDriverWait(driver, Duration.ofSeconds(10))
-                    .until(d -> d.getWindowHandles().size() > initialTabCount);
-
-            // 새로 생성된 탭의 핸들 찾기
-            detailHandle = findNewTabHandle(originalTab);
-
-            if (detailHandle == null) {
-                log.warn("새 탭을 찾을 수 없습니다: {}", productDTO.getProductName());
-                return;
-            }
-
-            // 상세 페이지 탭으로 전환
-            driver.switchTo().window(detailHandle);
-
-            //상세 정보 크롤링
-            ProductDTO detailedProduct = detailPageService.detailPage(productDTO, driver);
+            // 상세 정보 크롤링
+            ProductDTO detailedProduct = detailPageService.detailPage(productDTO, parallelDriver);
 
             // 크롤링한 상세 정보를 원본 ProductDTO에 병합
             mergeProductDetails(productDTO, detailedProduct);
 
+            return productDTO;
+
         } catch (Exception e) {
-            log.error("상품 '{}' 상세 정보 처리 실패: {}", productDTO.getProductName(), e.getMessage());
+            // 실패해도 기본 정보는 반환
+            return productDTO;
         } finally {
-            //상세페이지 탭 닫기
-            cleanupDetailTab(detailHandle, originalTab);
+            // 독립적인 WebDriver 정리
+            if (parallelDriver != null) {
+                parallelDriver.quit();
+            }
         }
     }
 
-    /**
-     * 새로 생성된 탭의 핸들을 찾는 메서드
-     * 기존 탭과 구분하여 새 탭만 식별합니다.
-     * @param originalTab 기존 목록 페이지 탭 핸들
-     * @return 새 탭 핸들
-     */
-    private String findNewTabHandle(String originalTab) {
-        // 현재 열려있는 모든 탭 핸들 가져오기
-        Set<String> allHandles = driver.getWindowHandles();
-
-        //기존 탭이 아닌 새 탭 찾기
-        return allHandles.stream()
-                .filter(handle -> !handle.equals(originalTab)) // 원본 탭 제외
-                // 첫 번째 매치 결과 반환
-                .findFirst()
-                // 찾지 못하면 null 반환
-                .orElse(null);
-    }
 
     /**
      * 상세 정보를 원본 ProductDTO에 병합하는 메서드
@@ -188,49 +262,6 @@ public class CrawlingService {
         // 상품 리뷰 리스트
         if (detail.getReviews() != null) {
             target.setReviews(detail.getReviews());
-        }
-    }
-
-    /**
-     * 상세 페이지 탭을 안전하게 정리하는 메서드
-     * 목록페이지 탭으로 안전하게 복귀합니다.
-     * @param detailHandle 정리할 상세 페이지 탭 핸들
-     * @param originalTab 목록페이지 탭 핸들
-     */
-    private void cleanupDetailTab(String detailHandle, String originalTab) {
-        try {
-            // 상세 페이지 탭이 존재하는 경우에만 정리
-            if (detailHandle != null) {
-                // 현재 열려있는 탭들 확인
-                Set<String> currentHandles = driver.getWindowHandles();
-
-                // 해당 핸들이 실제로 존재하는지 확인 후 정리
-                if (currentHandles.contains(detailHandle)) {
-                    driver.switchTo().window(detailHandle);
-                    // 현재 탭만 닫기 (driver.quit()와 구분)
-                    driver.close();
-                }
-            }
-
-            // 원본 목록 페이지 탭으로 안전하게 복귀
-            Set<String> remainingHandles = driver.getWindowHandles();
-            if (remainingHandles.contains(originalTab)) {
-                driver.switchTo().window(originalTab);
-            } else if (!remainingHandles.isEmpty()) {
-                // 원본 탭이 없는 경우 남은 탭 중 첫 번째로 이동
-                driver.switchTo().window(remainingHandles.iterator().next());
-            }
-
-        } catch (Exception e) {
-            log.error("탭 정리 중 오류 발생: {}", e.getMessage());
-            // 오류 발생 시에도 최소한 원본 탭으로 복귀 시도
-            try {
-                if (driver.getWindowHandles().contains(originalTab)) {
-                    driver.switchTo().window(originalTab);
-                }
-            } catch (Exception ex) {
-                log.error("원본 탭 복귀 실패: {}", ex.getMessage());
-            }
         }
     }
 
