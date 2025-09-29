@@ -8,6 +8,7 @@ function Shop() {
   const [selectedSubCategory, setSelectedSubCategory] = useState('전체');
   const [priceRange, setPriceRange] = useState([0, 300]);
   const [alcoholRange, setAlcoholRange] = useState([0, 60]);
+  const [selectedVolumeCategories, setSelectedVolumeCategories] = useState([]);
   const [sortBy, setSortBy] = useState('기본순');
   const [isLoading, setIsLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
@@ -17,6 +18,13 @@ function Shop() {
   const [categoryData, setCategoryData] = useState({'전체': []});
   const [topCategories, setTopCategories] = useState(['전체']);
   const [products, setProducts] = useState([]);
+
+  // 용량 카테고리 정의
+  const volumeCategories = [
+    { id: 'small', label: '소용량 (500ml 이하)', min: 0, max: 500 },
+    { id: 'medium', label: '일반 (500ml ~ 1L)', min: 500, max: 1000 },
+    { id: 'large', label: '대용량 (1L 이상)', min: 1000, max: Infinity }
+  ];
 
 
   const filteredProducts = products.filter(product => {
@@ -40,7 +48,14 @@ function Shop() {
     const alcoholMatch = (product.alcoholPercentage >= alcoholRange[0]) &&
                         (alcoholRange[1] >= 60 ? true : product.alcoholPercentage <= alcoholRange[1]);
 
-    return categoryMatch && priceMatch && alcoholMatch;
+    // 용량 필터링 (선택된 카테고리가 없으면 모든 상품 표시)
+    const volumeMatch = selectedVolumeCategories.length === 0 ||
+                       selectedVolumeCategories.some(categoryId => {
+                         const category = volumeCategories.find(vc => vc.id === categoryId);
+                         return product.volume >= category.min && product.volume <= category.max;
+                       });
+
+    return categoryMatch && priceMatch && alcoholMatch && volumeMatch;
   });
 
   // 정렬 적용
@@ -68,7 +83,7 @@ function Shop() {
   useEffect(() => {
     setCurrentPage(1);
     setPageGroup(1);
-  }, [selectedTopCategory, selectedSubCategory, priceRange, alcoholRange, sortBy]);
+  }, [selectedTopCategory, selectedSubCategory, priceRange, alcoholRange, selectedVolumeCategories, sortBy]);
 
    useEffect(() => {
       const loadData = async () => {
@@ -303,6 +318,29 @@ function Shop() {
                     <span>{alcoholRange[1] >= 60 ? '+60%' : `${alcoholRange[1]}%`}</span>
                   </div>
                 </div>
+              </div>
+            </div>
+
+            <div className="bg-white p-6 rounded-lg shadow-sm mb-6">
+              <h3 className="text-xl font-bold mb-4 text-gray-800">용량</h3>
+              <div className="space-y-3">
+                {volumeCategories.map(category => (
+                  <label key={category.id} className="flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={selectedVolumeCategories.includes(category.id)}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setSelectedVolumeCategories([...selectedVolumeCategories, category.id]);
+                        } else {
+                          setSelectedVolumeCategories(selectedVolumeCategories.filter(id => id !== category.id));
+                        }
+                      }}
+                      className="text-primary focus:ring-primary mr-2"
+                    />
+                    <span className="text-gray-700">{category.label}</span>
+                  </label>
+                ))}
               </div>
             </div>
 
