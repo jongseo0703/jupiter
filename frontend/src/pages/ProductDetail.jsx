@@ -221,7 +221,11 @@ function ProductDetail() {
                 <img
                   src={product.image}
                   alt={product.name}
-                  className="max-w-full max-h-full object-contain rounded-lg"
+                  className={
+                    product.image && !product.image.includes('no_image.png')
+                      ? "w-full h-full object-cover rounded-lg"
+                      : "max-w-full max-h-full object-contain rounded-lg"
+                  }
                 />
               </div>
               <div className="mb-3">
