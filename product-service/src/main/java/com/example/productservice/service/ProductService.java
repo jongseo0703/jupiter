@@ -91,9 +91,9 @@ public class ProductService {
 
     /**
      * 상품 정보목록를 ProductDto에 파싱하는 메서드<br>
-     * 상품 아이디, 상품명, 이미지 URL, 상품설명, 하위 카테고리명, 상점명, 가격
+     * 상품 아이디, 상품명, 도수, 이미지 URL, 상품설명, 하위 카테고리명, 상점명, 가격
      * @param productList 상품 정보목록
-     * @param shopDtoList 상점 종보 목록
+     * @param shopDtoList 상점 정보 목록
      * @return productDTO
      */
     public ProductDto getProductDto(List<Object[]> productList,List<PriceDto> shopDtoList){
@@ -104,6 +104,10 @@ public class ProductService {
         productDto.setProductId((Integer) item[0]);
         // 상품명
         productDto.setProductName((String) item[1]);
+        // 도수
+        productDto.setAlcoholPercentage((Double) item[7]);
+        //용량
+        productDto.setVolume((Integer) item[8]);
         // 상품 이미지 URL
         String url = (String) item[2];
         productDto.setUrl(UrlShrinkRemover.removeShrinkFromUrl(url));

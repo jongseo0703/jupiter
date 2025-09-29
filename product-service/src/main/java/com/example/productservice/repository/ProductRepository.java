@@ -23,12 +23,12 @@ public interface ProductRepository extends JpaRepository<Product,Integer> {
     List<Integer> findTopAvailableProductIdsByRating();
 
     /**
-     * 상품정보(아이디,상품명,URL,설명)과 하위케테고리명과 가격정보(금액과 상점명)를 조회
+     * 상품정보와 하위케테고리명, 가격정보(금액과 상점명)를 조회
      * @param productId 조회할 상품 아이디
      * @return 상품정보 반환
      */
     @Query("SELECT p.productId, p.productName, p.url, p.description, " +
-            "sc.subName, pr.price, s.shopName " +
+            "sc.subName, pr.price, s.shopName,p.alcoholPercentage, p.volume " +
             "FROM Product p " +
             "JOIN ProductShop ps ON p.productId = ps.product.productId " +
             "JOIN Price pr ON ps.productShopId = pr.productShop.productShopId " +
