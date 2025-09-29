@@ -27,7 +27,7 @@ public class AuthService {
   private final RestTemplate restTemplate = new RestTemplate();
   private final ObjectMapper objectMapper = new ObjectMapper();
 
-  @Value("${auth.service.url:http://localhost:8081}")
+  @Value("${auth.service.url:http://localhost:8080/auth}")
   private String authServiceUrl;
 
   public UserInfoResponse validateTokenAndGetUser(String authorizationHeader) {

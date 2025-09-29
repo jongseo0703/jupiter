@@ -13,9 +13,8 @@ import com.example.communityservice.dto.comments.CommentsResponseDTO;
 import com.example.communityservice.entity.Authors;
 import com.example.communityservice.entity.Comments;
 import com.example.communityservice.entity.Posts;
-import com.example.communityservice.global.exception.AccessDeniedException;
-import com.example.communityservice.global.exception.CommentNotFoundException;
-import com.example.communityservice.global.exception.PostNotFoundException;
+import com.example.communityservice.global.exception.BusinessException;
+import com.example.communityservice.global.exception.ErrorCode;
 import com.example.communityservice.repository.AuthorsRepository;
 import com.example.communityservice.repository.CommentsRepository;
 import com.example.communityservice.repository.PostsRepository;
@@ -47,7 +46,7 @@ public class CommentsService {
     Posts post =
         postsRepository
             .findById(requestDto.getPostId())
-            .orElseThrow(() -> new PostNotFoundException(requestDto.getPostId()));
+            .orElseThrow(() -> new BusinessException(ErrorCode.POST_NOT_FOUND));
 
     // 작성자 정보 조회 또는 생성
     Authors author = getOrCreateAuthor(requestDto);
@@ -65,7 +64,7 @@ public class CommentsService {
     Comments comment =
         commentsRepository
             .findById(commentId)
-            .orElseThrow(() -> new CommentNotFoundException(commentId));
+            .orElseThrow(() -> new BusinessException(ErrorCode.COMMENT_NOT_FOUND));
 
     // 작성자 권한 체크
     validateAuthorPermission(comment, requestDto);
@@ -80,7 +79,7 @@ public class CommentsService {
     Comments comment =
         commentsRepository
             .findById(commentId)
-            .orElseThrow(() -> new CommentNotFoundException(commentId));
+            .orElseThrow(() -> new BusinessException(ErrorCode.COMMENT_NOT_FOUND));
 
     // 작성자 권한 체크
     validateAuthorPermission(comment, requestDto);
@@ -123,7 +122,7 @@ public class CommentsService {
     Comments comment =
         commentsRepository
             .findById(commentId)
-            .orElseThrow(() -> new CommentNotFoundException(commentId));
+            .orElseThrow(() -> new BusinessException(ErrorCode.COMMENT_NOT_FOUND));
 
     Authors commentAuthor = comment.getAuthors();
 
@@ -135,7 +134,7 @@ public class CommentsService {
     if (!commentAuthor.getAnonymousEmail().equals(requestDto.getAnonymousEmail())
         || !passwordEncoder.matches(
             requestDto.getAnonymousPassword(), commentAuthor.getAnonymousPwd())) {
-      throw AccessDeniedException.forComment();
+      throw new BusinessException(ErrorCode.COMMENT_ACCESS_DENIED);
     }
   }
 
@@ -148,12 +147,12 @@ public class CommentsService {
       if (!commentAuthor.getAnonymousEmail().equals(requestDto.getAnonymousEmail())
           || !passwordEncoder.matches(
               requestDto.getAnonymousPassword(), commentAuthor.getAnonymousPwd())) {
-        throw AccessDeniedException.forComment();
+        throw new BusinessException(ErrorCode.COMMENT_ACCESS_DENIED);
       }
     } else {
       // 회원 사용자 검증: 사용자 ID 확인 (userId 기준)
       if (!commentAuthor.getUserId().equals(requestDto.getAuthorId())) {
-        throw AccessDeniedException.forComment();
+        throw new BusinessException(ErrorCode.COMMENT_ACCESS_DENIED);
       }
     }
   }
