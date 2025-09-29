@@ -49,11 +49,11 @@ const FeaturedProducts = () => {
   const ProductCard = ({ product }) => (
     <div className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-xl transition-shadow duration-300 group">
       <Link to={`/product/${product.id}`}>
-        <div className="relative overflow-hidden">
-          <img 
-            src={product.image} 
+        <div className="relative overflow-hidden flex items-center justify-center">
+          <img
+            src={product.image}
             alt={product.name}
-            className="w-full h-48 object-cover group-hover:scale-110 transition-transform duration-300"
+            className="w-[300px] h-[300px] object-cover group-hover:scale-110 transition-transform duration-300"
           />
           <div className="absolute top-3 left-3 z-10">
             {product.topCategory ? (
