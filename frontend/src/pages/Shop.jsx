@@ -302,7 +302,7 @@ function Shop() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {currentProducts.map(product => (
-                <div key={product.id} className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-xl transition-shadow duration-300 group">
+                <div key={product.id} className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-xl transition-shadow duration-300 group flex flex-col h-full">
                   <Link to={`/product/${product.id}`}>
                     <div className="relative overflow-hidden flex items-center justify-center">
                       <img
@@ -329,7 +329,7 @@ function Shop() {
                     </div>
                   </Link>
 
-                  <div className="p-4">
+                  <div className="p-4 flex flex-col flex-grow">
                     <Link to={`/product/${product.id}`}>
                       <h3 className="text-lg font-semibold text-gray-800 mb-2 hover:text-primary transition-colors">{product.name}</h3>
                     </Link>
@@ -347,11 +347,11 @@ function Shop() {
                       <span className="text-gray-600 text-sm ml-2">({product.rating})</span>
                     </div>
 
-                    <div className="space-y-3">
+                    <div className="space-y-3 flex-grow flex flex-col">
                       <div className="text-primary font-bold text-xl mb-2">
                         최저가 ₩{product.lowestPrice.toLocaleString()}
                       </div>
-                      <div className="space-y-2">
+                      <div className="space-y-2 flex-grow">
                         {product.prices.map((priceInfo, index) => (
                           <div key={index} className="flex justify-between items-center text-sm">
                             <span className="text-gray-600">{priceInfo.store}</span>
@@ -361,7 +361,7 @@ function Shop() {
                           </div>
                         ))}
                       </div>
-                      <Link to={`/product/${product.id}`} className="block">
+                      <Link to={`/product/${product.id}`} className="block mt-auto">
                         <button className="w-full bg-secondary text-white py-2 rounded-full hover:bg-yellow-600 transition-colors">
                           <i className="fas fa-external-link-alt mr-2"></i>
                           가격 비교하기
