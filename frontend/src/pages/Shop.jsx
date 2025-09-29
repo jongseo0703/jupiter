@@ -7,6 +7,7 @@ function Shop() {
   const [selectedTopCategory, setSelectedTopCategory] = useState('전체');
   const [selectedSubCategory, setSelectedSubCategory] = useState('전체');
   const [priceRange, setPriceRange] = useState([0, 300]);
+  const [alcoholRange, setAlcoholRange] = useState([0, 60]);
   const [sortBy, setSortBy] = useState('기본순');
   const [isLoading, setIsLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
@@ -35,7 +36,11 @@ function Shop() {
 
     const priceMatch = product.lowestPrice >= priceRange[0] * 1000 &&
                       (priceRange[1] >= 300 ? true : product.lowestPrice <= priceRange[1] * 1000);
-    return categoryMatch && priceMatch;
+
+    const alcoholMatch = (product.alcoholPercentage >= alcoholRange[0]) &&
+                        (alcoholRange[1] >= 60 ? true : product.alcoholPercentage <= alcoholRange[1]);
+
+    return categoryMatch && priceMatch && alcoholMatch;
   });
 
   // 정렬 적용
@@ -63,7 +68,7 @@ function Shop() {
   useEffect(() => {
     setCurrentPage(1);
     setPageGroup(1);
-  }, [selectedTopCategory, selectedSubCategory, priceRange, sortBy]);
+  }, [selectedTopCategory, selectedSubCategory, priceRange, alcoholRange, sortBy]);
 
    useEffect(() => {
       const loadData = async () => {
@@ -160,6 +165,8 @@ function Shop() {
             return {
               id: product.productId,
               name: product.productName,
+              alcoholPercentage: product.alcoholPercentage,
+              volume: product.volume,
               lowestPrice: lowestPrice,
               prices: prices,
               image: product.url,
@@ -274,6 +281,26 @@ function Shop() {
                   <div className="flex justify-between text-sm text-gray-600 mt-2">
                     <span>{priceRange[0] * 1000}원</span>
                     <span>{priceRange[1] >= 300 ? '300,000+원' : `${priceRange[1] * 1000}원`}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white p-6 rounded-lg shadow-sm mb-6">
+              <h3 className="text-xl font-bold mb-4 text-gray-800">도수 범위</h3>
+              <div className="space-y-3">
+                <div>
+                  <input
+                    type="range"
+                    min="0"
+                    max="60"
+                    value={alcoholRange[1]}
+                    onChange={(e) => setAlcoholRange([alcoholRange[0], parseInt(e.target.value)])}
+                    className="w-full"
+                  />
+                  <div className="flex justify-between text-sm text-gray-600 mt-2">
+                    <span>{alcoholRange[0]}%</span>
+                    <span>{alcoholRange[1] >= 60 ? '+60%' : `${alcoholRange[1]}%`}</span>
                   </div>
                 </div>
               </div>
