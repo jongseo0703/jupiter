@@ -109,7 +109,8 @@ function ProductDetail() {
   const [isLoading, setIsLoading] = useState(true);
   const [product, setProduct] = useState(null);
   const [error, setError] = useState(null);
-  const [showAllReviews, setShowAllReviews] = useState(false);
+  const [currentReviewPage, setCurrentReviewPage] = useState(1);
+  const [reviewsPerPage] = useState(5);
 
 
   useEffect(() => {
@@ -144,6 +145,11 @@ function ProductDetail() {
     loadData();
   }, [id, navigate]);
 
+  // 상품이 변경되면 리뷰 페이지 초기화
+  useEffect(() => {
+    setCurrentReviewPage(1);
+  }, [product?.id]);
+
   const handleLoadingComplete = () => {
     setIsLoading(false);
   };
@@ -173,6 +179,12 @@ function ProductDetail() {
 
   // 별점 통계 계산
   const ratingStats = product ? calculateRatingStats(product.reviews) : { distribution: [0, 0, 0, 0, 0], total: 0 };
+
+  // 리뷰 페이징 계산
+  const totalReviewPages = Math.ceil((product?.reviews?.length || 0) / reviewsPerPage);
+  const startReviewIndex = (currentReviewPage - 1) * reviewsPerPage;
+  const endReviewIndex = startReviewIndex + reviewsPerPage;
+  const currentReviews = product?.reviews?.slice(startReviewIndex, endReviewIndex) || [];
 
   // 로딩 중일 때
   if (isLoading) {
@@ -444,7 +456,7 @@ function ProductDetail() {
           {/* 개별 리뷰 */}
           {product.reviews && product.reviews.length > 0 ? (
             <div className="space-y-6">
-              {(showAllReviews ? product.reviews : product.reviews.slice(0, 3)).map(review => (
+              {currentReviews.map(review => (
                 <div key={review.reviewId} className="border-b border-gray-200 pb-6 last:border-b-0">
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex items-center space-x-3">
@@ -495,25 +507,48 @@ function ProductDetail() {
             </div>
           )}
 
-          {/* 더 보기/접기 버튼 - 리뷰가 3개 이상일 때만 표시 */}
-          {product.reviews && product.reviews.length > 3 && (
-            <div className="text-center mt-6">
-              <button
-                onClick={() => setShowAllReviews(!showAllReviews)}
-                className="text-primary hover:text-blue-800 font-semibold transition-colors"
-              >
-                {showAllReviews ? (
-                  <>
-                    <i className="fas fa-chevron-up mr-1"></i>
-                    리뷰 접기
-                  </>
-                ) : (
-                  <>
-                    <i className="fas fa-chevron-down mr-1"></i>
-                    리뷰 더보기 ({product.reviews.length - 3}개 더)
-                  </>
-                )}
-              </button>
+          {/* 리뷰 페이지네이션 */}
+          {totalReviewPages > 1 && (
+            <div className="flex justify-center mt-6">
+              <nav className="flex space-x-2">
+                <button
+                  onClick={() => setCurrentReviewPage(prev => Math.max(prev - 1, 1))}
+                  disabled={currentReviewPage === 1}
+                  className={`px-3 py-1 border rounded ${
+                    currentReviewPage === 1
+                      ? 'text-gray-400 bg-gray-100 cursor-not-allowed'
+                      : 'text-gray-600 bg-white hover:bg-gray-50'
+                  }`}
+                >
+                  이전
+                </button>
+
+                {[...Array(totalReviewPages)].map((_, i) => (
+                  <button
+                    key={i + 1}
+                    onClick={() => setCurrentReviewPage(i + 1)}
+                    className={`px-3 py-1 border rounded ${
+                      currentReviewPage === i + 1
+                        ? 'text-white bg-primary border-primary'
+                        : 'text-gray-600 bg-white border-gray-300 hover:bg-gray-50'
+                    }`}
+                  >
+                    {i + 1}
+                  </button>
+                ))}
+
+                <button
+                  onClick={() => setCurrentReviewPage(prev => Math.min(prev + 1, totalReviewPages))}
+                  disabled={currentReviewPage === totalReviewPages}
+                  className={`px-3 py-1 border rounded ${
+                    currentReviewPage === totalReviewPages
+                      ? 'text-gray-400 bg-gray-100 cursor-not-allowed'
+                      : 'text-gray-600 bg-white hover:bg-gray-50'
+                  }`}
+                >
+                  다음
+                </button>
+              </nav>
             </div>
           )}
         </div>
