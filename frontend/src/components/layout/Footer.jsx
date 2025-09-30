@@ -44,20 +44,6 @@ const Footer = () => {
               <p className="text-gray-300 mb-6 leading-relaxed">
                 국내 주요 쇼핑몰의 주류 가격을 한 번에 비교하여 최저가를 찾아드립니다. 스마트한 쇼핑의 시작, Ju(酒)piter와 함께하세요.
               </p>
-              <div className="flex space-x-4">
-                <a href="#" className="w-10 h-10 bg-primary rounded-full flex items-center justify-center hover:bg-secondary transition-colors">
-                  <i className="fab fa-facebook-f"></i>
-                </a>
-                <a href="#" className="w-10 h-10 bg-primary rounded-full flex items-center justify-center hover:bg-secondary transition-colors">
-                  <i className="fab fa-twitter"></i>
-                </a>
-                <a href="#" className="w-10 h-10 bg-primary rounded-full flex items-center justify-center hover:bg-secondary transition-colors">
-                  <i className="fab fa-instagram"></i>
-                </a>
-                <a href="#" className="w-10 h-10 bg-primary rounded-full flex items-center justify-center hover:bg-secondary transition-colors">
-                  <i className="fab fa-linkedin-in"></i>
-                </a>
-              </div>
             </div>
 
             {/* Quick Links */}
