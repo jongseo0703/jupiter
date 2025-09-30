@@ -70,6 +70,14 @@ public class User extends BaseEntity implements UserDetails {
 
   @Builder.Default private boolean credentialsNonExpired = true;
 
+  // OAuth 제공자 (google, naver, kakao 등)
+  @Column(nullable = true)
+  private String oauthProvider;
+
+  // OAuth 제공자의 고유 ID
+  @Column(nullable = true)
+  private String oauthId;
+
   @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
   private NotificationSettings notificationSettings;
 
@@ -100,7 +108,7 @@ public class User extends BaseEntity implements UserDetails {
 
   // OAuth 사용자인지 확인하는 메서드
   public boolean isOAuthUser() {
-    return "OAUTH_USER_NO_PASSWORD_12345678".equals(this.password);
+    return oauthProvider != null && !oauthProvider.isEmpty();
   }
 
   @Override
