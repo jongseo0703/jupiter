@@ -3,6 +3,8 @@ package com.example.crawlingservice.db;
 import com.example.crawlingservice.domain.ProductShop;
 import org.apache.ibatis.annotations.*;
 
+import java.util.List;
+
 /**
  * insert 상품_상점 정보 저장<br>
  * selectByProductId 상품 아이디와 상점 아이디로 조회 <br>
@@ -57,5 +59,29 @@ public interface ProductShopMapper {
      */
     @Select("SELECT * FROM product_shop WHERE product_shop_id = #{productShopId}")
     ProductShop selectByProductShopId(int productShopId);
+
+    /**
+     * 상품_상점의 유효성 업데이트
+     * @param isAvailable 결과값
+     * @param productShopId 상품_상점 아이디
+     */
+    @Update("UPDATE product_shop SET is_available = #{isAvailable} WHERE product_shop_id = #{productShopId}")
+    void updateIsAvailable(boolean isAvailable,int productShopId);
+
+    /**
+     * 특정 상품의 모든 상품_상점 정보 조회
+     * @param productId 상품 아이디
+     * @return 상품_상점 목록
+     */
+    @Select("SELECT ps.product_shop_id, ps.is_available, s.shop_name " +
+            "FROM product_shop ps " +
+            "INNER JOIN shop s ON ps.shop_id = s.shop_id " +
+            "WHERE ps.product_id = #{productId}")
+    @Results({
+            @Result(property = "productShopId", column = "product_shop_id"),
+            @Result(property = "available", column = "is_available"),
+            @Result(property = "shop.shopName", column = "shop_name")
+    })
+    List<ProductShop> selectAllByProductId(int productId);
 
 }
