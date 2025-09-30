@@ -40,7 +40,13 @@ public interface ProductRepository extends JpaRepository<Product,Integer> {
 
     @Query("SELECT p.productId FROM Product p" +
             "  JOIN Stock s ON p.productId = s.product.productId" +
-            "  WHERE s.isAvailable = true GROUP BY p.productId")
+            " LEFT JOIN ProductShop ps ON ps.product.productId = p.productId" +
+            " LEFT JOIN Review r ON r.productShop.productShopId = ps.productShopId" +
+            "  WHERE s.isAvailable = true " +
+            "GROUP BY p.productId " +
+            " ORDER BY " +
+            "CASE WHEN COUNT(r.reviewId) > 0 THEN 0 ELSE 1 END, " +
+            "COUNT(r.reviewId) DESC")
     List<Integer> findAvailableProductIdsByProductId();
 
 }
