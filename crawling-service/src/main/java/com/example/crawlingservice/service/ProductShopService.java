@@ -53,10 +53,12 @@ public class ProductShopService {
         newProductShop.setProduct(product);
         newProductShop.setShop(shop);
         newProductShop.setLink(link);
+        newProductShop.setAvailable(true);
 
         //DB 저장
         productShopMapper.insert(newProductShop);
         //새 상품_상점 반환
         return newProductShop;
     }
+
 }
