@@ -11,6 +11,7 @@ import org.openqa.selenium.WebElement;
 import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.chrome.ChromeOptions;
 import org.openqa.selenium.support.ui.WebDriverWait;
+import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -40,18 +41,18 @@ public class CrawlingService {
     //웹브라우저를 프로그래밍적으로 제어하는 인터페이스
     private WebDriver driver;
 
-    // 멀티스레딩을 위한 스레드풀 (16개 스레드로 병렬 처리)
+    // 멀티스레딩을 위한 스레드풀 (6개 스레드로 속도와 안정성 최적화)
     private ThreadPoolExecutor executor;
 
     /**
      * 스레드풀을 초기화하는 메서드
-     * 16개의 스레드를 생성하여 병렬 처리 성능을 극대화합니다.
+     * 6개의 스레드를 생성하여 사이트 로딩 속도를 고려한 최적의 병렬 처리
      */
     private void initializeThreadPool() {
         if (executor == null || executor.isShutdown()) {
-            //초기 스레드 수(16개), 최대 스레드 수(16개) 대기사간(0초),시간단위 설정
-            executor = new ThreadPoolExecutor(16, 16, 0L, TimeUnit.MILLISECONDS,
-                //FIFO 구조의 메서드(큐가 비여있을 때는 대기)
+            //초기 스레드 수(6개), 최대 스레드 수(6개) 대기시간(0초), 시간단위 설정
+            executor = new ThreadPoolExecutor(6, 6, 0L, TimeUnit.MILLISECONDS,
+                //FIFO 구조의 큐 (큐가 비어있을 때는 대기)
                 new LinkedBlockingQueue<>()
             );
         }
@@ -67,10 +68,14 @@ public class CrawlingService {
         // 헤드리스 모드 (브라우저 창 없이 실행) -->속도를 위해
         options.addArguments("--headless");
 
+        // 페이지 로딩 전략: 페이지 로딩 완료를 기다리지 않음 (필요한 요소만 명시적 대기)
+        options.setPageLoadStrategy(org.openqa.selenium.PageLoadStrategy.NONE);
+
         // 성능 최적화 옵션들
         //보안 프로세스 비활성화
         options.addArguments("--no-sandbox");// 샌드박스 비활성화
-        options.addArguments("--disable-web-security");// 웹 보안 비활성화
+        options.addArguments("--allow-running-insecure-content"); // Mixed Content 허용
+        options.addArguments("--ignore-certificate-errors"); // SSL 인증서 오류 무시
 
         //불필요한 그래픽 렌더링 제거
         options.addArguments("--disable-gpu");// GPU 가속 비활성화
@@ -82,7 +87,7 @@ public class CrawlingService {
         options.addArguments("--disable-plugins");// 플러그인 비활성화
         options.addArguments("--disable-translate");// 번역 기능 비활성화
 
-        options.addArguments("--disable-javascript");            // JS 비활성화 (필요시 제거)
+        // options.addArguments("--disable-javascript");            // JS 비활성화 - 다나와 사이트는 JS 필요하므로 제거
         options.addArguments("--disable-popup-blocking");        // 팝업 차단 비활성화
         options.addArguments("--disable-background-timer-throttling"); // 백그라운드 타이머 제한 해제
 
@@ -132,6 +137,12 @@ public class CrawlingService {
 
             System.setProperty("webdriver.chrome.driver", WEB_DRIVER_PATH);
             driver = new ChromeDriver(createOptimizedChromeOptions());
+
+            // 페이지 로딩 타임아웃 설정 (메인 driver는 더 여유있게)
+            driver.manage().timeouts().pageLoadTimeout(Duration.ofSeconds(90));
+            driver.manage().timeouts().implicitlyWait(Duration.ofSeconds(15));
+            driver.manage().timeouts().scriptTimeout(Duration.ofSeconds(30));
+
             driver.get(url);
 
 
@@ -147,8 +158,7 @@ public class CrawlingService {
                     //각 페이지의 전체 상품을 담은 리스트 가져오기 가져오기
                     List<ProductDTO> pageItems = listPageService.crawler(html);
 
-
-                    // 각 상품을 병렬 처리
+                    // 병렬 처리 (FinalUrlResolver 제거로 안정성 확보)
                     List<CompletableFuture<ProductDTO>> futures = pageItems.stream()
                             .map(product -> CompletableFuture.supplyAsync(
                                     () -> processDetailPageParallel(product), executor))
@@ -156,7 +166,7 @@ public class CrawlingService {
 
                     // 모든 병렬 작업 완료까지 대기 및 결과 수집
                     List<ProductDTO> processedProducts = futures.stream()
-                            .map(CompletableFuture::join)  // 각 스레드의 결과를 기다림
+                            .map(CompletableFuture::join)
                             .toList();
 
                     // 병렬 처리된 상품들을 최종 리스트에 추가
@@ -176,12 +186,15 @@ public class CrawlingService {
                     //다음페이지로 넘가기기 클릭
                     WebElement next = nextButtons.get(0);
                     ((JavascriptExecutor) driver).executeScript("arguments[0].click();", next);
-                    Thread.sleep(3000);
-                } catch (InterruptedException e){
-                    Thread.currentThread().interrupt();
-                    if(driver != null){
-                        throw new RuntimeException("스레드 정지");
-                    }
+
+                    //동적 대기로 교체 - 새 페이지의 상품 목록이 로드될 때까지 대기
+                    WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(10));
+                    wait.until(ExpectedConditions.presenceOfElementLocated(
+                        By.cssSelector("li.prod_item.prod_layer > div.prod_main_info, div.prod_main_info")));
+                } catch (Exception e){
+                    log.error("페이지 크롤링 중 오류 발생: {}", e.getMessage(), e);
+                    // 오류가 발생해도 수집한 데이터는 반환하도록 break
+                    break;
                 }
 
             }
@@ -213,6 +226,11 @@ public class CrawlingService {
             System.setProperty("webdriver.chrome.driver", WEB_DRIVER_PATH);
             parallelDriver = new ChromeDriver(createOptimizedChromeOptions());
 
+            // 병렬 처리용 타임아웃 설정
+            parallelDriver.manage().timeouts().pageLoadTimeout(Duration.ofSeconds(30));
+            parallelDriver.manage().timeouts().implicitlyWait(Duration.ofSeconds(5));
+            parallelDriver.manage().timeouts().scriptTimeout(Duration.ofSeconds(15));
+
             // 상세 페이지로 직접 이동 (탭 생성/전환 오버헤드 제거)
             parallelDriver.get(productDTO.getDetailLink());
 
@@ -225,12 +243,17 @@ public class CrawlingService {
             return productDTO;
 
         } catch (Exception e) {
+            log.warn("상품 '{}' 크롤링 실패: {}", productDTO.getProductName(), e.getMessage());
             // 실패해도 기본 정보는 반환
             return productDTO;
         } finally {
             // 독립적인 WebDriver 정리
             if (parallelDriver != null) {
-                parallelDriver.quit();
+                try {
+                    parallelDriver.quit();
+                } catch (Exception e) {
+                    // quit 실패 무시
+                }
             }
         }
     }
