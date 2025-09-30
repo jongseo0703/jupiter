@@ -21,13 +21,12 @@ public interface ProductMapper {
     void insert(Product product);
 
     /**
-     * 상품명과 브랜드로 상품정보 조회
+     * 상품명로 상품정보 조회
      * @param productName
-     * @param brand
      * @return Product 반환
      */
-    @Select("select * from product where product_name = #{productName} and brand = #{brand}")
-    Product selectByProductName(String productName,String brand);
+    @Select("select * from product where product_name = #{productName}")
+    Product selectByProductName(String productName);
 
     /**
      * 모든 상품 조회
