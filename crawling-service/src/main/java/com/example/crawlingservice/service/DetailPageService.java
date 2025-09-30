@@ -41,15 +41,23 @@ public class DetailPageService {
     public ProductDTO detailPage(ProductDTO productDTO, WebDriver driver) {
         ProductDTO item = productDTO;
         try {
-            //상세페이지 html 얻기
-            String html = driver.getPageSource();
+            //상세페이지 html 얻기 (타임아웃 대비)
+            String html = null;
+            try {
+                html = driver.getPageSource();
+            } catch (org.openqa.selenium.TimeoutException e) {
+                log.warn("상품 '{}' 페이지 소스 타임아웃, 재시도", productDTO.getProductName());
+                // 짧은 대기 후 재시도
+                Thread.sleep(1000);
+                html = driver.getPageSource();
+            }
+
             if(html != null){
                 //상세페이지 ui 조사
                 Document doc = Jsoup.parse(html, "https://prod.danawa.com");
 
                 //상품정보 가져오기
                 item.setContent(isContent(doc));
-
 
                 //상품 주종 및 종류 ,정보 가져오기
                 String category = getCategory(doc).get(0);
@@ -67,7 +75,7 @@ public class DetailPageService {
 
         }
         catch (Exception e){
-            log.error("상품 '{}' 상세 페이지 크롤링 실패: {}", productDTO.getProductName(), e.getMessage());
+            log.warn("상품 '{}' 상세 페이지 크롤링 실패: {}", productDTO.getProductName(), e.getMessage());
         }
         return item;
     }
@@ -159,25 +167,28 @@ public class DetailPageService {
 
                 //다음페이지로 넘가기기 클릭
                 WebElement nextReview = next.getFirst();
-                WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(10));
-                wait.until(ExpectedConditions.elementToBeClickable(nextReview));
+                WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(5));
                 try {
-                    //일반적인 클릭 시도
-                    nextReview.click();
-                } catch (ElementNotInteractableException ex) {
-                    //실패 시 JavaScript로 클릭 시도
+                    //JavaScript로 직접 클릭 (더 빠름)
                     ((JavascriptExecutor) driver).executeScript("arguments[0].click();", nextReview);
+                } catch (Exception ex) {
+                    log.debug("리뷰 페이지 전환 실패");
+                    break;
                 }
                 //페이지 카운터 증가
                 pageCount++;
-                //새로운 페이지 로딩 대기
-                Thread.sleep(2000);
+
+                // 페이지 전환 완료 확인을 위한 동적 대기 (짧게)
+                try {
+                    wait.until(ExpectedConditions.presenceOfElementLocated(
+                        By.cssSelector("li.danawa-prodBlog-companyReview-clazz-more")));
+                } catch (TimeoutException e) {
+                    break;
+                }
+
                 //새로운 페이지 html 확득
                 html = driver.getPageSource();
 
-            }catch (InterruptedException e){
-                Thread.currentThread().interrupt();
-                break;
             }catch (TimeoutException e){
                 break;
             }catch (NoSuchElementException e){
@@ -187,11 +198,17 @@ public class DetailPageService {
                 try {
                     //패이지 새로고침
                     driver.navigate().refresh();
-                    Thread.sleep(3000);
+
+                    // 페이지 새로고침 후 리뷰 요소 대기
+                    WebDriverWait refreshWait = new WebDriverWait(driver, Duration.ofSeconds(10));
+                    refreshWait.until(ExpectedConditions.presenceOfElementLocated(
+                        By.cssSelector("li.danawa-prodBlog-companyReview-clazz-more")));
+
                     html = driver.getPageSource();
                     continue;
-                } catch (InterruptedException ex) {
+                } catch (Exception ex) {
                     log.debug("페이지 새로 고침 실패 {}",ex.getMessage());
+                    break; // 새로고침 실패시 리뷰 수집 중단
                 }
             }catch (WebDriverException e){
                 log.error("Chrome Driver 오류 발생 : {}",e.getMessage());
@@ -322,13 +339,10 @@ public class DetailPageService {
             //구매사이트
             Element link = element.selectFirst("a.link__full-cover[href]");
             if (link != null) {
-                //상세페이지에 있는 구매사이트 링크 대입
+                //상세페이지에 있는 구매사이트 링크 대입 (최적화: 원본 링크 그대로 사용)
                 String url = link.attr("href");
-                //로딩 페이지 없는 최종 사이트 링크 추출
-                String finalUrl = finalUrlResolver.resolve(url,driver);
-                log.debug("{}의 최종 상품구매링크 {}",price.getShopName(),finalUrl);
-                if(!finalUrl.isEmpty()){
-                    price.setShopLink(finalUrl);
+                if (!url.isEmpty()) {
+                    price.setShopLink(url);
                 }
             }
             prices.add(price);
