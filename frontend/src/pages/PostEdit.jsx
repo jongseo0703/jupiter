@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { getEnglishCategory, KOREAN_CATEGORIES } from '../utils/categoryUtils';
 import { useFileUpload } from '../hooks/useFileUpload';
 import { categorizeAttachments } from '../utils/fileUtils';
+import { validateTag, containsBadword, findBadword } from '../utils/badwordFilter';
 import { fetchPopularPosts, fetchPopularPostsByLikes, fetchPost, updatePost, deleteAttachment, uploadAttachments } from '../services/api';
 import authService from '../services/authService';
 
@@ -140,10 +141,20 @@ function PostEdit() {
   // 태그 추가 함수
   const addTag = (tagText) => {
     const cleanTag = tagText.trim().replace(/^#+/, ''); // # 제거
+
+    // 태그 유효성 검사
+    const validation = validateTag(cleanTag);
+    if (!validation.isValid) {
+      alert(validation.message);
+      return;
+    }
+
     if (cleanTag && !tagList.includes(cleanTag)) {
       const newTagList = [...tagList, cleanTag];
       setTagList(newTagList);
       setFormData(prev => ({ ...prev, tags: JSON.stringify(newTagList) }));
+    } else if (tagList.includes(cleanTag)) {
+      alert('이미 추가된 태그입니다.');
     }
   };
 
@@ -184,6 +195,20 @@ function PostEdit() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    // 제목 욕설 검사
+    if (containsBadword(formData.title)) {
+      const badwords = findBadword(formData.title);
+      alert(`제목에 부적절한 단어가 포함되어 있습니다: ${badwords.join(', ')}`);
+      return;
+    }
+
+    // 내용 욕설 검사
+    if (containsBadword(formData.content)) {
+      const badwords = findBadword(formData.content);
+      alert(`내용에 부적절한 단어가 포함되어 있습니다: ${badwords.join(', ')}`);
+      return;
+    }
 
     try {
       // 카테고리 변환 (한글 -> 영문)
