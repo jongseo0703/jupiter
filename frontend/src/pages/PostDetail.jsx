@@ -924,58 +924,65 @@ function PostDetail() {
               {/* 첨부파일 */}
               {post.attachments && post.attachments.length > 0 && (
                 <div className="mt-8 pt-8 border-t border-gray-200">
-                  <h3 className="text-lg font-semibold text-gray-800 mb-4">첨부파일</h3>
-
                   {(() => {
                     // 이미지와 일반 파일 분리
                     const { images, files } = categorizeAttachments(post.attachments);
 
                     return (
-                      <div className="space-y-4">
-                        {/* 이미지들 - 가로로 나열 */}
+                      <div className="space-y-6">
+                        {/* 이미지들 - 컨텐츠로 크게 표시 */}
                         {images.length > 0 && (
-                          <div className="flex flex-wrap gap-3">
+                          <div className="space-y-3 flex flex-col items-center">
                             {images.map((file) => (
-                              <div key={file.index} className="relative group">
+                              <div key={file.index} className="relative group max-w-sm">
                                 <img
                                   src={`http://localhost:8080${file.fileUrl}`}
                                   alt={file.originalFilename}
-                                  className="w-24 h-24 object-cover rounded-lg cursor-pointer hover:opacity-80 transition-opacity"
+                                  className="w-full rounded-lg cursor-pointer hover:opacity-95 transition-opacity shadow-sm"
                                   onClick={() => window.open(`http://localhost:8080${file.fileUrl}`, '_blank')}
                                   onError={(e) => {
                                     e.target.style.display = 'none';
                                     console.error('이미지 로드 실패:', file.fileUrl);
                                   }}
                                 />
-                                <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 text-white text-xs px-1 py-0.5 rounded-b-lg opacity-0 group-hover:opacity-100 transition-opacity">
-                                  {file.fileSize}KB
+                                <div className="absolute top-2 right-2 bg-black bg-opacity-60 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity">
+                                  <i className="fas fa-external-link-alt mr-1"></i>
+                                  새 탭에서 열기
                                 </div>
                               </div>
                             ))}
                           </div>
                         )}
 
-                        {/* 일반 파일들 - 세로로 길게 */}
-                        {files.map((file) => (
-                          <div
-                            key={file.index}
-                            className="bg-gray-50 rounded-lg p-4 cursor-pointer hover:bg-gray-100 transition-colors"
-                            onClick={() => window.open(`http://localhost:8080${file.fileUrl}`, '_blank')}
-                          >
-                            <div className="flex items-center space-x-3">
-                              <div className="w-12 h-12 bg-gray-200 rounded-lg flex items-center justify-center flex-shrink-0">
-                                <i className="fas fa-file text-gray-400 text-lg"></i>
+                        {/* 일반 파일들 */}
+                        {files.length > 0 && (
+                          <div className="space-y-2">
+                            <h3 className="text-sm font-semibold text-gray-700 mb-2">
+                              <i className="fas fa-paperclip mr-1"></i>
+                              첨부파일
+                            </h3>
+                            {files.map((file) => (
+                              <div
+                                key={file.index}
+                                className="bg-gray-50 rounded-lg p-4 cursor-pointer hover:bg-gray-100 transition-colors"
+                                onClick={() => window.open(`http://localhost:8080${file.fileUrl}`, '_blank')}
+                              >
+                                <div className="flex items-center space-x-3">
+                                  <div className="w-12 h-12 bg-gray-200 rounded-lg flex items-center justify-center flex-shrink-0">
+                                    <i className="fas fa-file text-gray-400 text-lg"></i>
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-sm text-gray-700 font-medium">{file.originalFilename}</p>
+                                    <p className="text-xs text-gray-500">{file.fileSize}KB</p>
+                                  </div>
+                                  <div className="flex-shrink-0">
+                                    <i className="fas fa-external-link-alt text-gray-400 text-sm"></i>
+                                  </div>
+                                </div>
                               </div>
-                              <div className="flex-1 min-w-0">
-                                <p className="text-sm text-gray-700 font-medium">{file.originalFilename}</p>
-                                <p className="text-xs text-gray-500">{file.fileSize}KB</p>
-                              </div>
-                              <div className="flex-shrink-0">
-                                <i className="fas fa-external-link-alt text-gray-400 text-sm"></i>
-                              </div>
-                            </div>
+                            ))}
                           </div>
-                        ))}
+                        )}
                       </div>
                     );
                   })()}
