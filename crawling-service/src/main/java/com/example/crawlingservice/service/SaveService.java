@@ -12,7 +12,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * 모든 상품정보를 저장하는 클래스
@@ -54,6 +56,9 @@ public class SaveService {
             Product product =productService.saveProduct(productDTO,subCategory);
             //이미지 URL 검사 및 업데이트
             updateImage(productDTO.getImageUrl(), productDTO.getProductName());
+
+            //크롤링한 상점명 수집
+            Set<String> crawledShopNames = new HashSet<>();
             for(PriceDTO priceDTO : priceDTOList) {
                 //상점 저장
                 Shop shop=shopService.saveShop(priceDTO);
@@ -61,7 +66,13 @@ public class SaveService {
                 ProductShop productShop=productShopService.saveProductShop(product,shop,priceDTO.getShopLink());
                 //가격 저장
                 priceService.savePrice(priceDTO,productShop);
+                //상점명 수집
+                crawledShopNames.add(priceDTO.getShopName());
             }
+
+            //상점 유효성 검사
+            productShopService.checkShops(product.getProductId(), crawledShopNames);
+
             //리뷰 저장
             reviewService.saveReview(reviewDTOList,product);
             count++;
