@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {fetchPost, fetchPopularPosts, fetchPopularPostsByLikes, likePost, unlikePost, createComment, updateComment, deleteComment, verifyAnonymousComment, deletePost as deletePostAPI, verifyAnonymousPost} from '../services/api';
 import { categorizeAttachments } from '../utils/fileUtils';
 import { getCategoryStyle, getEnglishCategory } from '../utils/categoryUtils';
+import { containsBadword, findBadword } from '../utils/badwordFilter';
 import authService from '../services/authService';
 
 function PostDetail() {
@@ -138,6 +139,13 @@ function PostDetail() {
   const handleCommentSubmit = (e) => {
     e.preventDefault();
 
+    // 댓글 내용 욕설 검사
+    if (containsBadword(commentForm.content)) {
+      const badwords = findBadword(commentForm.content);
+      alert(`댓글에 부적절한 단어가 포함되어 있습니다: ${badwords.join(', ')}`);
+      return;
+    }
+
     const commentData = {
       postId: parseInt(id),
       content: commentForm.content,
@@ -168,6 +176,13 @@ function PostDetail() {
 
   // 댓글 수정 제출
   const handleEditComment = (commentId) => {
+    // 댓글 내용 욕설 검사
+    if (containsBadword(editCommentContent)) {
+      const badwords = findBadword(editCommentContent);
+      alert(`댓글에 부적절한 단어가 포함되어 있습니다: ${badwords.join(', ')}`);
+      return;
+    }
+
     const comment = comments.find(c => c.comment_id === commentId);
     const commentData = {
       postId: parseInt(id),
@@ -322,13 +337,16 @@ function PostDetail() {
   };
 
   /**
-   * 좋아요 관련해서는 서버 재조회 없이 낙관적 업데이트만 사용
-   * - 조회수 증가 방지를 위해 쿼리 무효화 하지 않음
+   * 댓글/좋아요 관련 쿼리 무효화
+   * - 댓글: 서버에서 최신 데이터 재조회 (실제 ID 업데이트 필요)
+   * - 좋아요: 낙관적 업데이트만 사용 (조회수 증가 방지)
    */
-  const invalidatePostQuery = () => {
-    // 좋아요 관련은 낙관적 업데이트만 사용하므로 서버 재조회 안 함
-    // 필요시에만 주석 해제
-    // queryClient.invalidateQueries({ queryKey: ['post', id] }).catch(console.error);
+  const invalidatePostQuery = async (shouldRefetch = false) => {
+    if (shouldRefetch) {
+      // 댓글 작성/수정/삭제 시 서버 데이터 재조회
+      await queryClient.invalidateQueries({ queryKey: ['post', id] });
+    }
+    // 좋아요는 낙관적 업데이트만 사용하므로 재조회 안 함
   };
 
   // 좋아요 토글 함수 - 로그인 체크 후 좋아요/취소 결정
@@ -426,7 +444,7 @@ function PostDetail() {
       console.error('Failed to create comment:', err);
       alert('댓글 등록에 실패했습니다.');
     },
-    onSettled: invalidatePostQuery, // 성공/실패 관계없이 서버 데이터로 동기화
+    onSettled: () => invalidatePostQuery(true), // 서버에서 실제 댓글 ID를 받아오기 위해 재조회
   });
 
   // 댓글 수정 mutation - 헬퍼 함수 사용으로 중복 코드 제거
@@ -455,7 +473,7 @@ function PostDetail() {
       console.error('Failed to update comment:', err);
       alert('댓글 수정에 실패했습니다.');
     },
-    onSettled: invalidatePostQuery, // 공통 쿼리 무효화
+    onSettled: () => invalidatePostQuery(true), // 서버 데이터로 동기화
   });
 
   // 댓글 삭제 mutation - 헬퍼 함수 사용으로 중복 코드 제거
@@ -477,7 +495,7 @@ function PostDetail() {
       console.error('Failed to delete comment:', err);
       alert('댓글 삭제에 실패했습니다.');
     },
-    onSettled: invalidatePostQuery, // 공통 쿼리 무효화
+    onSettled: () => invalidatePostQuery(true), // 서버 데이터로 동기화
   });
 
   // 익명 댓글 인증 mutation
