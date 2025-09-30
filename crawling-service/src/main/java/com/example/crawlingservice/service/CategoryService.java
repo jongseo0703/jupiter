@@ -50,6 +50,20 @@ public class CategoryService {
             topName= "기타";
             subName = "기타";
         }
+
+        // subName이 '레드', '화이트', '로제'인 경우 와인으로 변경
+        if ("레드".equals(subName)) {
+            subName = "레드와인";
+        } else if ("화이트".equals(subName)) {
+            subName = "화이트와인";
+        } else if ("로제".equals(subName)) {
+            subName = "로제와인";
+        }
+
+        // subName에 '담금주' 또는 '소주'가 포함되면 topName을 '소주'로 변경
+        if (subName.contains("담금주") || subName.contains("소주")) {
+            topName = "소주";
+        }
         //상위 카테고리 저장
         TopCategory topCategory = saveTopCategory(topName);
         //하위 카테고리 저장
