@@ -29,8 +29,7 @@ public class ProductService {
      */
     public Product saveProduct(ProductDTO productDTO, SubCategory subCategory) {
         // 중복 상품 체크 (상품명 + 브랜드)
-        Product existing = productMapper.selectByProductName(
-                productDTO.getProductName(), productDTO.getBrand());
+        Product existing = productMapper.selectByProductName(productDTO.getProductName());
         if (existing != null) {
             return existing;
         }

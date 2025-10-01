@@ -26,6 +26,19 @@ import java.util.regex.Pattern;
 @RequiredArgsConstructor
 public class ListPageService {
     private final ProductNameParser productNameParser;
+
+    // 패턴을 사전 컴파일 (성능 최적화)
+    private static final Pattern PACKAGING_PATTERN =
+            Pattern.compile("포장형태\\s*[:：]?\\s*([가-힣A-Za-z0-9/_\\-]+)");
+    private static final Pattern ALCOHOL_PATTERN =
+            Pattern.compile("도수\\s*[:：]?\\s*([0-9]{1,3})\\s*[도%]");
+    private static final Pattern LINEUP_PATTERN =
+            Pattern.compile("구성\\s*[:：]?\\s*([^\\r\\n]+)");
+    private static final Pattern ALCOHOL_IN_LINEUP_PATTERN =
+            Pattern.compile("((?:[1-9]?\\d|100)(?:\\.\\d{1,2})?)\\s*[도%]");
+    private static final Pattern VOLUME_PATTERN =
+            Pattern.compile("(\\d+(?:\\.\\d+)?)\\s*(?:ml|ML|mL|Ml|리터|ℓ|L|l)");
+
     /**
      * 상세페이지에 있는 상품 정보들을 ProductDTO에 파싱하는 메서드
      * @param html 웹사이트 html
@@ -109,13 +122,20 @@ public class ListPageService {
             }
         }
 
-        // 2. 상품 이미지 추출
+        //상품 이미지 추출
         String imageUrl = null;
         Element imgElement = item.select("div.thumb_image a.thumb_link img").first();
         if (imgElement != null) {
-            imageUrl = imgElement.attr("src");
-            if (imageUrl.startsWith("//")) {
-                imageUrl = "https:" + imageUrl;
+            String url = imgElement.attr("data-original");
+            if(url == null ||url.isEmpty()){
+                url = imgElement.attr("src");
+            }
+            if (url.startsWith("//")) {
+                url = "https:" + url;
+                //이미지 존제 여부 확인
+                if (!url.contains("noImg") && !url.contains("noData")){
+                    imageUrl = url;
+                }
             }
         }
 
@@ -180,32 +200,28 @@ public class ListPageService {
             // 태그 구조가 제각각이라 안전하게 '텍스트'에서 정규식으로 추출
             String text = container.text();
 
-            // 포장형태: "포장형태 : 페트" / "포장형태:페트" 등 변형 대응
-            // 한글/영문/숫자/슬래시/하이픈/언더스코어 정도까지 허용
-            Matcher pkgM = Pattern.compile("포장형태\\s*[:：]?\\s*([가-힣A-Za-z0-9/_\\-]+)")
-                    .matcher(text);
+            // 포장형태: "포장형태 : 페트" / "포장형태:페트" 등 변형 대응 (사전 컴파일된 패턴 사용)
+            Matcher pkgM = PACKAGING_PATTERN.matcher(text);
             if (pkgM.find()) {
                 packaging = pkgM.group(1).trim();
                 if (packaging.isEmpty()) packaging = null;
             }
 
-            // 도수: "도수: 6도" / "도수: 16%" 등 변형 대응
-            Matcher alcM = Pattern.compile("도수\\s*[:：]?\\s*([0-9]{1,3})\\s*[도%]")
-                    .matcher(text);
+            // 도수: "도수: 6도" / "도수: 16%" 등 변형 대응 (사전 컴파일된 패턴 사용)
+            Matcher alcM = ALCOHOL_PATTERN.matcher(text);
             if (alcM.find()) {
                 alcohol = alcM.group(1).trim(); // 숫자만
                 if (alcohol.isEmpty()) alcohol = null;
             }
 
-            //'구성'이 있는데 찾기
-            Matcher listM = Pattern.compile("구성\\s*[:：]?\\s*([^\\r\\n]+)").matcher(text);
+            //'구성'이 있는데 찾기 (사전 컴파일된 패턴 사용)
+            Matcher listM = LINEUP_PATTERN.matcher(text);
             if (listM.find()) {
                 //'구성'다음 문자열 추출
                 String tt = listM.group(1).trim();
                 if(alcohol == null){
-                    //추출한 문자열중에 '도','%'찾아서 앞에는는 숫자 추출
-                    Pattern p = Pattern.compile("((?:[1-9]?\\d|100)(?:\\.\\d{1,2})?)\\s*[도%]");
-                    Matcher m = p.matcher(tt);
+                    //추출한 문자열중에 '도','%'찾아서 앞에는는 숫자 추출 (사전 컴파일된 패턴 사용)
+                    Matcher m = ALCOHOL_IN_LINEUP_PATTERN.matcher(tt);
 
                     // 모든 매치 순회하며 최댓값 계산
                     double max = Double.NEGATIVE_INFINITY;
@@ -220,9 +236,8 @@ public class ListPageService {
                     }
                 }
 
-                //추출한 문자열에서 ml,l,L,ML 등 용량 단위 찾아서 앞에 있는 문자 추출
-                Pattern volumePattern = Pattern.compile("(\\d+(?:\\.\\d+)?)\\s*(?:ml|ML|mL|Ml|리터|ℓ|L|l)");
-                Matcher volumeMatcher = volumePattern.matcher(tt);
+                //추출한 문자열에서 ml,l,L,ML 등 용량 단위 찾아서 앞에 있는 문자 추출 (사전 컴파일된 패턴 사용)
+                Matcher volumeMatcher = VOLUME_PATTERN.matcher(tt);
                 // 모든 용량 매치를 순회하면서 최댓값 찾기
                 while (volumeMatcher.find()) {
 
