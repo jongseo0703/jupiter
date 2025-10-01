@@ -21,6 +21,8 @@ public class ProductShop {
 
     private String link;
 
+    private boolean isAvailable;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "product_id")
     private Product product;
