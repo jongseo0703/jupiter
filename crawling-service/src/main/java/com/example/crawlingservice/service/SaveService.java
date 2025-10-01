@@ -54,8 +54,8 @@ public class SaveService {
             SubCategory subCategory =categoryService.saveCategory(productDTO.getCategory(),productDTO.getProductKind());
             //상품 저장
             Product product =productService.saveProduct(productDTO,subCategory);
-            //이미지 URL 검사 및 업데이트
-            updateImage(productDTO.getImageUrl(), productDTO.getProductName());
+            //이미지 URL 검사 및 업데이트 (product 객체 직접 전달)
+            updateImage(product, productDTO.getImageUrl());
 
             //크롤링한 상점명 수집
             Set<String> crawledShopNames = new HashSet<>();
@@ -70,8 +70,10 @@ public class SaveService {
                 crawledShopNames.add(priceDTO.getShopName());
             }
 
-            //상점 유효성 검사
-            productShopService.checkShops(product.getProductId(), crawledShopNames);
+            //상점 유효성 검사 (크롤링한 상점이 있는 경우만)
+            if (!crawledShopNames.isEmpty()) {
+                productShopService.checkShops(product.getProductId(), crawledShopNames);
+            }
 
             //리뷰 저장
             reviewService.saveReview(reviewDTOList,product);
@@ -87,69 +89,53 @@ public class SaveService {
 
     /**
      * 데이터베이스의 상품명과 ProductDTO의 상품명과 비교<br>
-     * 상품명이 DB에만 있을 경우 : isAvailable = false<br>
-     * 상품명이 productDTO와 DB 둘다 존재할 경우 isAvailable = true
+     * 상품명이 데이터베이스에만 있을 경우 : isAvailable = false<br>
+     * 상품명이 productDTO와 데이터베이스 둘다 존재할 경우 isAvailable = true
      * @param productNames 상품명
      */
     public void updateStockStatus(List<String>productNames){
-        //DB의 모든 상품 정보
+        //추출한 상품명 목록
+        Set<String> crawledProductNames = new HashSet<>(productNames);
+
+        //데이터베이스의 모든 상품 정보
         List<Product> dbProducts = productMapper.selectAll();
 
         for (Product dbProduct : dbProducts) {
-            //DB에 존재하는 상품명
+            //데이터베이스에 존재하는 상품명
             String productName = dbProduct.getProductName();
-            //productDTO의 상품명들과 비교
-            boolean isAvailable = productNames.contains(productName);
+            //크롤링된 상품명과 비교
+            boolean shouldBeAvailable = crawledProductNames.contains(productName);
 
-            if(isAvailable){
-                Stock stock = stockMapper.selectByProductName(productName);
-                //상품명이 존재하고 DB의 is_available = false 일 때 ture로 변경
-                if(!stock.isAvailable()){
-                    stockMapper.updateProduct(true,productName);
-                }
-            }else {
-                //DB에만 상품명이 존재 할 경우 is_available = false로 변경
-                stockMapper.updateProduct(false,productName);
+            //재고 정보 조회
+            Stock stock = stockMapper.selectByProductName(productName);
+            boolean currentStatus = stock.isAvailable();
+
+            //상태가 다를 때만 업데이트
+            if(currentStatus != shouldBeAvailable){
+                stockMapper.updateProduct(shouldBeAvailable, productName);
             }
         }
     }
 
     /**
-     * DB 상품 이미지 유효 검사 및 수정을 위한 메서드
-     * @param productDtoUrl 새 이미지 URL
-     * @param productName 상품명
+     * 데이터베이스 상품 이미지 유효 검사 및 수정을 위한 메서드
+     * @param product 상품 객체
+     * @param newImageUrl 새 이미지 URL
      */
-    public void updateImage(String productDtoUrl, String productName) {
-        // DB 상품 조회
-        Product product = productMapper.selectByProduct(productName);
+    public void updateImage(Product product, String newImageUrl) {
+        // 현재 DB에 저장된 이미지 URL
+        String dbImageUrl = product.getUrl();
 
-        if (product != null) {
-            // 현재 DB에 저장된 이미지 URL
-            String dbImageUrl = product.getUrl();
+        // 기본 "이미지 없음" URL 상수
+        final String NO_IMAGE_URL = "https://img.danawa.com/new/noData/img/noImg_160.gif";
 
-            // 기본 "이미지 없음" URL 상수
-            final String NO_IMAGE_URL = "https://img.danawa.com/new/noData/img/noImg_160.gif";
+        // 새 이미지 유효 검사
+        boolean isNewUrlValid = !NO_IMAGE_URL.equals(newImageUrl);
 
-            // 새 이미지 유효 검사
-            boolean isDbUrlValid = !NO_IMAGE_URL.equals(dbImageUrl);
-            //기존 이미지 유효 검사
-            boolean isNewUrlValid = !NO_IMAGE_URL.equals(productDtoUrl);
-
-            // 올바른 업데이트 로직
-            if (isNewUrlValid && !productDtoUrl.equals(dbImageUrl)) {
-                // 새 URL이 유효하고 기존 URL과 다르면 업데이트
-                productMapper.updateUrl(product.getProductId(), productDtoUrl);
-                log.debug("{} 상품 이미지 업데이트",product.getProductName());
-
-            } else if (!isNewUrlValid && isDbUrlValid) {
-                // 새 URL이 유효하지 않지만 기존 URL이 유효하면 유지
-                log.debug("기존 이미지 유지");
-            } else {
-                // 둘 다 유효하지 않거나 기타 경우
-                log.debug("유효한 이미지 URL 없음");
-            }
-        } else {
-            log.debug("상품을 찾을 수 없습니다: {}", productName);
+        // 새 URL이 유효하고 기존 URL과 다르면 업데이트
+        if (isNewUrlValid && !newImageUrl.equals(dbImageUrl)) {
+            productMapper.updateUrl(product.getProductId(), newImageUrl);
+            log.debug("상품 이미지 업데이트");
         }
     }
 }
