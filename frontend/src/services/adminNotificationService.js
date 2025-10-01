@@ -3,9 +3,7 @@ import api from './api';
 class AdminNotificationService {
   async getNotifications(page = 0, size = 10) {
     try {
-      const response = await api.get('/auth/api/v1/admin/notifications', {
-        params: { page, size }
-      });
+      const response = await api.get(`/auth/api/v1/admin/notifications?page=${page}&size=${size}`);
 
       if (response.data && response.data.data) {
         return response.data.data;

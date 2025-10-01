@@ -17,7 +17,7 @@ const AdminNotifications = () => {
   const fetchNotifications = async () => {
     try {
       setLoading(true);
-      const data = await adminNotificationService.getNotifications(page, 10);
+      const data = await adminNotificationService.getNotifications(page, 5);
 
       if (data && data.content) {
         setNotifications(data.content);

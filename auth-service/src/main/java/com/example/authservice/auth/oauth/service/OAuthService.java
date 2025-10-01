@@ -101,19 +101,40 @@ public class OAuthService {
   }
 
   private User findOrCreateUser(OAuthUserInfo oAuthUserInfo) {
+    // 1. OAuth 제공자와 ID로 기존 사용자 찾기
+    Optional<User> oauthUser =
+        userRepository.findByOauthProviderAndOauthId(
+            oAuthUserInfo.provider(), oAuthUserInfo.oauthId());
+
+    if (oauthUser.isPresent()) {
+      log.info("Found existing OAuth user: {}", oauthUser.get().getUsername());
+      return oauthUser.get();
+    }
+
+    // 2. 이메일로 기존 사용자 찾기 (일반 회원가입 사용자와 연동)
     Optional<User> existingUser = userRepository.findByEmail(oAuthUserInfo.email());
 
     if (existingUser.isPresent()) {
-      log.info("Found existing user: {}", existingUser.get().getUsername());
-      return existingUser.get();
+      User user = existingUser.get();
+      // 기존 일반 회원을 OAuth 계정과 연동
+      user.setOauthProvider(oAuthUserInfo.provider());
+      user.setOauthId(oAuthUserInfo.oauthId());
+      User updatedUser = userRepository.save(user);
+      log.info(
+          "Linked existing user {} with OAuth provider: {}",
+          user.getUsername(),
+          oAuthUserInfo.provider());
+      return updatedUser;
     }
 
-    // 새 사용자 생성
+    // 3. 새 사용자 생성
     User newUser =
         User.builder()
             .username(generateUsername(oAuthUserInfo.name(), oAuthUserInfo.email()))
             .email(oAuthUserInfo.email())
             .password("OAUTH_USER_NO_PASSWORD_12345678") // OAuth 사용자용 더미 패스워드
+            .oauthProvider(oAuthUserInfo.provider())
+            .oauthId(oAuthUserInfo.oauthId())
             .role(Role.USER)
             .enabled(true)
             .accountNonExpired(true)
