@@ -112,6 +112,8 @@ function ProductDetail() {
   const [currentReviewPage, setCurrentReviewPage] = useState(1);
   const [reviewsPerPage] = useState(5);
   const [visiblePriceCount, setVisiblePriceCount] = useState(4);
+  const [selectedShop, setSelectedShop] = useState('all');
+  const [selectedRating, setSelectedRating] = useState('all');
 
 
   useEffect(() => {
@@ -182,11 +184,32 @@ function ProductDetail() {
   // 별점 통계 계산
   const ratingStats = product ? calculateRatingStats(product.reviews) : { distribution: [0, 0, 0, 0, 0], total: 0 };
 
+  // 리뷰 필터링
+  const filteredReviews = product?.reviews?.filter(review => {
+    // 상점 필터
+    if (selectedShop !== 'all' && review.shopDto?.shopName !== selectedShop) {
+      return false;
+    }
+    // 별점 필터
+    if (selectedRating !== 'all') {
+      const reviewStarRating = Math.round(review.rating / 20);
+      if (reviewStarRating !== parseInt(selectedRating)) {
+        return false;
+      }
+    }
+    return true;
+  }) || [];
+
   // 리뷰 페이징 계산
-  const totalReviewPages = Math.ceil((product?.reviews?.length || 0) / reviewsPerPage);
+  const totalReviewPages = Math.ceil(filteredReviews.length / reviewsPerPage);
   const startReviewIndex = (currentReviewPage - 1) * reviewsPerPage;
   const endReviewIndex = startReviewIndex + reviewsPerPage;
-  const currentReviews = product?.reviews?.slice(startReviewIndex, endReviewIndex) || [];
+  const currentReviews = filteredReviews.slice(startReviewIndex, endReviewIndex);
+
+  // 상점 목록 추출
+  const shopList = product?.reviews
+    ? Array.from(new Set(product.reviews.map(review => review.shopDto?.shopName).filter(Boolean)))
+    : [];
 
   // 로딩 중일 때
   if (isLoading) {
@@ -427,6 +450,50 @@ function ProductDetail() {
             <h3 className="text-xl font-bold">고객 리뷰</h3>
           </div>
 
+          {/* 리뷰 필터 */}
+          <div className="flex flex-wrap gap-3 mb-6">
+            <select
+              value={selectedShop}
+              onChange={(e) => {
+                setSelectedShop(e.target.value);
+                setCurrentReviewPage(1);
+              }}
+              className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+            >
+              <option value="all">모든 상점</option>
+              {shopList.map(shop => (
+                <option key={shop} value={shop}>{shop}</option>
+              ))}
+            </select>
+            <select
+              value={selectedRating}
+              onChange={(e) => {
+                setSelectedRating(e.target.value);
+                setCurrentReviewPage(1);
+              }}
+              className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+            >
+              <option value="all">모든 별점</option>
+              <option value="5">5점</option>
+              <option value="4">4점</option>
+              <option value="3">3점</option>
+              <option value="2">2점</option>
+              <option value="1">1점</option>
+            </select>
+            {(selectedShop !== 'all' || selectedRating !== 'all') && (
+              <button
+                onClick={() => {
+                  setSelectedShop('all');
+                  setSelectedRating('all');
+                  setCurrentReviewPage(1);
+                }}
+                className="text-sm text-gray-600 hover:text-gray-800 underline"
+              >
+                필터 초기화
+              </button>
+            )}
+          </div>
+
           {/* 리뷰 통계 */}
           <div className="bg-gray-50 rounded-lg p-4 mb-6">
             <div className="flex items-center justify-between">
@@ -469,7 +536,7 @@ function ProductDetail() {
           </div>
 
           {/* 개별 리뷰 */}
-          {product.reviews && product.reviews.length > 0 ? (
+          {filteredReviews.length > 0 ? (
             <div className="space-y-6">
               {currentReviews.map(review => (
                 <div key={review.reviewId} className="border-b border-gray-200 pb-6 last:border-b-0">
@@ -518,7 +585,11 @@ function ProductDetail() {
           ) : (
             <div className="text-center py-8">
               <i className="fas fa-comment-slash text-gray-400 text-3xl mb-4"></i>
-              <p className="text-gray-600">아직 등록된 리뷰가 없습니다.</p>
+              <p className="text-gray-600">
+                {product.reviews && product.reviews.length > 0
+                  ? '선택한 필터에 해당하는 리뷰가 없습니다.'
+                  : '아직 등록된 리뷰가 없습니다.'}
+              </p>
             </div>
           )}
 
