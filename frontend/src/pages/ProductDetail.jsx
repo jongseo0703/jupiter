@@ -111,6 +111,7 @@ function ProductDetail() {
   const [error, setError] = useState(null);
   const [currentReviewPage, setCurrentReviewPage] = useState(1);
   const [reviewsPerPage] = useState(5);
+  const [visiblePriceCount, setVisiblePriceCount] = useState(4);
 
 
   useEffect(() => {
@@ -145,9 +146,10 @@ function ProductDetail() {
     loadData();
   }, [id, navigate]);
 
-  // 상품이 변경되면 리뷰 페이지 초기화
+  // 상품이 변경되면 리뷰 페이지 및 가격 표시 초기화
   useEffect(() => {
     setCurrentReviewPage(1);
+    setVisiblePriceCount(4);
   }, [product?.id]);
 
   const handleLoadingComplete = () => {
@@ -290,68 +292,81 @@ function ProductDetail() {
 
               <div className="p-6">
                 {product.priceComparison && product.priceComparison.length > 0 ? (
-                  <div className="space-y-4">
-                    {product.priceComparison.map((store, index) => (
-                      <div key={index} className="border rounded-lg p-4 hover:bg-gray-50 transition-colors">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center space-x-4">
-                            {store.logoIcon && store.logoIcon.trim() !== '' ? (
-                              <img
-                                src={store.logoIcon}
-                                alt={`${store.store} 로고`}
-                                className="w-12 h-12 object-contain"
-                                onError={(e) => {
-                                  e.target.style.display = 'none';
-                                  e.target.nextSibling.style.display = 'flex';
-                                }}
-                              />
-                            ) : (
-                              <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center">
-                                <i className="fas fa-store text-gray-600"></i>
-                              </div>
-                            )}
-                            <div>
-                              <div className="flex items-center space-x-2">
-                                <h3 className="font-semibold text-lg">{store.store}</h3>
-                                {store.discount && store.discount !== "0%" && (
-                                  <span className="bg-red-100 text-red-600 px-2 py-1 rounded-full text-sm">
-                                    {store.discount}
-                                  </span>
-                                )}
-                              </div>
-                              <div className="flex items-center space-x-2 text-sm text-gray-600">
-                                {store.shipping && (
-                                  <div className="flex items-center space-x-1">
-                                    <img
-                                      src="/images/delivery_icon.png"
-                                      alt="배송"
-                                      className="w-4 h-4 object-contain"
-                                    />
-                                    <span>{store.shipping}</span>
-                                  </div>
-                                )}
+                  <>
+                    <div className="space-y-4">
+                      {product.priceComparison.slice(0, visiblePriceCount).map((store, index) => (
+                        <div key={index} className="border rounded-lg p-4 hover:bg-gray-50 transition-colors">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center space-x-4">
+                              {store.logoIcon && store.logoIcon.trim() !== '' ? (
+                                <img
+                                  src={store.logoIcon}
+                                  alt={`${store.store} 로고`}
+                                  className="w-12 h-12 object-contain"
+                                  onError={(e) => {
+                                    e.target.style.display = 'none';
+                                    e.target.nextSibling.style.display = 'flex';
+                                  }}
+                                />
+                              ) : (
+                                <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center">
+                                  <i className="fas fa-store text-gray-600"></i>
+                                </div>
+                              )}
+                              <div>
+                                <div className="flex items-center space-x-2">
+                                  <h3 className="font-semibold text-lg">{store.store}</h3>
+                                  {store.discount && store.discount !== "0%" && (
+                                    <span className="bg-red-100 text-red-600 px-2 py-1 rounded-full text-sm">
+                                      {store.discount}
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="flex items-center space-x-2 text-sm text-gray-600">
+                                  {store.shipping && (
+                                    <div className="flex items-center space-x-1">
+                                      <img
+                                        src="/images/delivery_icon.png"
+                                        alt="배송"
+                                        className="w-4 h-4 object-contain"
+                                      />
+                                      <span>{store.shipping}</span>
+                                    </div>
+                                  )}
+                                </div>
                               </div>
                             </div>
-                          </div>
-                          <div className="text-right">
-                            <div className={`text-2xl font-bold ${store.price === product.lowestPrice ? 'text-red-600' : 'text-gray-800'}`}>
-                              ₩{store.price.toLocaleString()}
+                            <div className="text-right">
+                              <div className={`text-2xl font-bold ${store.price === product.lowestPrice ? 'text-red-600' : 'text-gray-800'}`}>
+                                ₩{store.price.toLocaleString()}
+                              </div>
+                              {store.link && store.link !== "#" && (
+                                <a
+                                  href={store.link}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-block mt-2 bg-secondary text-white px-4 py-2 rounded-lg hover:bg-yellow-600 transition-colors"
+                                >
+                                  구매하러 가기
+                                </a>
+                              )}
                             </div>
-                            {store.link && store.link !== "#" && (
-                              <a
-                                href={store.link}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-block mt-2 bg-secondary text-white px-4 py-2 rounded-lg hover:bg-yellow-600 transition-colors"
-                              >
-                                구매하러 가기
-                              </a>
-                            )}
                           </div>
                         </div>
+                      ))}
+                    </div>
+                    {visiblePriceCount < product.priceComparison.length && (
+                      <div className="text-center mt-4">
+                        <button
+                          onClick={() => setVisiblePriceCount(prev => Math.min(prev + 4, product.priceComparison.length))}
+                          className="bg-gray-100 text-gray-700 px-6 py-2 rounded-lg hover:bg-gray-200 transition-colors flex items-center justify-center mx-auto space-x-2"
+                        >
+                          <span>가격 더보기 ({product.priceComparison.length - visiblePriceCount}개)</span>
+                          <i className="fas fa-chevron-down"></i>
+                        </button>
                       </div>
-                    ))}
-                  </div>
+                    )}
+                  </>
                 ) : (
                   <div className="text-center py-8">
                     <i className="fas fa-exclamation-triangle text-yellow-500 text-2xl mb-2"></i>
