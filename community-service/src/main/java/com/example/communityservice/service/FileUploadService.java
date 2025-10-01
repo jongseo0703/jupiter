@@ -85,8 +85,7 @@ public class FileUploadService {
    * @return 첨부파일 목록
    */
   public List<PostAttachmentsResponseDTO> getAttachmentsByPostId(Long postId) {
-    List<PostAttachments> attachments =
-        postAttachmentsRepository.findByPostIdOrderByCreatedAt(postId);
+    List<PostAttachments> attachments = postAttachmentsRepository.findByPostId(postId);
     return attachments.stream().map(PostAttachmentsResponseDTO::from).toList();
   }
 

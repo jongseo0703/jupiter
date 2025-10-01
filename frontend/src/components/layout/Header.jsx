@@ -100,20 +100,6 @@ const Header = () => {
                 Email@Example.com
               </span>
             </div>
-            <div className="flex items-center space-x-3">
-              <a href="#" className="hover:text-secondary transition-colors">
-                <i className="fab fa-facebook-f"></i>
-              </a>
-              <a href="#" className="hover:text-secondary transition-colors">
-                <i className="fab fa-twitter"></i>
-              </a>
-              <a href="#" className="hover:text-secondary transition-colors">
-                <i className="fab fa-instagram"></i>
-              </a>
-              <a href="#" className="hover:text-secondary transition-colors">
-                <i className="fab fa-linkedin-in"></i>
-              </a>
-            </div>
           </div>
         </div>
       </div>

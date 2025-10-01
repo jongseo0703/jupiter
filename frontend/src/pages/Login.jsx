@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import ReCAPTCHA from 'react-google-recaptcha';
 import authService from '../services/authService';
+import api from '../services/api';
 
 const Login = () => {
   const [formData, setFormData] = useState({
@@ -59,8 +60,23 @@ const Login = () => {
       if (loginResponse.data.passwordChangeRequired) {
         navigate('/password-change-required');
       } else {
-        // 로그인 성공 시 홈으로 리다이렉트
-        navigate('/');
+        // 설문 완료 여부 확인
+        try {
+          const surveyResponse = await api.get('/auth/api/v1/preferences/status');
+          const surveyCompleted = surveyResponse.data.data;
+
+          if (!surveyCompleted) {
+            // 설문 미완료 시 설문조사 페이지로
+            navigate('/preference-survey');
+          } else {
+            // 설문 완료 시 홈으로
+            navigate('/');
+          }
+        } catch (error) {
+          // 설문 상태 확인 실패 시 홈으로 (기본값)
+          console.error('Failed to check survey status:', error);
+          navigate('/');
+        }
       }
     } catch (error) {
       setError(error.message || '로그인에 실패했습니다.');
@@ -86,8 +102,23 @@ const Login = () => {
       if (verifyResponse.data.passwordChangeRequired) {
         navigate('/password-change-required');
       } else {
-        // 로그인 성공 시 홈으로 리다이렉트
-        navigate('/');
+        // 설문 완료 여부 확인
+        try {
+          const surveyResponse = await api.get('/auth/api/v1/preferences/status');
+          const surveyCompleted = surveyResponse.data.data;
+
+          if (!surveyCompleted) {
+            // 설문 미완료 시 설문조사 페이지로
+            navigate('/preference-survey');
+          } else {
+            // 설문 완료 시 홈으로
+            navigate('/');
+          }
+        } catch (error) {
+          // 설문 상태 확인 실패 시 홈으로 (기본값)
+          console.error('Failed to check survey status:', error);
+          navigate('/');
+        }
       }
     } catch (error) {
       setError(error.message || '2단계 인증에 실패했습니다.');
