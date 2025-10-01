@@ -16,6 +16,6 @@ public interface PriceRepository extends JpaRepository<Price,Integer> {
      */
     @Query("select pc.priceId,pc.price,pc.deliveryFee,ps.link,s.shopName,s.logoIcon from Price pc inner join ProductShop ps on ps.productShopId = pc.productShop.productShopId " +
             "inner join Shop s on s.shopId =ps.shop.shopId " +
-            "inner join Product p on ps.product.productId = p.productId where p.productId = :productId")
+            "inner join Product p on ps.product.productId = p.productId where ps.isAvailable = true and p.productId = :productId")
     List<Object[]> findByProductId(Integer productId);
 }
