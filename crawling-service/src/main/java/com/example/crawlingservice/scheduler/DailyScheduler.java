@@ -28,19 +28,18 @@ public class DailyScheduler {
     private final SaveService saveService;
 
     /**
-     * 매일 서울 기준으로 자정에 자동으로 실행되는 스케줄러 메서드
+     * 매일 서울 기준 3번(9시,12시,18시) 자동으로 실행되는 스케줄러 메서드
      */
-    @Scheduled(cron = "0 0 0 * * *", zone = "Asia/Seoul")
-//    @Scheduled(initialDelay = 60000, fixedDelay = Long.MAX_VALUE) // 테스트용, 1분 후 실행
+    @Scheduled(cron = "0 0 9,12,18 * * *", zone = "Asia/Seoul")
+//    @Scheduled(initialDelay = 10000, fixedDelay = Long.MAX_VALUE) // 테스트용
     public void dailySchedule() {
+        log.info("=== 크롤링 작업 시작 ===");
 
         try {
             //시작시간
             LocalDateTime startTime = LocalDateTime.now();
             //날짜/시간을 원하는 형식의 문자열로 변환
             DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
-
-            log.debug("-----일일 크롤링 작업 시작:{}-----",startTime.format(formatter));
 
             //데이터 크롤링 실행
             List<ProductDTO> crawledData = crawlingService.starePage(url);
@@ -50,6 +49,7 @@ public class DailyScheduler {
                 log.debug("총 {}개 상품 수집",crawledData.size());
                 //DB 저장
                 saveService.saveProducts(crawledData);
+                log.debug("데이터베이스에 저장");
             } else {
                 log.debug("크롤링된 데이터가 없습니다.");
             }
