@@ -1,147 +1,213 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import {fetchProducts, fethCategory} from '../services/api';
 import AlcoholPreloader from '../components/AlcoholPreloader';
 
 function Shop() {
-  const [selectedCategory, setSelectedCategory] = useState('전체');
-  const [priceRange, setPriceRange] = useState([0, 100]);
+  const [selectedTopCategory, setSelectedTopCategory] = useState('전체');
+  const [selectedSubCategory, setSelectedSubCategory] = useState('전체');
+  const [priceRange, setPriceRange] = useState([0, 300]);
+  const [alcoholRange, setAlcoholRange] = useState([0, 60]);
+  const [selectedVolumeCategories, setSelectedVolumeCategories] = useState([]);
   const [sortBy, setSortBy] = useState('기본순');
   const [isLoading, setIsLoading] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageGroup, setPageGroup] = useState(1);
+  const itemsPerPage = 6;
 
-  const categories = ['전체', '소주', '맥주', '와인', '과실주', '전통주'];
+  const [categoryData, setCategoryData] = useState({'전체': []});
+  const [topCategories, setTopCategories] = useState(['전체']);
+  const [products, setProducts] = useState([]);
 
-  const products = [
-    {
-      id: 1,
-      name: "참이슬 후레쉬",
-      lowestPrice: 1890,
-      prices: [
-        { store: "쿠팡", price: 1890 },
-        { store: "11번가", price: 1950 },
-        { store: "G마켓", price: 2100 }
-      ],
-      image: "https://images.unsplash.com/photo-1551538827-9c037cb4f32a?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80",
-      category: "소주",
-      rating: 4.3,
-      description: "대한민국 대표 소주, 깔끔하고 순한 맛"
-    },
-    {
-      id: 2,
-      name: "하이트 제로",
-      lowestPrice: 2680,
-      prices: [
-        { store: "신세계몰", price: 2680 },
-        { store: "롯데온", price: 2850 },
-        { store: "옥션", price: 2990 }
-      ],
-      image: "https://images.unsplash.com/photo-1608270586620-248524c67de9?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80",
-      category: "맥주",
-      rating: 4.1,
-      description: "상쾌하고 깔끔한 맛의 대한민국 대표 맥주"
-    },
-    {
-      id: 3,
-      name: "칠레 산타리타 와인",
-      lowestPrice: 8900,
-      prices: [
-        { store: "와인나라", price: 8900 },
-        { store: "하이트진로", price: 9800 },
-        { store: "이마트몰", price: 10500 }
-      ],
-      image: "https://images.unsplash.com/photo-1506377247377-2a5b3b417ebb?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80",
-      category: "와인",
-      rating: 4.2,
-      description: "부드럽고 풍부한 맛의 칠레 레드 와인"
-    },
-    {
-      id: 4,
-      name: "처음처럼",
-      lowestPrice: 1790,
-      prices: [
-        { store: "11번가", price: 1790 },
-        { store: "쿠팡", price: 1890 },
-        { store: "옥션", price: 1950 }
-      ],
-      image: "https://images.unsplash.com/photo-1569529465841-dfecdab7503b?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80",
-      category: "소주",
-      rating: 4.4,
-      description: "부드럽고 깔끔한 맛의 프리미엄 소주"
-    },
-    {
-      id: 5,
-      name: "카스 맥주",
-      lowestPrice: 2450,
-      prices: [
-        { store: "G마켓", price: 2450 },
-        { store: "신세계몰", price: 2580 },
-        { store: "롯데온", price: 2690 }
-      ],
-      image: "https://images.unsplash.com/photo-1608270586620-248524c67de9?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80",
-      category: "맥주",
-      rating: 4.0,
-      description: "오리온의 대표 맥주, 시원하고 깔끔한 맛"
-    },
-    {
-      id: 6,
-      name: "좋은데이 복분자주",
-      lowestPrice: 4900,
-      prices: [
-        { store: "현대백화점", price: 4900 },
-        { store: "갤러리아", price: 5200 },
-        { store: "롯데백화점", price: 5500 }
-      ],
-      image: "https://images.unsplash.com/photo-1506377247377-2a5b3b417ebb?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80",
-      category: "과실주",
-      rating: 4.5,
-      description: "달콤하고 부드러운 우리나라 전통 복분자주"
-    },
-    {
-      id: 7,
-      name: "안동소주",
-      lowestPrice: 3500,
-      prices: [
-        { store: "쿠팡", price: 3500 },
-        { store: "11번가", price: 3800 },
-        { store: "G마켓", price: 4000 }
-      ],
-      image: "https://images.unsplash.com/photo-1551538827-9c037cb4f32a?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80",
-      category: "전통주",
-      rating: 4.6,
-      description: "경상북도 안동의 전통 증류식 소주"
-    },
-    {
-      id: 8,
-      name: "프랑스 보르도 와인",
-      lowestPrice: 15000,
-      prices: [
-        { store: "롯데온", price: 15000 },
-        { store: "신세계몰", price: 16500 },
-        { store: "이마트몰", price: 18000 }
-      ],
-      image: "https://images.unsplash.com/photo-1506377247377-2a5b3b417ebb?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80",
-      category: "와인",
-      rating: 4.4,
-      description: "프랑스 보르도 지역의 고품질 레드 와인"
-    }
+  // 용량 카테고리 정의
+  const volumeCategories = [
+    { id: 'small', label: '소용량 (500ml 이하)', min: 0, max: 500 },
+    { id: 'medium', label: '일반 (500ml ~ 1L)', min: 500, max: 1000 },
+    { id: 'large', label: '대용량 (1L 이상)', min: 1000, max: Infinity }
   ];
 
+
   const filteredProducts = products.filter(product => {
-    const categoryMatch = selectedCategory === '전체' || product.category === selectedCategory;
-    const priceMatch = product.lowestPrice >= priceRange[0] * 1000 && product.lowestPrice <= priceRange[1] * 1000;
-    return categoryMatch && priceMatch;
+    let categoryMatch = true;
+
+    if (selectedTopCategory !== '전체') {
+      // 상위 카테고리가 선택된 경우
+      if (selectedSubCategory === '전체') {
+        // 하위 카테고리가 '전체'인 경우 상위 카테고리만 확인
+        categoryMatch = categoryData[selectedTopCategory].includes(product.category) ||
+                       product.category === selectedTopCategory;
+      } else {
+        // 하위 카테고리가 선택된 경우 하위 카테고리와 정확히 매칭
+        categoryMatch = product.category === selectedSubCategory;
+      }
+    }
+
+    const priceMatch = product.lowestPrice >= priceRange[0] * 1000 &&
+                      (priceRange[1] >= 300 ? true : product.lowestPrice <= priceRange[1] * 1000);
+
+    const alcoholMatch = (product.alcoholPercentage >= alcoholRange[0]) &&
+                        (alcoholRange[1] >= 60 ? true : product.alcoholPercentage <= alcoholRange[1]);
+
+    // 용량 필터링 (선택된 카테고리가 없으면 모든 상품 표시)
+    const volumeMatch = selectedVolumeCategories.length === 0 ||
+                       selectedVolumeCategories.some(categoryId => {
+                         const category = volumeCategories.find(vc => vc.id === categoryId);
+                         return product.volume >= category.min && product.volume <= category.max;
+                       });
+
+    return categoryMatch && priceMatch && alcoholMatch && volumeMatch;
   });
 
-  useEffect(() => {
-    setIsLoading(true);
-  }, []);
+  // 정렬 적용
+  const sortedProducts = [...filteredProducts].sort((a, b) => {
+    switch (sortBy) {
+      case '가격낮은순':
+        return a.lowestPrice - b.lowestPrice;
+      case '가격높은순':
+        return b.lowestPrice - a.lowestPrice;
+      case '평점순':
+        return b.rating - a.rating;
+      case '기본순':
+      default:
+        return a.id - b.id; // ID 순으로 정렬
+    }
+  });
 
-  const handleLoadingComplete = () => {
-    setIsLoading(false);
-  };
+  // 페이지네이션 로직
+  const totalPages = Math.ceil(sortedProducts.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentProducts = sortedProducts.slice(startIndex, endIndex);
+
+  // 카테고리나 필터, 정렬이 변경되면 첫 페이지로 이동
+  useEffect(() => {
+    setCurrentPage(1);
+    setPageGroup(1);
+  }, [selectedTopCategory, selectedSubCategory, priceRange, alcoholRange, selectedVolumeCategories, sortBy]);
+
+   useEffect(() => {
+      const loadData = async () => {
+        try {
+          setIsLoading(true);
+
+          // 카테고리 데이터와 상품 데이터를 병렬로 가져오기
+          const [categoryResponse, productsResponse] = await Promise.all([
+            fethCategory(),
+            fetchProducts()
+          ]);
+
+          // 카테고리 데이터 변환
+          const transformedCategoryData = {'전체': []};
+          const topCategoryNames = ['전체'];
+
+          Object.keys(categoryResponse).forEach(topCategoryKey => {
+            // "TopCategoryDto(topCategoryId=4, topName=와인)" 형태에서 topName 추출
+            const match = topCategoryKey.match(/topName=([^)]+)\)/);
+            if (match) {
+              const topCategoryName = match[1];
+              const subCategories = categoryResponse[topCategoryKey].map(sub => sub.subName);
+
+              transformedCategoryData[topCategoryName] = subCategories;
+              topCategoryNames.push(topCategoryName);
+            }
+          });
+
+          // "기타"가 포함된 카테고리를 맨 아래로 정렬
+          const sortedTopCategories = topCategoryNames.sort((a, b) => {
+            if (a === '전체') return -1; // '전체'는 항상 맨 위
+            if (b === '전체') return 1;
+            if (a.includes('기타')) return 1; // '기타'가 포함된 것은 아래로
+            if (b.includes('기타')) return -1;
+            return a.localeCompare(b); // 나머지는 알파벳 순
+          });
+
+          // 하위 카테고리 통합 및 정리
+          Object.keys(transformedCategoryData).forEach(topCategory => {
+            if (transformedCategoryData[topCategory].length > 0) {
+              // 카테고리 통합 로직
+              const categoryMap = {};
+              transformedCategoryData[topCategory].forEach(subCategory => {
+                if (subCategory === '레드' || subCategory === '레드와인') {
+                  categoryMap['레드와인'] = true;
+                } else if (subCategory === '로제' || subCategory === '로제와인') {
+                  categoryMap['로제와인'] = true;
+                } else if (subCategory === '화이트' || subCategory === '화이트와인') {
+                  categoryMap['화이트와인'] = true;
+                } else {
+                  categoryMap[subCategory] = true;
+                }
+              });
+
+              // 통합된 카테고리 배열로 변환
+              const mergedCategories = Object.keys(categoryMap);
+
+              // "기타"가 포함된 것을 아래로 정렬
+              mergedCategories.sort((a, b) => {
+                if (a.includes('기타')) return 1;
+                if (b.includes('기타')) return -1;
+                return a.localeCompare(b);
+              });
+
+              transformedCategoryData[topCategory] = mergedCategories;
+            }
+          });
+
+          setCategoryData(transformedCategoryData);
+          setTopCategories(sortedTopCategories);
+
+          // 상품 데이터 변환
+          const transformedProducts = productsResponse.map(item => {
+            const product = item.product;
+            const avgRating = item.avgRating;
+
+            const lowestPrice = Math.min(...product.priceDtoList.map(p =>p.price));
+
+            const prices = product.priceDtoList.map(priceInfo => ({
+              store: priceInfo.shopDto.shopName,
+              price: priceInfo.price
+            }));
+
+            // 카테고리명 통합
+            let categoryName = product.subCategoryDto.subName;
+            if (categoryName === '레드' || categoryName === '레드와인') {
+              categoryName = '레드와인';
+            } else if (categoryName === '로제' || categoryName === '로제와인') {
+              categoryName = '로제와인';
+            } else if (categoryName === '화이트' || categoryName === '화이트와인') {
+              categoryName = '화이트와인';
+            }
+
+            return {
+              id: product.productId,
+              name: product.productName,
+              alcoholPercentage: product.alcoholPercentage,
+              volume: product.volume,
+              lowestPrice: lowestPrice,
+              prices: prices,
+              image: product.url,
+              category: categoryName,
+              topCategory: product.subCategoryDto.topCategoryDto?.topName || null,
+              rating: (avgRating /20).toFixed(1),
+              description: product.description ||`${categoryName} 상품`
+            };
+          });
+
+          setProducts(transformedProducts);
+          
+          // 데이터 로드 완료 후 로딩 상태 해제
+          setIsLoading(false); 
+        } catch (err) {
+          console.log(err);
+          setIsLoading(false);
+        }
+      };
+
+      loadData();
+    }, []);
 
   return (
     <>
-      <AlcoholPreloader isLoading={isLoading} handleLoadingComplete={handleLoadingComplete} />
+      <AlcoholPreloader isLoading={isLoading} />
     <div className="py-16 bg-gray-50">
       {/* 페이지 헤더 */}
       <div
@@ -161,21 +227,58 @@ function Shop() {
           <div className="lg:w-1/4">
             <div className="bg-white p-6 rounded-lg shadow-sm mb-6">
               <h3 className="text-xl font-bold mb-4 text-gray-800">카테고리</h3>
-              <div className="space-y-3">
-                {categories.map(category => (
+
+              {/* 상위 카테고리 */}
+              <div className="space-y-3 mb-4">
+                <h4 className="font-semibold text-gray-700 border-b pb-2">상위 카테고리</h4>
+                {topCategories.map(category => (
                   <label key={category} className="flex items-center cursor-pointer">
                     <input
                       type="radio"
-                      name="category"
+                      name="topCategory"
                       value={category}
-                      checked={selectedCategory === category}
-                      onChange={(e) => setSelectedCategory(e.target.value)}
+                      checked={selectedTopCategory === category}
+                      onChange={(e) => {
+                        setSelectedTopCategory(e.target.value);
+                        setSelectedSubCategory('전체'); // 상위 카테고리 변경시 하위 카테고리 초기화
+                      }}
                       className="text-primary focus:ring-primary"
                     />
                     <span className="ml-2 text-gray-700">{category}</span>
                   </label>
                 ))}
               </div>
+
+              {/* 하위 카테고리 */}
+              {selectedTopCategory !== '전체' && categoryData[selectedTopCategory]?.length > 0 && (
+                <div className="space-y-3">
+                  <h4 className="font-semibold text-gray-700 border-b pb-2">하위 카테고리</h4>
+                  <label className="flex items-center cursor-pointer">
+                    <input
+                      type="radio"
+                      name="subCategory"
+                      value="전체"
+                      checked={selectedSubCategory === '전체'}
+                      onChange={(e) => setSelectedSubCategory(e.target.value)}
+                      className="text-primary focus:ring-primary"
+                    />
+                    <span className="ml-2 text-gray-700">전체</span>
+                  </label>
+                  {categoryData[selectedTopCategory].map(subCategory => (
+                    <label key={subCategory} className="flex items-center cursor-pointer">
+                      <input
+                        type="radio"
+                        name="subCategory"
+                        value={subCategory}
+                        checked={selectedSubCategory === subCategory}
+                        onChange={(e) => setSelectedSubCategory(e.target.value)}
+                        className="text-primary focus:ring-primary"
+                      />
+                      <span className="ml-2 text-gray-700 pl-4">{subCategory}</span>
+                    </label>
+                  ))}
+                </div>
+              )}
             </div>
 
             <div className="bg-white p-6 rounded-lg shadow-sm mb-6">
@@ -185,16 +288,59 @@ function Shop() {
                   <input
                     type="range"
                     min="0"
-                    max="100"
+                    max="300"
                     value={priceRange[1]}
                     onChange={(e) => setPriceRange([priceRange[0], parseInt(e.target.value)])}
                     className="w-full"
                   />
                   <div className="flex justify-between text-sm text-gray-600 mt-2">
                     <span>{priceRange[0] * 1000}원</span>
-                    <span>{priceRange[1] * 1000}원</span>
+                    <span>{priceRange[1] >= 300 ? '300,000+원' : `${priceRange[1] * 1000}원`}</span>
                   </div>
                 </div>
+              </div>
+            </div>
+
+            <div className="bg-white p-6 rounded-lg shadow-sm mb-6">
+              <h3 className="text-xl font-bold mb-4 text-gray-800">도수 범위</h3>
+              <div className="space-y-3">
+                <div>
+                  <input
+                    type="range"
+                    min="0"
+                    max="60"
+                    value={alcoholRange[1]}
+                    onChange={(e) => setAlcoholRange([alcoholRange[0], parseInt(e.target.value)])}
+                    className="w-full"
+                  />
+                  <div className="flex justify-between text-sm text-gray-600 mt-2">
+                    <span>{alcoholRange[0]}%</span>
+                    <span>{alcoholRange[1] >= 60 ? '+60%' : `${alcoholRange[1]}%`}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white p-6 rounded-lg shadow-sm mb-6">
+              <h3 className="text-xl font-bold mb-4 text-gray-800">용량</h3>
+              <div className="space-y-3">
+                {volumeCategories.map(category => (
+                  <label key={category.id} className="flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={selectedVolumeCategories.includes(category.id)}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setSelectedVolumeCategories([...selectedVolumeCategories, category.id]);
+                        } else {
+                          setSelectedVolumeCategories(selectedVolumeCategories.filter(id => id !== category.id));
+                        }
+                      }}
+                      className="text-primary focus:ring-primary mr-2"
+                    />
+                    <span className="text-gray-700">{category.label}</span>
+                  </label>
+                ))}
               </div>
             </div>
 
@@ -216,23 +362,29 @@ function Shop() {
           {/* 상품 목록 */}
           <div className="lg:w-3/4">
             <div className="flex justify-between items-center mb-6">
-              <p className="text-gray-600">{filteredProducts.length}개의 상품</p>
+              <p className="text-gray-600">{sortedProducts.length}개의 상품</p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredProducts.map(product => (
-                <div key={product.id} className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-xl transition-shadow duration-300 group">
+              {currentProducts.map(product => (
+                <div key={product.id} className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-xl transition-shadow duration-300 group flex flex-col h-full">
                   <Link to={`/product/${product.id}`}>
-                    <div className="relative overflow-hidden">
+                    <div className="relative overflow-hidden flex items-center justify-center">
                       <img
                         src={product.image}
                         alt={product.name}
-                        className="w-full h-48 object-cover group-hover:scale-110 transition-transform duration-300"
+                        className="w-[300px] h-[300px] object-cover group-hover:scale-110 transition-transform duration-300"
                       />
                       <div className="absolute top-3 left-3 z-10">
-                        <span className="bg-secondary text-white px-2 py-1 rounded-full text-xs font-semibold">
-                          {product.category}
-                        </span>
+                        {product.topCategory ? (
+                          <span className="bg-secondary text-white px-2 py-1 rounded-full text-xs font-semibold">
+                            {product.topCategory}
+                          </span>
+                        ) : (
+                          <span className="bg-secondary text-white px-2 py-1 rounded-full text-xs font-semibold">
+                            {product.category}
+                          </span>
+                        )}
                       </div>
                       <div className="absolute top-3 right-3 z-10">
                         <button className="bg-white p-2 rounded-full shadow-md hover:bg-primary hover:text-white transition-colors">
@@ -242,7 +394,7 @@ function Shop() {
                     </div>
                   </Link>
 
-                  <div className="p-4">
+                  <div className="p-4 flex flex-col flex-grow">
                     <Link to={`/product/${product.id}`}>
                       <h3 className="text-lg font-semibold text-gray-800 mb-2 hover:text-primary transition-colors">{product.name}</h3>
                     </Link>
@@ -260,11 +412,11 @@ function Shop() {
                       <span className="text-gray-600 text-sm ml-2">({product.rating})</span>
                     </div>
 
-                    <div className="space-y-3">
+                    <div className="space-y-3 flex-grow flex flex-col">
                       <div className="text-primary font-bold text-xl mb-2">
                         최저가 ₩{product.lowestPrice.toLocaleString()}
                       </div>
-                      <div className="space-y-2">
+                      <div className="space-y-2 flex-grow">
                         {product.prices.map((priceInfo, index) => (
                           <div key={index} className="flex justify-between items-center text-sm">
                             <span className="text-gray-600">{priceInfo.store}</span>
@@ -274,7 +426,7 @@ function Shop() {
                           </div>
                         ))}
                       </div>
-                      <Link to={`/product/${product.id}`} className="block">
+                      <Link to={`/product/${product.id}`} className="block mt-auto">
                         <button className="w-full bg-secondary text-white py-2 rounded-full hover:bg-yellow-600 transition-colors">
                           <i className="fas fa-external-link-alt mr-2"></i>
                           가격 비교하기
@@ -287,25 +439,76 @@ function Shop() {
             </div>
 
             {/* 페이지네이션 */}
-            <div className="flex justify-center mt-12">
-              <nav className="flex space-x-2">
-                <button className="px-4 py-2 text-gray-600 bg-white border border-gray-300 rounded hover:bg-gray-50">
-                  이전
-                </button>
-                <button className="px-4 py-2 text-white bg-primary border border-primary rounded">
-                  1
-                </button>
-                <button className="px-4 py-2 text-gray-600 bg-white border border-gray-300 rounded hover:bg-gray-50">
-                  2
-                </button>
-                <button className="px-4 py-2 text-gray-600 bg-white border border-gray-300 rounded hover:bg-gray-50">
-                  3
-                </button>
-                <button className="px-4 py-2 text-gray-600 bg-white border border-gray-300 rounded hover:bg-gray-50">
-                  다음
-                </button>
-              </nav>
-            </div>
+            {totalPages > 1 && (
+              <div className="flex justify-center mt-12">
+                <nav className="flex space-x-2">
+                  <button
+                    onClick={() => {
+                      if (currentPage > 1) {
+                        setCurrentPage(prev => prev - 1);
+                        // 현재 페이지가 현재 그룹의 첫 번째 페이지면 이전 그룹으로 이동
+                        if (currentPage === (pageGroup - 1) * 5 + 1) {
+                          setPageGroup(prev => Math.max(prev - 1, 1));
+                        }
+                      }
+                    }}
+                    disabled={currentPage === 1}
+                    className={`px-4 py-2 border border-gray-300 rounded ${
+                      currentPage === 1
+                        ? 'text-gray-400 bg-gray-100 cursor-not-allowed'
+                        : 'text-gray-600 bg-white hover:bg-gray-50'
+                    }`}
+                  >
+                    이전
+                  </button>
+
+                  {(() => {
+                    const maxVisible = 5;
+                    const startPage = (pageGroup - 1) * maxVisible + 1;
+                    const endPage = Math.min(startPage + maxVisible - 1, totalPages);
+
+                    const pages = [];
+                    for (let i = startPage; i <= endPage; i++) {
+                      pages.push(i);
+                    }
+
+                    return pages.map(pageNum => (
+                      <button
+                        key={pageNum}
+                        onClick={() => setCurrentPage(pageNum)}
+                        className={`px-4 py-2 border rounded ${
+                          currentPage === pageNum
+                            ? 'text-white bg-primary border-primary'
+                            : 'text-gray-600 bg-white border-gray-300 hover:bg-gray-50'
+                        }`}
+                      >
+                        {pageNum}
+                      </button>
+                    ));
+                  })()}
+
+                  <button
+                    onClick={() => {
+                      if (currentPage < totalPages) {
+                        setCurrentPage(prev => prev + 1);
+                        // 현재 페이지가 현재 그룹의 마지막 페이지면 다음 그룹으로 이동
+                        if (currentPage === pageGroup * 5) {
+                          setPageGroup(prev => prev + 1);
+                        }
+                      }
+                    }}
+                    disabled={currentPage === totalPages}
+                    className={`px-4 py-2 border border-gray-300 rounded ${
+                      currentPage === totalPages
+                        ? 'text-gray-400 bg-gray-100 cursor-not-allowed'
+                        : 'text-gray-600 bg-white hover:bg-gray-50'
+                    }`}
+                  >
+                    다음
+                  </button>
+                </nav>
+              </div>
+            )}
           </div>
         </div>
       </div>

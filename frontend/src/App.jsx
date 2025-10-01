@@ -31,6 +31,7 @@ import MyPosts from './pages/MyPosts';
 import AdminSystemMonitoring from './pages/AdminSystemMonitoring';
 import SecuritySettings from './pages/SecuritySettings';
 import PasswordChangeRequired from './pages/PasswordChangeRequired';
+import PreferenceSurvey from './pages/PreferenceSurvey';
 
 function ScrollToTop() {
   const { pathname } = useLocation();
@@ -63,6 +64,7 @@ function App() {
             <Route path="/about" element={<AboutUs />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
+            <Route path="/preference-survey" element={<PreferenceSurvey />} />
             <Route path="/mypage" element={<MyPage />} />
             <Route path="/mypage/liked-posts" element={<LikedPosts />} />
             <Route path="/mypage/my-posts" element={<MyPosts />} />

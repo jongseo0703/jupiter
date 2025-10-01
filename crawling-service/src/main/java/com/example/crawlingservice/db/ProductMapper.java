@@ -1,10 +1,7 @@
 package com.example.crawlingservice.db;
 
 import com.example.crawlingservice.domain.Product;
-import org.apache.ibatis.annotations.Insert;
-import org.apache.ibatis.annotations.Mapper;
-import org.apache.ibatis.annotations.Options;
-import org.apache.ibatis.annotations.Select;
+import org.apache.ibatis.annotations.*;
 
 import java.util.List;
 
@@ -24,13 +21,12 @@ public interface ProductMapper {
     void insert(Product product);
 
     /**
-     * 상품명과 브랜드로 상품정보 조회
+     * 상품명로 상품정보 조회
      * @param productName
-     * @param brand
      * @return Product 반환
      */
-    @Select("select * from product where product_name = #{productName} and brand = #{brand}")
-    Product selectByProductName(String productName,String brand);
+    @Select("select * from product where product_name = #{productName}")
+    Product selectByProductName(String productName);
 
     /**
      * 모든 상품 조회
@@ -38,4 +34,20 @@ public interface ProductMapper {
      */
     @Select("SELECT * FROM product")
     List<Product> selectAll();
+
+    /**
+     * 상품명으로 조회
+     * @param productName
+     * @return 상품
+     */
+    @Select("select * from product where product_name = #{productName}")
+    Product selectByProduct(String productName);
+
+    /**
+     * 상품 이미지 업데이트
+     * @param productId 상품 아이디
+     * @param url 이미지 URL
+     */
+    @Update("UPDATE product SET url =#{url} Where product_id = #{productId}")
+    void updateUrl(@Param("productId") int productId,@Param("url") String url);
 }

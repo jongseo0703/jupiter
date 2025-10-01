@@ -674,3 +674,79 @@ export const fetchUserPosts = async ({ queryKey }) => {
 
   return await handleQueryApiResponse(response);
 };
+
+//----상품정보 조회를 위한 API 정의 ----
+const PRODUCT_API_URL = 'http://localhost:8080/product/api';
+
+/**
+ * 메인 페이지의 상품의 목록 API
+ * @returns 메인 페이지의 상품들의 정보
+ */
+export const fetchMainProducts = async()=>{
+  const response = await fetch(
+    `${PRODUCT_API_URL}/main`,
+    {
+      method:'GET',
+      headers:{
+        'Content-Type': 'application/json',
+         'Accept': 'application/json'
+      }
+    });
+
+    const data = await response.json();
+    return data;
+}
+
+/**
+ * 상품목록 페이지의 상품들의 목록 API
+ * @returns 전체 상품 정보
+ */
+export const fetchProducts = async()=>{
+  const response = await fetch(
+    `${PRODUCT_API_URL}/list`,
+    {
+      method:'GET',
+      headers:{
+        'Content-Type': 'application/json',
+         'Accept': 'application/json'
+      }
+    });
+
+    const data = await response.json();
+    return data;
+}
+/**
+ * 전체 카테고리 목록 API
+ * @returns 상위 카테고리, 하위카테고리 목록
+ */
+export const fethCategory = async()=>{
+  const response = await fetch(
+    `${PRODUCT_API_URL}/category`,
+    {
+      method:'GET',
+      headers:{
+        'Content-Type': 'application/json',
+         'Accept': 'application/json'
+      }
+  });
+
+  const data  = await response.json();
+  return data;
+}
+/**
+ * 특정 상품 정보 조회 API
+ * @param {int} productId 
+ * @returns 상품 정보 및 전체 가격 목록 및 리뷰 목록 
+ */
+export const fetchProduct = async(productId)=>{
+  const response = await fetch(
+    `${PRODUCT_API_URL}/${productId}`,{
+      method:'GET',
+      headers:{
+        'Content-Type': 'application/json',
+         'Accept': 'application/json'
+      }
+    });
+    const data = await response.json();
+    return data;
+}

@@ -181,49 +181,67 @@ const SecuritySettings = () => {
         </div>
 
         <div className="space-y-6">
-          {/* 2단계 인증 */}
-          <div className="bg-white rounded-lg shadow-sm p-6">
-            <div className="flex items-center justify-between">
-              <div className="flex-1">
-                <h3 className="text-lg font-medium text-gray-900 mb-2">
-                  <i className="fas fa-mobile-alt mr-2 text-blue-500"></i>
-                  2단계 인증 (2FA)
-                </h3>
-                <p className="text-sm text-gray-600 mb-4">
-                  로그인 시 휴대폰 앱으로 추가 인증을 통해 계정을 더욱 안전하게 보호합니다.
-                </p>
-                {settings.twoFactorEnabled ? (
-                  <div className="bg-green-50 p-3 rounded-lg">
-                    <p className="text-sm text-green-700">
-                      <i className="fas fa-check-circle mr-1"></i>
-                      2단계 인증이 활성화되어 있습니다.
-                    </p>
-                  </div>
-                ) : (
-                  <div className="bg-yellow-50 p-3 rounded-lg">
-                    <p className="text-sm text-yellow-700">
-                      <i className="fas fa-exclamation-triangle mr-1"></i>
-                      보안 강화를 위해 2단계 인증을 활성화하는 것을 권장합니다.
-                    </p>
-                  </div>
-                )}
-              </div>
-              <div className="ml-6">
-                <button
-                  onClick={handleTwoFactorToggle}
-                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 ${
-                    settings.twoFactorEnabled ? 'bg-primary' : 'bg-gray-200'
-                  }`}
-                >
-                  <span
-                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                      settings.twoFactorEnabled ? 'translate-x-6' : 'translate-x-1'
+          {/* 2단계 인증 - OAuth 사용자 제외 */}
+          {!currentUser?.isOAuthUser && (
+            <div className="bg-white rounded-lg shadow-sm p-6">
+              <div className="flex items-center justify-between">
+                <div className="flex-1">
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">
+                    <i className="fas fa-mobile-alt mr-2 text-blue-500"></i>
+                    2단계 인증 (2FA)
+                  </h3>
+                  <p className="text-sm text-gray-600 mb-4">
+                    로그인 시 휴대폰 앱으로 추가 인증을 통해 계정을 더욱 안전하게 보호합니다.
+                  </p>
+                  {settings.twoFactorEnabled ? (
+                    <div className="bg-green-50 p-3 rounded-lg">
+                      <p className="text-sm text-green-700">
+                        <i className="fas fa-check-circle mr-1"></i>
+                        2단계 인증이 활성화되어 있습니다.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="bg-yellow-50 p-3 rounded-lg">
+                      <p className="text-sm text-yellow-700">
+                        <i className="fas fa-exclamation-triangle mr-1"></i>
+                        보안 강화를 위해 2단계 인증을 활성화하는 것을 권장합니다.
+                      </p>
+                    </div>
+                  )}
+                </div>
+                <div className="ml-6">
+                  <button
+                    onClick={handleTwoFactorToggle}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 ${
+                      settings.twoFactorEnabled ? 'bg-primary' : 'bg-gray-200'
                     }`}
-                  />
-                </button>
+                  >
+                    <span
+                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                        settings.twoFactorEnabled ? 'translate-x-6' : 'translate-x-1'
+                      }`}
+                    />
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
+          )}
+
+          {/* OAuth 사용자를 위한 안내 메시지 */}
+          {currentUser?.isOAuthUser && (
+            <div className="bg-blue-50 rounded-lg p-6">
+              <div className="flex items-center">
+                <i className="fas fa-info-circle text-blue-500 mr-3"></i>
+                <div>
+                  <h3 className="text-lg font-medium text-blue-900 mb-2">소셜 로그인 계정</h3>
+                  <p className="text-sm text-blue-800">
+                    소셜 로그인 사용자는 이미 외부 제공업체(구글, 네이버 등)의 보안 시스템을 통해 안전하게 보호되고 있어
+                    별도의 2단계 인증 설정이 불필요합니다.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* 의심스러운 활동 알림 */}
           <div className="bg-white rounded-lg shadow-sm p-6">

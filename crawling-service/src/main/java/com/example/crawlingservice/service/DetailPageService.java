@@ -1,5 +1,6 @@
 package com.example.crawlingservice.service;
 
+import com.example.crawlingservice.config.WebDriverPool;
 import com.example.crawlingservice.dto.PriceDTO;
 import com.example.crawlingservice.dto.ProductDTO;
 import com.example.crawlingservice.dto.ReviewDTO;
@@ -11,6 +12,7 @@ import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.openqa.selenium.*;
+import org.openqa.selenium.TimeoutException;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.WebDriverWait;
 import org.springframework.stereotype.Service;
@@ -18,6 +20,7 @@ import org.springframework.stereotype.Service;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -30,6 +33,50 @@ import java.util.regex.Pattern;
 public class DetailPageService {
     private final ParseNum parseNum;
     private final FinalUrlResolver finalUrlResolver;
+    private final WebDriverPool driverPool;
+
+    // URL 변환용 전역 스레드풀 (최대 8개로 제한하여 리소스 과부하 방지)
+    private static ThreadPoolExecutor urlResolverExecutor;
+
+    /**
+     * URL 변환용 스레드풀을 초기화하는 메서드
+     * 전역으로 관리하여 중복 생성 방지 (최대 8개 스레드)
+     */
+    private synchronized void initializeUrlResolverThreadPool() {
+        if (urlResolverExecutor == null || urlResolverExecutor.isShutdown()) {
+            urlResolverExecutor = new ThreadPoolExecutor(
+                8, 8, 60L, TimeUnit.SECONDS, // 60초 유휴 시 스레드 정리
+                new LinkedBlockingQueue<>(100) // 최대 100개 작업 대기
+            );
+            log.info("URL 변환용 스레드풀 초기화 (최대 8개)");
+        }
+    }
+
+    /**
+     * 스레드풀 종료 메서드
+     */
+    private void shutdownUrlResolverThreadPool() {
+        //리소스 누수 검사
+        if (urlResolverExecutor != null && !urlResolverExecutor.isShutdown()) {
+            //정상 종료
+            urlResolverExecutor.shutdown();
+            try {
+                //작업 완료까지 최대 60초 대기
+                if (!urlResolverExecutor.awaitTermination(60, TimeUnit.SECONDS)) {
+                    //강제 종료
+                    urlResolverExecutor.shutdownNow();
+                    log.debug("URL 변환 스레드풀 강제 종료");
+                }
+            } catch (InterruptedException e) {
+                //강제 종료
+                urlResolverExecutor.shutdownNow();
+                //스레드 다시 실행
+                Thread.currentThread().interrupt();
+                log.error("스레드풀 종료 중 인터럽트 발생");
+            }
+        }
+    }
+
 
     /**
      * 상품상세 페이지 얻어온 데이터를 파싱하는 메서드<br>
@@ -41,8 +88,17 @@ public class DetailPageService {
     public ProductDTO detailPage(ProductDTO productDTO, WebDriver driver) {
         ProductDTO item = productDTO;
         try {
-            //상세페이지 html 얻기
-            String html = driver.getPageSource();
+            //상세페이지 html 얻기 (타임아웃 대비)
+            String html = null;
+            try {
+                html = driver.getPageSource();
+            } catch (org.openqa.selenium.TimeoutException e) {
+                log.debug("상품 '{}' 페이지 소스 타임아웃, 재시도", productDTO.getProductName());
+                // 짧은 대기 후 재시도
+                Thread.sleep(1000);
+                html = driver.getPageSource();
+            }
+
             if(html != null){
                 //상세페이지 ui 조사
                 Document doc = Jsoup.parse(html, "https://prod.danawa.com");
@@ -50,10 +106,10 @@ public class DetailPageService {
                 //상품정보 가져오기
                 item.setContent(isContent(doc));
 
-
-                //상품 주종 및 종류 ,정보 가져오기
-                String category = getCategory(doc).get(0);
-                String kind= getCategory(doc).get(1);
+                //상품 주종 및 종류 ,정보 가져오기 (중복 호출 제거)
+                List<String> categoryData = getCategory(doc);
+                String category = categoryData.get(0);
+                String kind = categoryData.get(1);
                 item.setCategory(category);
                 item.setProductKind(kind);
 
@@ -67,7 +123,7 @@ public class DetailPageService {
 
         }
         catch (Exception e){
-            log.error("상품 '{}' 상세 페이지 크롤링 실패: {}", productDTO.getProductName(), e.getMessage());
+            log.warn("상품 '{}' 상세 페이지 크롤링 실패: {}", productDTO.getProductName(), e.getMessage());
         }
         return item;
     }
@@ -160,24 +216,29 @@ public class DetailPageService {
                 //다음페이지로 넘가기기 클릭
                 WebElement nextReview = next.getFirst();
                 WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(10));
-                wait.until(ExpectedConditions.elementToBeClickable(nextReview));
                 try {
-                    //일반적인 클릭 시도
-                    nextReview.click();
-                } catch (ElementNotInteractableException ex) {
-                    //실패 시 JavaScript로 클릭 시도
+                    // 요소가 클릭 가능할 때까지 대기
+                    wait.until(ExpectedConditions.elementToBeClickable(nextReview));
+                    //JavaScript로 직접 클릭
                     ((JavascriptExecutor) driver).executeScript("arguments[0].click();", nextReview);
+                } catch (Exception ex) {
+                    log.debug("리뷰 페이지 전환 실패");
+                    break;
                 }
                 //페이지 카운터 증가
                 pageCount++;
-                //새로운 페이지 로딩 대기
-                Thread.sleep(2000);
+
+                // 페이지 전환 완료 확인을 위한 동적 대기 (짧게)
+                try {
+                    wait.until(ExpectedConditions.presenceOfElementLocated(
+                        By.cssSelector("li.danawa-prodBlog-companyReview-clazz-more")));
+                } catch (TimeoutException e) {
+                    break;
+                }
+
                 //새로운 페이지 html 확득
                 html = driver.getPageSource();
 
-            }catch (InterruptedException e){
-                Thread.currentThread().interrupt();
-                break;
             }catch (TimeoutException e){
                 break;
             }catch (NoSuchElementException e){
@@ -187,11 +248,17 @@ public class DetailPageService {
                 try {
                     //패이지 새로고침
                     driver.navigate().refresh();
-                    Thread.sleep(3000);
+
+                    // 페이지 새로고침 후 리뷰 요소 대기
+                    WebDriverWait refreshWait = new WebDriverWait(driver, Duration.ofSeconds(10));
+                    refreshWait.until(ExpectedConditions.presenceOfElementLocated(
+                        By.cssSelector("li.danawa-prodBlog-companyReview-clazz-more")));
+
                     html = driver.getPageSource();
                     continue;
-                } catch (InterruptedException ex) {
-                    log.debug("페이지 새로 고침 실패 {}",ex.getMessage());
+                } catch (Exception ex) {
+                    log.debug("페이지 새로 고침 실패");
+                    break; // 새로고침 실패시 리뷰 수집 중단
                 }
             }catch (WebDriverException e){
                 log.error("Chrome Driver 오류 발생 : {}",e.getMessage());
@@ -255,6 +322,8 @@ public class DetailPageService {
      */
     public List<PriceDTO> getPrices(Document doc,WebDriver driver) {
         List<PriceDTO> prices = new ArrayList<>();
+
+        // 1단계: 기본 정보 수집 (동기)
         for(Element element : doc.select("#lowPriceCompanyArea ul.list__mall-price li.list-item")) {
             PriceDTO price = new PriceDTO();
 
@@ -279,7 +348,6 @@ public class DetailPageService {
                 }
                 // 아이콘은 없음(null 허용)
             }
-
 
             //가격
             Element priceNum = element.selectFirst(".box__price .sell-price .text__num");
@@ -319,22 +387,63 @@ public class DetailPageService {
                 int fee = d.contains("무료") ? 0 : parseNum.getNum(d);
                 price.setDeliveryFee(fee);
             }
-            //구매사이트
+
+            //구매사이트 링크 (원본 URL만 저장)
             Element link = element.selectFirst("a.link__full-cover[href]");
             if (link != null) {
-                //상세페이지에 있는 구매사이트 링크 대입
                 String url = link.attr("href");
-                //로딩 페이지 없는 최종 사이트 링크 추출
-                String finalUrl = finalUrlResolver.resolve(url,driver);
-                log.debug("{}의 최종 상품구매링크 {}",price.getShopName(),finalUrl);
-                if(!finalUrl.isEmpty()){
-                    price.setShopLink(finalUrl);
+                if (!url.isEmpty()) {
+                    price.setShopLink(url); // 원본 URL 저장
                 }
             }
             prices.add(price);
         }
 
-        return  prices;
+        //URL 변환 병렬 처리
+        initializeUrlResolverThreadPool();
+
+        List<CompletableFuture<Void>> futures = new ArrayList<>();
+
+        for (PriceDTO price : prices) {
+            if (price.getShopLink() != null && !price.getShopLink().isEmpty()) {
+                CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
+                    WebDriver parallelDriver = null;
+                    try {
+                        // 풀에서 WebDriver 대여 (재사용)
+                        parallelDriver = driverPool.borrowDriver();
+
+                        // URL 변환
+                        String finalUrl = finalUrlResolver.resolve(price.getShopLink(), parallelDriver);
+                        price.setShopLink(finalUrl);
+
+                    } catch (InterruptedException e) {
+                        log.warn("WebDriver 대여 중 인터럽트 ({})", price.getShopName());
+                        Thread.currentThread().interrupt();
+                    } catch (Exception e) {
+                        log.warn("URL 변환 실패 ({}): {}", price.getShopName(), e.getMessage());
+                        // 실패 시 원본 URL 유지
+                    } finally {
+                        // 풀에 반납 (quit 불필요)
+                        driverPool.returnDriver(parallelDriver);
+                    }
+                }, urlResolverExecutor);
+
+                futures.add(future);
+            }
+        }
+
+        // 모든 URL 변환 작업 완료 대기
+        try {
+            CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
+                .get(3, TimeUnit.MINUTES); // 최대 3분 대기
+        } catch (Exception e) {
+            log.warn("URL 변환 대기 중 타임아웃 또는 오류: {}", e.getMessage());
+        } finally {
+            // CRITICAL: 반드시 스레드풀 종료 (리소스 누수 방지)
+            shutdownUrlResolverThreadPool();
+        }
+
+        return prices;
     }
 
     /**

@@ -68,8 +68,7 @@ public interface SchemaMapper {
     void createProductTable();
 
     /**
-     * 상점 테이블을 생성하는 메서드<br>
-     * 상품 테이블 참조
+     * 상점 테이블을 생성하는 메서드
      */
     @Update("""
         CREATE TABLE IF NOT EXISTS shop (
@@ -80,12 +79,17 @@ public interface SchemaMapper {
         """)
     void createShopTable();
 
+    /**
+     * 상품_상점 테입르 생성하는 메서드<br>
+     * 상품 테이블과 상점 테이블 참조
+     */
     @Update("""
         CREATE TABLE IF NOT EXISTS product_shop (
             product_shop_id INT AUTO_INCREMENT PRIMARY KEY,
             product_id INT NOT NULL,
             shop_id INT NOT NULL,
             link VARCHAR(500),
+            is_available BOOLEAN,
             FOREIGN KEY (product_id) REFERENCES product(product_id)
                 ON DELETE CASCADE
                 ON UPDATE CASCADE,

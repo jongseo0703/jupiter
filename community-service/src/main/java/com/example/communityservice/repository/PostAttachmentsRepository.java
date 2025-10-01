@@ -13,10 +13,9 @@ import com.example.communityservice.entity.PostAttachments;
 @Repository
 public interface PostAttachmentsRepository extends JpaRepository<PostAttachments, Long> {
 
-  /** 특정 게시글의 첨부파일 목록 조회 (생성일시 순으로 정렬) */
-  @Query(
-      "SELECT pa FROM PostAttachments pa WHERE pa.post.postId = :postId ORDER BY pa.postAttachmentId ASC")
-  List<PostAttachments> findByPostIdOrderByCreatedAt(@Param("postId") Long postId);
+  /** 특정 게시글의 첨부파일 목록 조회 */
+  @Query("SELECT pa FROM PostAttachments pa WHERE pa.post.postId = :postId")
+  List<PostAttachments> findByPostId(@Param("postId") Long postId);
 
   /** 특정 게시글의 첨부파일 개수 조회 */
   @Query("SELECT COUNT(pa) FROM PostAttachments pa WHERE pa.post.postId = :postId")
