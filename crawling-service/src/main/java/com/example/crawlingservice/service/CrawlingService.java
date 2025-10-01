@@ -1,5 +1,6 @@
 package com.example.crawlingservice.service;
 
+import com.example.crawlingservice.config.WebDriverPool;
 import com.example.crawlingservice.dto.ProductDTO;
 import com.example.crawlingservice.exception.ShowPageException;
 import lombok.RequiredArgsConstructor;
@@ -8,22 +9,17 @@ import org.openqa.selenium.By;
 import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
-import org.openqa.selenium.chrome.ChromeDriver;
-import org.openqa.selenium.chrome.ChromeOptions;
 import org.openqa.selenium.support.ui.WebDriverWait;
 import org.openqa.selenium.support.ui.ExpectedConditions;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.LinkedBlockingQueue;
-import java.util.stream.Collectors;
 
 /**
  * 크롤링 할 웹사이트를 자동으로 페이지 넘겨주는 서비스
@@ -34,11 +30,9 @@ import java.util.stream.Collectors;
 public class CrawlingService {
     private final ListPageService listPageService;
     private final DetailPageService detailPageService;
+    private final WebDriverPool driverPool;
 
-    //ChromDriver.exe 위치
-    @Value("${chrom.driver.path}")
-    private String WEB_DRIVER_PATH;
-    //웹브라우저를 프로그래밍적으로 제어하는 인터페이스
+    // 목록 페이지 탐색용 WebDriver
     private WebDriver driver;
 
     // 멀티스레딩을 위한 스레드풀 (6개 스레드로 속도와 안정성 최적화)
@@ -58,50 +52,6 @@ public class CrawlingService {
         }
     }
 
-    /**
-     * 최적화된 Chrome 옵션을 생성하는 메서드
-     * 대부분의 브라우저 창의 기능 비활성화
-     */
-    private ChromeOptions createOptimizedChromeOptions() {
-        ChromeOptions options = new ChromeOptions();
-
-        // 헤드리스 모드 (브라우저 창 없이 실행) -->속도를 위해
-        options.addArguments("--headless");
-
-        // 페이지 로딩 전략: 페이지 로딩 완료를 기다리지 않음 (필요한 요소만 명시적 대기)
-        options.setPageLoadStrategy(org.openqa.selenium.PageLoadStrategy.NONE);
-
-        // 성능 최적화 옵션들
-        //보안 프로세스 비활성화
-        options.addArguments("--no-sandbox");// 샌드박스 비활성화
-        options.addArguments("--allow-running-insecure-content"); // Mixed Content 허용
-        options.addArguments("--ignore-certificate-errors"); // SSL 인증서 오류 무시
-
-        //불필요한 그래픽 렌더링 제거
-        options.addArguments("--disable-gpu");// GPU 가속 비활성화
-        options.addArguments("--disable-images");// 이미지 로딩 안함 (더 빠름)
-        options.addArguments("--disable-features=VizDisplayCompositor"); // 렌더링 최적화
-
-        //불필요한 브라우저 기능 제거
-        options.addArguments("--disable-extensions"); // 확장프로그램 비활성화
-        options.addArguments("--disable-plugins");// 플러그인 비활성화
-        options.addArguments("--disable-translate");// 번역 기능 비활성화
-
-        // options.addArguments("--disable-javascript");            // JS 비활성화 - 다나와 사이트는 JS 필요하므로 제거
-        options.addArguments("--disable-popup-blocking");        // 팝업 차단 비활성화
-        options.addArguments("--disable-background-timer-throttling"); // 백그라운드 타이머 제한 해제
-
-        // 메모리 최적화
-        options.addArguments("--disable-dev-shm-usage");// /dev/shm 사용 안함
-        options.addArguments("--memory-pressure-off");// 메모리 압박 모드 해제
-        options.addArguments("--max_old_space_size=4096");// 최대 메모리 4GB
-
-        //불필요한 네트와크 요청 차단
-        options.addArguments("--aggressive-cache-discard");// 캐시 적극 정리
-        options.addArguments("--disable-background-networking"); // 백그라운드 네트워킹 비활성화
-
-        return options;
-    }
 
     /**
      * 스레드풀을 안전하게 종료하는 메서드
@@ -135,10 +85,10 @@ public class CrawlingService {
             // 스레드풀 초기화 (병렬 처리를 위해)
             initializeThreadPool();
 
-            System.setProperty("webdriver.chrome.driver", WEB_DRIVER_PATH);
-            driver = new ChromeDriver(createOptimizedChromeOptions());
+            // WebDriverPool에서 목록 페이지용 드라이버 대여
+            driver = driverPool.borrowDriver();
 
-            // 페이지 로딩 타임아웃 설정 (메인 driver는 더 여유있게)
+            // 페이지 로딩 최대 시간 설정 (목록 페이지는 더 긴 타임아웃)
             driver.manage().timeouts().pageLoadTimeout(Duration.ofSeconds(90));
             driver.manage().timeouts().implicitlyWait(Duration.ofSeconds(15));
             driver.manage().timeouts().scriptTimeout(Duration.ofSeconds(30));
@@ -187,7 +137,7 @@ public class CrawlingService {
                     WebElement next = nextButtons.get(0);
                     ((JavascriptExecutor) driver).executeScript("arguments[0].click();", next);
 
-                    //동적 대기로 교체 - 새 페이지의 상품 목록이 로드될 때까지 대기
+                    //새 페이지의 상품 목록이 로드될 때까지 대기
                     WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(10));
                     wait.until(ExpectedConditions.presenceOfElementLocated(
                         By.cssSelector("li.prod_item.prod_layer > div.prod_main_info, div.prod_main_info")));
@@ -202,9 +152,9 @@ public class CrawlingService {
         } catch (Exception e) {
             throw new ShowPageException(e.getMessage());
         }finally {
+            // 목록 페이지용 드라이버 반납
             if(driver!=null){
-                //드라이버 닫기
-                driver.quit();
+                driverPool.returnDriver(driver);
             }
             // 스레드풀 안전하게 종료
             shutdownThreadPool();
@@ -215,23 +165,17 @@ public class CrawlingService {
 
     /**
      * 병렬 처리를 위한 독립적인 상세페이지 처리 메서드
-     * 각 스레드가 독립적인 WebDriver를 사용하여 동시에 여러 상품을 처리합니다.
+     * WebDriverPool에서 드라이버를 대여하여 사용 후 반납
      * @param productDTO 처리할 상품 정보
      * @return 상세정보가 추가된 상품 정보
      */
     private ProductDTO processDetailPageParallel(ProductDTO productDTO) {
         WebDriver parallelDriver = null;
         try {
-            // 각 스레드마다 독립적인 최적화된 WebDriver 생성
-            System.setProperty("webdriver.chrome.driver", WEB_DRIVER_PATH);
-            parallelDriver = new ChromeDriver(createOptimizedChromeOptions());
+            // 풀에서 WebDriver 대여 (재사용)
+            parallelDriver = driverPool.borrowDriver();
 
-            // 병렬 처리용 타임아웃 설정
-            parallelDriver.manage().timeouts().pageLoadTimeout(Duration.ofSeconds(30));
-            parallelDriver.manage().timeouts().implicitlyWait(Duration.ofSeconds(5));
-            parallelDriver.manage().timeouts().scriptTimeout(Duration.ofSeconds(15));
-
-            // 상세 페이지로 직접 이동 (탭 생성/전환 오버헤드 제거)
+            // 상세 페이지로 직접 이동
             parallelDriver.get(productDTO.getDetailLink());
 
             // 상세 정보 크롤링
@@ -242,26 +186,24 @@ public class CrawlingService {
 
             return productDTO;
 
+        } catch (InterruptedException e) {
+            log.error("WebDriver 대여 중 인터럽트: {}", productDTO.getProductName());
+            Thread.currentThread().interrupt();
+            return productDTO;
         } catch (Exception e) {
             log.warn("상품 '{}' 크롤링 실패: {}", productDTO.getProductName(), e.getMessage());
             // 실패해도 기본 정보는 반환
             return productDTO;
         } finally {
-            // 독립적인 WebDriver 정리
-            if (parallelDriver != null) {
-                try {
-                    parallelDriver.quit();
-                } catch (Exception e) {
-                    // quit 실패 무시
-                }
-            }
+            // 풀에 WebDriver 반납 (quit 불필요)
+            driverPool.returnDriver(parallelDriver);
         }
     }
 
 
     /**
      * 상세 정보를 원본 ProductDTO에 병합하는 메서드
-     * 각 필드별로 안전하게 데이터를 복사합니다.
+     * 각 필드별로 안전하게 데이터를 복사
      * @param target 기존 ProductDTO
      * @param detail 상세페이지의 ProductDTO
      */
