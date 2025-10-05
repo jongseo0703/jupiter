@@ -12,7 +12,8 @@ public record NotificationSettingsResponse(
     LocalTime notificationEndTime,
     Boolean weekendNotifications,
     Integer minDiscountPercent,
-    Integer maxDailyNotifications) {
+    Integer maxDailyNotifications,
+    UserDto user) {
   public static NotificationSettingsResponse from(NotificationSettings settings) {
     return new NotificationSettingsResponse(
         settings.getId(),
@@ -22,6 +23,9 @@ public record NotificationSettingsResponse(
         settings.getNotificationEndTime(),
         settings.getWeekendNotifications(),
         settings.getMinDiscountPercent(),
-        settings.getMaxDailyNotifications());
+        settings.getMaxDailyNotifications(),
+        new UserDto(settings.getUser().getId(), settings.getUser().getPhone()));
   }
+
+  public record UserDto(Long id, String phone) {}
 }

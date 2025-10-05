@@ -1,7 +1,9 @@
 package com.example.authservice.notification.service;
 
 import java.time.LocalTime;
+import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -33,7 +35,7 @@ public class NotificationSettingsServiceImpl implements NotificationSettingsServ
 
     // 설정이 없으면 기본값으로 응답 (DB에 저장하지 않음)
     return new NotificationSettingsResponse(
-        null, true, true, LocalTime.of(9, 0), LocalTime.of(21, 0), true, 5, 10);
+        null, true, true, LocalTime.of(9, 0), LocalTime.of(21, 0), true, 5, 10, null);
   }
 
   @Override
@@ -96,5 +98,12 @@ public class NotificationSettingsServiceImpl implements NotificationSettingsServ
       throw new BusinessException("알림 설정을 찾을 수 없습니다.", 404, "NOTIFICATION_SETTINGS_NOT_FOUND");
     }
     notificationSettingsRepository.deleteByUserId(userId);
+  }
+
+  @Override
+  public List<NotificationSettingsResponse> getActiveSettings() {
+    return notificationSettingsRepository.findByPushNotificationsTrue().stream()
+        .map(NotificationSettingsResponse::from)
+        .collect(Collectors.toList());
   }
 }
