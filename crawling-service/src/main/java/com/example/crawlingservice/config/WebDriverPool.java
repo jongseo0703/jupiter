@@ -34,7 +34,7 @@ public class WebDriverPool {
     // 현재 생성된 드라이버 수
     private final AtomicInteger createdCount = new AtomicInteger(0);
 
-    @Value("${chrom.driver.path}")
+    @Value("${chrome.driver.path}")
     private String WEB_DRIVER_PATH;
 
     /**
