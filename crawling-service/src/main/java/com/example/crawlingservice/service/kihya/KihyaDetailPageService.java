@@ -38,12 +38,11 @@ public class KihyaDetailPageService {
     private String kihyaLogo;
 
     public ProductDTO getDetailPage(ProductDTO productDTO, WebDriver driver){
-        long startTime = System.currentTimeMillis();
         try {
             //상품 상세페이지로 이동
             driver.get(productDTO.getDetailLink());
 
-            //상세 페이지 로딩 대기 (5초 -> 3초로 단축)
+            //상세 페이지 로딩 대기
             WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(3));
 
             //상세페이지 html 문자열로 전환
@@ -67,7 +66,6 @@ public class KihyaDetailPageService {
         } catch (Exception e) {
             log.error("키햐: {}의 크롤링 실패 -{}",productDTO.getProductName(),e.getMessage());
         }
-        log.debug("⏱️ 상세페이지 크롤링: {}ms", System.currentTimeMillis() - startTime);
     return productDTO;
     }
 
@@ -97,7 +95,6 @@ public class KihyaDetailPageService {
     }
 
     private void parsePriceInfo(Document doc, ProductDTO productDto) {
-        // PriceDTO: 가격 정보를 담는 객체 (가격, 배송비, 구매링크 등)
         PriceDTO priceDTO = new PriceDTO();
 
         // 상점 정보 파싱
@@ -108,7 +105,7 @@ public class KihyaDetailPageService {
         // 구매 링크는 현재 페이지의 URL (상세 페이지 자체가 구매 페이지)
         priceDTO.setShopLink(productDto.getDetailLink());
 
-        // === 가격 파싱 (최저가) ===
+        // 가격(최저가)
         // "원" 앞에 있는 숫자만 추출하여 최저가 선택
         Elements priceWithWon = doc.select(".price_box");
 
@@ -136,16 +133,14 @@ public class KihyaDetailPageService {
             priceDTO.setPrice(lowestPrice);
         }
 
-        // === 배송비 파싱 ===
-        // dt 태그에 "배송비"라는 텍스트가 있는 경우, 다음에 오는 dd 태그의 내용을 가져옴
-        // HTML 구조: <dt>판매처<br>배송비</dt><dd><strong>무료 배송</strong></dd>
+        //배송비 찾기
         Element deliveryEl = doc.selectFirst("dt:contains(배송비) + dd");
 
         if (deliveryEl != null) {
-            // 배송비 텍스트 전체를 가져옴 (예: "무료 배송", "3,000원", "3만 원 이상 무료 배송, 그 외 3,000원")
-            String deliveryText = deliveryEl.text().toLowerCase();  // 소문자로 변환 (대소문자 구분 없이 처리)
+            // 배송비 텍스트 전체
+            String deliveryText = deliveryEl.text().toLowerCase();
 
-            // contains(): 문자열에 특정 단어가 포함되어 있는지 확인
+            //"무료", "픽업" 은 배송비 0 처리
             if (deliveryText.contains("무료") || deliveryText.contains("픽업")) {
                 priceDTO.setDeliveryFee(0);
             } else if (deliveryText.contains("그 외")) {
@@ -158,20 +153,15 @@ public class KihyaDetailPageService {
                 priceDTO.setDeliveryFee(fee);
             }
         }
-
-        // 완성된 PriceDTO를 ProductDTO의 prices 리스트에 추가
-        // product.getPrices(): ProductDTO 안의 prices 필드 (List<PriceDTO>)
-        // ArrayList: 동적 배열, 크기가 자동으로 늘어나는 리스트
         productDto.getPrices().add(priceDTO);
     }
 
     private void parseProductInfo(Document doc, ProductDTO productDto) {
-        // === 상품 설명 파싱 (Taste 정보) ===
         // "Taste"를 포함하는 li 요소 찾기
         Element tasteLi = doc.selectFirst("li:has(span:contains(Taste))");
 
         if (tasteLi != null) {
-            // li의 전체 텍스트 가져오기 (예: "Taste 깔끔하고 부드러운 맛, 풍부한 곡물 풍미")
+            // 상품설명용 텍스트 추출
             String fullText = tasteLi.text();
 
             // "Taste" 다음의 내용만 추출
@@ -181,7 +171,7 @@ public class KihyaDetailPageService {
             }
         }
 
-        // === 상품 상세 정보 파싱 (종류, 용량, 도수) ===
+        //상품 상세 정보 파싱 (종류, 용량, 도수)
         Elements infoItems = new Elements();
 
         // 1. PC 버전: div.product-detail 시도
@@ -221,7 +211,7 @@ public class KihyaDetailPageService {
                 productDto.setProductKind(normalizedKind);
             }
 
-            // === 용량 파싱 ===
+            //용량
             else if (text.startsWith("용량")) {
                 String volumeText = s;
                 int volume = parseNum.getNum(volumeText);
@@ -230,7 +220,7 @@ public class KihyaDetailPageService {
                 }
             }
 
-            // === 도수 파싱 ===
+            //도수
             else if (text.startsWith("도수")) {
                 String alcoholText = s;
                 int alcoholInt = parseNum.getNum(alcoholText);
@@ -245,11 +235,11 @@ public class KihyaDetailPageService {
     private void parseReviews(WebDriver driver, ProductDTO productDto) {
         List<ReviewDTO> allReviews = new ArrayList<>();
 
-        // 5초 -> 2초로 더 단축
+        //2초 대기
         WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(2));
 
         try {
-            // 상품후기 탭 클릭 (대기 시간 단축)
+            // 상품후기 탭 클릭
             WebElement reviewTab = null;
             try {
                 reviewTab = wait.until(ExpectedConditions.elementToBeClickable(
@@ -322,7 +312,7 @@ public class KihyaDetailPageService {
                 return;
             }
 
-            // 각 리뷰를 파싱 (최대 10개만)
+            // 각 리뷰를 파싱(최대 10개)
             int count = 0;
             for (Element reviewEl : currentReviews) {
                 if (count >= 10) break;

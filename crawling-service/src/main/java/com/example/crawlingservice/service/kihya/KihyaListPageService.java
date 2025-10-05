@@ -111,13 +111,10 @@ public class KihyaListPageService implements ShopCrawlingService {
      * @return 상품 리스트 (상세 정보 포함)
      */
     private List<ProductDTO> parseProductList(WebDriver driver, String categoryName) {
-        long startTime = System.currentTimeMillis();
-
-        // 1. 무한 스크롤로 모든 상품 로딩
+        //무한 스크롤로 모든 상품 로딩
         crawlUtil.scrollToLoadAll(driver, "ul.goods_product_list > li.goods_prd_item11");
 
-        // 2. 로딩된 모든 상품 기본 정보 파싱
-        long parseStart = System.currentTimeMillis();
+        // 로딩된 모든 상품 기본 정보 파싱
         List<ProductDTO> products = new ArrayList<>();
         String html = driver.getPageSource();
         Document doc = Jsoup.parse(html);
@@ -135,10 +132,8 @@ public class KihyaListPageService implements ShopCrawlingService {
             }
         }
 
-        log.info("⏱️ 목록 파싱: {}개 상품 ({}ms)", products.size(), System.currentTimeMillis() - parseStart);
 
-        // 3. 각 상품의 상세 정보 크롤링
-        long detailStart = System.currentTimeMillis();
+        // 각 상품의 상세 정보 크롤링
         List<ProductDTO> detailedProducts = new ArrayList<>();
         for (int i = 0; i < products.size(); i++) {
             ProductDTO product = products.get(i);
@@ -147,12 +142,6 @@ public class KihyaListPageService implements ShopCrawlingService {
                 ProductDTO detailedProduct = kihyaDetailPageService.getDetailPage(product, driver);
                 detailedProducts.add(detailedProduct);
 
-                if ((i + 1) % 10 == 0) {
-                    log.info("⏱️ [{}/{}] 평균 상세페이지: {}ms/개",
-                        i + 1, products.size(),
-                        (System.currentTimeMillis() - detailStart) / (i + 1));
-                }
-
             } catch (Exception e) {
                 log.warn("상품 '{}' 상세 페이지 크롤링 실패: {}", product.getProductName(), e.getMessage());
                 // 실패해도 기본 정보는 유지
@@ -160,11 +149,7 @@ public class KihyaListPageService implements ShopCrawlingService {
             }
         }
 
-        log.info("⏱️ 카테고리 전체 시간: {}ms (목록: {}ms, 상세: {}ms)",
-            System.currentTimeMillis() - startTime,
-            parseStart - startTime,
-            System.currentTimeMillis() - detailStart);
-
+        log.info("상세 크롤링 완료: {}개 상품", detailedProducts.size());
         return detailedProducts;
     }
 
@@ -184,7 +169,7 @@ public class KihyaListPageService implements ShopCrawlingService {
         }
         String productName = nameEl.text().trim();
 
-        // 제외할 상품인지 확인 (세트, 키트, +, 숫자+호, 숫자+종, 숫자+가지)
+        // 제외할 상품인지 확인
         if (productNameParser.checkProductName(productName)) {
             return null;
         }
@@ -221,12 +206,12 @@ public class KihyaListPageService implements ShopCrawlingService {
             return relativeUrl;
         }
 
-        // "../goods/goods_view.php?goodsNo=1000007316" 형식을 절대 경로로 변환
+        // 형식을 절대 경로로 변환
         String cleanUrl = relativeUrl.replace("..", "");
 
-        // shopUrl에서 기본 도메인만 추출 (쿼리 파라미터 제거)
-        String baseUrl = shopUrl.split("\\?")[0];  // https://m.kihya.com/goods/goods_list.php
-        baseUrl = baseUrl.replace("/goods/goods_list.php", "");  // https://m.kihya.com
+        // 기본 도메인만 추출
+        String baseUrl = shopUrl.split("\\?")[0];
+        baseUrl = baseUrl.replace("/goods/goods_list.php", "");
 
         return baseUrl + cleanUrl;
     }
