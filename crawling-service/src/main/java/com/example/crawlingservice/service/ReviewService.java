@@ -44,16 +44,17 @@ public class ReviewService {
                     continue;
                 }
 
-                // 3. 중복 리뷰 체크 (같은 작성자가 같은 상품-상점에 리뷰 작성)
-                Review existingReview = reviewMapper.selectByProductShopId(
-                        productShop.getProductShopId(),reviewDTO.getReviewer());
+                //중복 리뷰 체크 (같은 리뷰 내용이 같은 상품-상점에 존재하는지 확인)
+                Review existingReview = reviewMapper.selectByProductShopIdAndContent(
+                        productShop.getProductShopId(), reviewDTO.getContent());
+
 
                 if (existingReview != null) {
                     // 중복 리뷰는 저장하지 않음
                     continue;
                 }
 
-                // 4. 새 리뷰 저장
+                //새 리뷰 저장
                 Review newReview = new Review();
                 newReview.setWriter(reviewDTO.getReviewer());
                 newReview.setRating(reviewDTO.getStar());
@@ -65,7 +66,7 @@ public class ReviewService {
                 reviewMapper.insert(newReview);
 
             } catch (Exception e) {
-                log.error("📝 리뷰 저장 실패: {} - {}", reviewDTO.getReviewer(), e.getMessage());
+                log.error("리뷰 저장 실패: {} - {}", reviewDTO.getReviewer(), e.getMessage());
             }
         }
     }
