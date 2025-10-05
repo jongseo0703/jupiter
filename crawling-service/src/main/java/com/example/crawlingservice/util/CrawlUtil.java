@@ -5,7 +5,6 @@ import org.openqa.selenium.By;
 import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
-import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.WebDriverWait;
 import org.springframework.stereotype.Component;
 
@@ -31,20 +30,19 @@ public class CrawlUtil {
         int previousProductCount = 0;
         //상품 개수 변경 없음에 대한 횟 수
         int noChangeCount = 0;
-        //최대 3번 확인
+        //최대 횟 수
         int maxNoChangeAttempts = 3;
-        //동적 대기 설정 (최대 3초)
-        WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(3));
+        WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(2));
 
         log.info("무한 스크롤 시작 (선택자: {})", itemSelector);
 
         while (true) {
+            // 현재 스크롤 높이 저장
+            Long currentHeight = (Long) js.executeScript("return document.body.scrollHeight");
+
             // 모든 상품 요소 찾기
             List<WebElement> currentProducts = driver.findElements(By.cssSelector(itemSelector));
-            //상품 개수
             int currentProductCount = currentProducts.size();
-
-            log.debug("현재 로딩된 상품 수: {}", currentProductCount);
 
             // 상품 개수가 변하지 않으면 카운트 증가
             if (currentProductCount == previousProductCount) {
@@ -52,32 +50,37 @@ public class CrawlUtil {
                 noChangeCount++;
                 //최대 횟수 확인
                 if (noChangeCount >= maxNoChangeAttempts) {
-                    log.info("더 이상 새 상품이 로딩되지 않음. 스크롤 종료");
+                    log.info("더 이상 새 상품이 로딩되지 않음. 스크롤 종료 (총 {}개)", currentProductCount);
                     break;
                 }
             } else {
-                // 변화가 있으면 리셋
                 noChangeCount = 0;
             }
 
-            //현재 상품 개수 저장
             previousProductCount = currentProductCount;
 
             // 페이지 끝까지 스크롤
             js.executeScript("window.scrollTo(0, document.body.scrollHeight);");
 
             try {
-                // 상품 개수가 증가할 때까지 대기
+                // 스크롤 높이가 증가하거나 상품 개수가 증가할 때까지 대기
                 wait.until(driver1 -> {
+                    Long newHeight = (Long) js.executeScript("return document.body.scrollHeight");
                     int newCount = driver1.findElements(By.cssSelector(itemSelector)).size();
-                    // 상품 개수가 증가하면 true
-                    return newCount > currentProductCount;
+                    return newHeight > currentHeight || newCount > currentProductCount;
                 });
             } catch (Exception e) {
-                log.debug("새 상품 로딩 대기 타임아웃 (상품 개수 변화 없음)");
+                // 타임아웃 시 무시하고 계속
+            }
+
+            // 추가 안정화 대기
+            try {
+                Thread.sleep(100);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
             }
         }
 
-        log.info("스크롤 완료. 총 {}개 상품 로딩됨", previousProductCount);
+        log.info("스크롤 완료: {}개 상품", previousProductCount);
     }
 }
