@@ -14,6 +14,15 @@ public class ParseNum {
      */
     public int getNum(String text){
         String digits = text.replaceAll("[^0-9]", "");
-        return digits.isEmpty() ? 0 : Integer.parseInt(digits);
+        if (digits.isEmpty()) {
+            return 0;
+        }
+
+        try {
+            return Integer.parseInt(digits);
+        } catch (NumberFormatException e) {
+            // int 범위 초과 시 0 반환 (바코드 등 불필요한 큰 숫자)
+            return 0;
+        }
     }
 }
