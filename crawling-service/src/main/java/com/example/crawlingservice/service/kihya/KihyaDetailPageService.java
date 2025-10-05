@@ -223,10 +223,10 @@ public class KihyaDetailPageService {
             //도수
             else if (text.startsWith("도수")) {
                 String alcoholText = s;
-                int alcoholInt = parseNum.getNum(alcoholText);
+                double alcohol = parseNum.getDouble(alcoholText);
 
-                if (alcoholInt > 0) {
-                    productDto.setAlcohol((double) alcoholInt);
+                if (alcohol > 0) {
+                    productDto.setAlcohol(alcohol);
                 }
             }
         }
