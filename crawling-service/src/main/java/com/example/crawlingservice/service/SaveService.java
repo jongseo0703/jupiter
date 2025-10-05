@@ -54,8 +54,6 @@ public class SaveService {
             SubCategory subCategory =categoryService.saveCategory(productDTO.getCategory(),productDTO.getProductKind());
             //상품 저장
             Product product =productService.saveProduct(productDTO,subCategory);
-            //이미지 URL 검사 및 업데이트 (product 객체 직접 전달)
-            updateImage(product, productDTO.getImageUrl());
 
             //크롤링한 상점명 수집
             Set<String> crawledShopNames = new HashSet<>();
@@ -78,9 +76,7 @@ public class SaveService {
             //리뷰 저장
             reviewService.saveReview(reviewDTOList,product);
             count++;
-
         }
-        log.debug("데이터베이스에 저장한 상품 수 {}",count);
 
         //DB와 상품명 비교
         updateStockStatus(productNames);
@@ -117,25 +113,4 @@ public class SaveService {
         }
     }
 
-    /**
-     * 데이터베이스 상품 이미지 유효 검사 및 수정을 위한 메서드
-     * @param product 상품 객체
-     * @param newImageUrl 새 이미지 URL
-     */
-    public void updateImage(Product product, String newImageUrl) {
-        // 현재 DB에 저장된 이미지 URL
-        String dbImageUrl = product.getUrl();
-
-        // 기본 "이미지 없음" URL 상수
-        final String NO_IMAGE_URL = "https://img.danawa.com/new/noData/img/noImg_160.gif";
-
-        // 새 이미지 유효 검사
-        boolean isNewUrlValid = !NO_IMAGE_URL.equals(newImageUrl);
-
-        // 새 URL이 유효하고 기존 URL과 다르면 업데이트
-        if (isNewUrlValid && !newImageUrl.equals(dbImageUrl)) {
-            productMapper.updateUrl(product.getProductId(), newImageUrl);
-            log.debug("상품 이미지 업데이트");
-        }
-    }
 }
