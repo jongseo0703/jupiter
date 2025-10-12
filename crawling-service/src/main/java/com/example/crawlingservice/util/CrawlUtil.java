@@ -59,8 +59,14 @@ public class CrawlUtil {
 
             previousProductCount = currentProductCount;
 
-            // 페이지 끝까지 스크롤
-            js.executeScript("window.scrollTo(0, document.body.scrollHeight);");
+            // 상품 목록의 마지막 요소로 스크롤 (무한 스크롤 트리거)
+            if (!currentProducts.isEmpty()) {
+                WebElement lastProduct = currentProducts.get(currentProducts.size() - 1);
+                js.executeScript("arguments[0].scrollIntoView({block: 'center'});", lastProduct);
+            } else {
+                // 상품이 없으면 페이지 끝으로 스크롤
+                js.executeScript("window.scrollTo(0, document.body.scrollHeight);");
+            }
 
             try {
                 // 스크롤 높이가 증가하거나 상품 개수가 증가할 때까지 대기
