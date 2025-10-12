@@ -10,7 +10,7 @@ import java.time.LocalDateTime;
  *     <li>activityId : 행동 고유아이디</li>
  *     <li>userId : 사용자 아이디</li>
  *     <li>productId : 상품 아이디</li>
- *     <li>activityType : 행동 타입 (VIEW, CLICK, FAVORITE)</li>
+ *     <li>activityType : 행동 타입 (CLICK, FAVORITE)</li>
  *     <li>createdAt : 행동 발생 시간</li>
  * </ul>
  */
@@ -37,8 +37,7 @@ public class UserActivity {
     }
 
     public enum ActivityType {
-        VIEW,       // 상품 조회 - 1점
-        CLICK,      // 상품 클릭 - 3점
+        CLICK,      // 상품 상세 페이지 조회 - 3점
         FAVORITE    // 즐겨찾기 - 5점
     }
 }
