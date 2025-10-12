@@ -27,5 +27,6 @@ public class UserProductScore {
     @Column(name = "product_id")
     private Integer productId;
 
-    private Double score;
+    @Column(nullable = false, columnDefinition = "DOUBLE DEFAULT 0.0")
+    private Double score = 0.0;
 }
