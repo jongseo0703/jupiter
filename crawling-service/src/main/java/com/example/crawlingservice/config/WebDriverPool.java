@@ -23,7 +23,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 @Slf4j
 public class WebDriverPool {
     // 동시 실행 가능한 최대 크롤링 작업 수
-    private static final int POOL_SIZE = 6;
+    private static final int POOL_SIZE = 12;
 
     // WebDriver 보관 풀
     private final BlockingQueue<WebDriver> availableDrivers = new LinkedBlockingQueue<>(POOL_SIZE);
@@ -115,10 +115,10 @@ public class WebDriverPool {
         ChromeOptions options = createOptimizedChromeOptions();
         WebDriver driver = new ChromeDriver(options);
 
-        // 타임아웃 설정
-        driver.manage().timeouts().pageLoadTimeout(Duration.ofSeconds(30));
-        driver.manage().timeouts().implicitlyWait(Duration.ofSeconds(5));
-        driver.manage().timeouts().scriptTimeout(Duration.ofSeconds(15));
+        // 타임아웃 설정 (공격적 성능 최적화)
+        driver.manage().timeouts().pageLoadTimeout(Duration.ofSeconds(15));
+        driver.manage().timeouts().implicitlyWait(Duration.ofSeconds(2));
+        driver.manage().timeouts().scriptTimeout(Duration.ofSeconds(8));
 
         // 추적 목록에 추가
         allDrivers.put(driver, true);
