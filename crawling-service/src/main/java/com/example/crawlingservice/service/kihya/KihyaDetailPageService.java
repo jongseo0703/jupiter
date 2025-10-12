@@ -12,7 +12,6 @@ import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 import org.openqa.selenium.By;
-import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.support.ui.ExpectedConditions;
@@ -235,129 +234,91 @@ public class KihyaDetailPageService {
     private void parseReviews(WebDriver driver, ProductDTO productDto) {
         List<ReviewDTO> allReviews = new ArrayList<>();
 
-        //2초 대기
-        WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(2));
-
         try {
-            // 상품후기 탭 클릭
-            WebElement reviewTab = null;
-            try {
-                reviewTab = wait.until(ExpectedConditions.elementToBeClickable(
-                    By.cssSelector("li#detailReview a[data-target='js_board_goodsreview_view']")
-                ));
-            } catch (Exception e1) {
-                try {
-                    reviewTab = wait.until(ExpectedConditions.elementToBeClickable(
-                        By.cssSelector("a[data-target='js_board_goodsreview_view']")
-                    ));
-                } catch (Exception e2) {
-                    productDto.setReviews(allReviews);
-                    return;
-                }
-            }
+            WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(10));
 
-            // JavaScript로 직접 클릭 (스크롤 대기 제거)
-            ((JavascriptExecutor) driver).executeScript("arguments[0].click();", reviewTab);
+            // Crema iframe 찾기
+            WebElement cremaFrame = driver.findElements(By.tagName("iframe")).stream()
+                    .filter(iframe -> {
+                        String src = iframe.getAttribute("src");
+                        return src != null && src.contains("crema");
+                    })
+                    .findFirst()
+                    .orElse(null);
 
-            // 짧은 대기 후 즉시 파싱 시도
-            Thread.sleep(500);
-
-            // HTML 파싱
-            String html = driver.getPageSource();
-
-            // 리뷰가 없으면 즉시 종료
-            if (html.contains("등록된 상품후기가 없습니다")) {
+            if (cremaFrame == null) {
+                log.warn("Crema iframe을 찾지 못함");
                 productDto.setReviews(allReviews);
                 return;
             }
 
-            // iframe 전환 시도 (타임아웃 1초)
-            try {
-                WebDriverWait shortWait = new WebDriverWait(driver, Duration.ofSeconds(1));
-                List<WebElement> iframes = driver.findElements(By.tagName("iframe"));
+            driver.switchTo().frame(cremaFrame);
+            log.info("Crema iframe으로 전환 성공");
 
-                for (WebElement iframe : iframes) {
-                    String iframeSrc = iframe.getAttribute("src");
-                    if (iframeSrc != null && (iframeSrc.contains("crema") || iframeSrc.contains("review"))) {
-                        driver.switchTo().frame(iframe);
-                        shortWait.until(ExpectedConditions.presenceOfElementLocated(By.tagName("body")));
-                        break;
-                    }
-                }
-            } catch (Exception e) {
-                // iframe 전환 실패해도 계속
-            }
+            // 리뷰 로드 대기
+            wait.until(ExpectedConditions.presenceOfElementLocated(
+                    By.cssSelector("div.WidgetProductReviewsBoardMobile__review")
+            ));
 
-            // 리뷰 영역 로딩 대기 (1초)
-            try {
-                WebDriverWait shortWait = new WebDriverWait(driver, Duration.ofSeconds(1));
-                shortWait.until(ExpectedConditions.presenceOfElementLocated(By.cssSelector(".Body__review")));
-            } catch (Exception e) {
-                // 타임아웃 무시
-            }
+            List<WebElement> reviewElements = driver.findElements(
+                    By.cssSelector("div.WidgetProductReviewsBoardMobile__review")
+            );
+            log.info("리뷰 요소 개수: {}", reviewElements.size());
 
-            // HTML 재파싱
-            html = driver.getPageSource();
-            Document doc = Jsoup.parse(html);
-
-            // 리뷰 요소 선택
-            Elements currentReviews = doc.select(".WidgetProductReviewsBoardMobile__review");
-            if (currentReviews.isEmpty()) {
-                currentReviews = doc.select(".Body__review");
-            }
-
-            if (currentReviews.isEmpty()) {
-                productDto.setReviews(allReviews);
-                driver.switchTo().defaultContent();
-                return;
-            }
-
-            // 각 리뷰를 파싱(최대 10개)
             int count = 0;
-            for (Element reviewEl : currentReviews) {
+            for (WebElement el : reviewElements) {
                 if (count >= 10) break;
                 try {
                     ReviewDTO review = new ReviewDTO();
-                    review.setReviewer("익명");
 
-                    // 별점 파싱
-                    Elements stars = reviewEl.select(".AppRate__item");
-                    review.setStar(stars.size() * 20);
-
-                    // 리뷰 내용 파싱
-                    Element contentEl = reviewEl.selectFirst(".AppReviewInfoSectionBoard__message");
-                    if (contentEl == null) {
-                        Elements contentElements = reviewEl.select(".AppReviewInfoSectionListV3__message");
-                        for (Element el : contentElements) {
-                            Element parent = el.parent();
-                            if (parent != null && !parent.attr("style").contains("display: none")) {
-                                review.setContent(el.text().trim());
-                                break;
-                            }
-                        }
-                    } else {
-                        review.setContent(contentEl.text().trim());
+                    // ✅ 작성자
+                    try {
+                        WebElement nameEl = el.findElement(
+                                By.cssSelector("div.AppReviewUserInfoSectionUserDisplay__display-name")
+                        );
+                        String name = nameEl.getText().trim();
+                        review.setReviewer(name.isEmpty() ? "익명" : name);
+                    } catch (Exception e) {
+                        review.setReviewer("익명");
                     }
+
+                    // ✅ 내용
+                    String content = "";
+                    try {
+                        WebElement msgEl = el.findElement(
+                                By.cssSelector("div.AppReviewInfoSectionBoard__message, div.AppReviewInfoSectionListV3__message")
+                        );
+                        content = msgEl.getText().trim();
+                    } catch (Exception ignore) {}
+
+                    if (content.isEmpty()) continue;
+                    review.setContent(content);
+
+                    // ✅ 별점
+                    int stars = el.findElements(By.cssSelector("svg.AppRate__icon--fill")).size();
+                    review.setStar(stars > 0 ? stars * 20 : 100);
 
                     review.setShopName("키햐");
                     allReviews.add(review);
                     count++;
 
+                    log.info("리뷰 {} 추출: [{}] {}", count, review.getReviewer(),
+                            content.substring(0, Math.min(20, content.length())));
+
                 } catch (Exception e) {
-                    // 개별 리뷰 파싱 실패 시 무시
+                    log.warn("리뷰 파싱 실패: {}", e.getMessage());
                 }
             }
 
+            log.info("총 {}개 리뷰 추출 완료", allReviews.size());
+
         } catch (Exception e) {
-            log.debug("리뷰 크롤링 스킵: {}", e.getMessage());
+            log.error("리뷰 크롤링 실패: {}", e.getMessage());
         } finally {
-            // 파싱한 모든 리뷰를 ProductDTO에 저장
+            try {
+                driver.switchTo().defaultContent();
+            } catch (Exception ignore) {}
             productDto.setReviews(allReviews);
-
-            // 메인 프레임으로 돌아가기
-            driver.switchTo().defaultContent();
         }
-
-        log.debug("리뷰 {}개 파싱 완료", allReviews.size());
     }
 }
