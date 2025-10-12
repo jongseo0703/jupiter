@@ -213,7 +213,7 @@ public class KihyaListPageService implements ShopCrawlingService {
     private boolean isProductAlreadyAdded(List<ProductDTO> products, ProductDTO newProduct) {
         return products.stream()
             .anyMatch(p -> p.getDetailLink() != null &&
-                          p.getDetailLink().equals(newProduct.getDetailLink()));
+                p.getDetailLink().equals(newProduct.getDetailLink()));
     }
 
     /**
