@@ -217,6 +217,23 @@ function Favorites() {
     return ((current - original) / original * 100).toFixed(1);
   };
 
+  // 절약액 통계 계산 (어제 대비 현재 절약액)
+  const calculateSavingsStats = () => {
+    const savings = favoriteItems
+      .map(item => item.originalPrice - item.currentPrice)
+      .filter(saving => saving > 0); // 가격이 하락한 상품만
+
+    if (savings.length === 0) {
+      return { average: 0, max: 0, total: 0 };
+    }
+
+    const total = savings.reduce((sum, saving) => sum + saving, 0);
+    const average = Math.round(total / savings.length);
+    const max = Math.max(...savings);
+
+    return { average, max, total };
+  };
+
   const handleRefreshPrices = async () => {
     setIsRefreshing(true);
     const userId = getUserId();
@@ -474,11 +491,11 @@ function Favorites() {
                   <div className="space-y-2 text-sm text-green-700">
                     <div className="flex justify-between">
                       <span>평균 절약액</span>
-                      <span className="font-semibold">210원</span>
+                      <span className="font-semibold">{calculateSavingsStats().average.toLocaleString()}원</span>
                     </div>
                     <div className="flex justify-between">
                       <span>최대 절약액</span>
-                      <span className="font-semibold">310원</span>
+                      <span className="font-semibold">{calculateSavingsStats().max.toLocaleString()}원</span>
                     </div>
                     <div className="flex justify-between">
                       <span>추적 중인 상품</span>

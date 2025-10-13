@@ -18,4 +18,14 @@ public interface PriceRepository extends JpaRepository<Price,Integer> {
             "inner join Shop s on s.shopId =ps.shop.shopId " +
             "inner join Product p on ps.product.productId = p.productId where ps.isAvailable = true and p.productId = :productId")
     List<Object[]> findByProductId(Integer productId);
+
+    /**
+     * 특정 상품의 모든 Price 엔티티 조회 (최저가 계산용)
+     * @param productId 상품 아이디
+     * @return Price 엔티티 목록
+     */
+    @Query("SELECT p FROM Price p " +
+           "JOIN p.productShop ps " +
+           "WHERE ps.product.productId = :productId AND ps.isAvailable = true")
+    List<Price> findAllByProductShop_Product_ProductId(@Param("productId") Integer productId);
 }

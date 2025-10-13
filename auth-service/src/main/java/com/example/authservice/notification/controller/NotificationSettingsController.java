@@ -77,6 +77,15 @@ public class NotificationSettingsController {
     return ResponseEntity.ok(notificationSettingsService.getActiveSettings());
   }
 
+  @GetMapping("/{userId}")
+  @Operation(summary = "특정 사용자 알림 설정 조회 (서비스 간 통신용)", description = "userId로 알림 설정을 조회합니다.")
+  public ResponseEntity<NotificationSettingsResponse> getSettingsByUserId(
+      @PathVariable Long userId) {
+    log.info("🔔 Getting notification settings for user (inter-service): {}", userId);
+    NotificationSettingsResponse response = notificationSettingsService.getSettings(userId);
+    return ResponseEntity.ok(response);
+  }
+
   private Long getCurrentUserId() {
     Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
     if (authentication == null || !(authentication.getPrincipal() instanceof User)) {
