@@ -699,11 +699,16 @@ export const fetchMainProducts = async()=>{
 
 /**
  * 상품목록 페이지의 상품들의 목록 API
+ * @param {boolean} includeInactive - 비활성 상품 포함 여부 (관리자용)
  * @returns 전체 상품 정보
  */
-export const fetchProducts = async()=>{
+export const fetchProducts = async(includeInactive = false)=>{
+  const url = includeInactive
+    ? `${PRODUCT_API_URL}/list?includeInactive=true`
+    : `${PRODUCT_API_URL}/list`;
+
   const response = await fetch(
-    `${PRODUCT_API_URL}/list`,
+    url,
     {
       method:'GET',
       headers:{
@@ -735,8 +740,8 @@ export const fethCategory = async()=>{
 }
 /**
  * 특정 상품 정보 조회 API
- * @param {int} productId 
- * @returns 상품 정보 및 전체 가격 목록 및 리뷰 목록 
+ * @param {int} productId
+ * @returns 상품 정보 및 전체 가격 목록 및 리뷰 목록
  */
 export const fetchProduct = async(productId)=>{
   const response = await fetch(
@@ -750,3 +755,198 @@ export const fetchProduct = async(productId)=>{
     const data = await response.json();
     return data;
 }
+
+//---- 즐겨찾기 API ----
+const AUTH_API_URL = 'http://localhost:8080/auth/api/v1';
+
+/**
+ * 사용자의 즐겨찾기 목록 조회 API
+ * @param {number} userId - 사용자 ID
+ * @returns {Promise<Array>} - 즐겨찾기 목록
+ */
+export const fetchFavorites = async (userId) => {
+  const token = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken');
+  const response = await fetch(`${AUTH_API_URL}/favorites/${userId}`, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      ...(token && { 'Authorization': `Bearer ${token}` })
+    }
+  });
+
+  if (!response.ok) {
+    throw new Error('즐겨찾기 목록을 불러오는데 실패했습니다.');
+  }
+
+  return await response.json();
+};
+
+/**
+ * 즐겨찾기 추가 API
+ * @param {number} userId - 사용자 ID
+ * @param {number} productId - 상품 ID
+ * @returns {Promise<Object>} - 추가된 즐겨찾기 정보
+ */
+export const addFavorite = async (userId, productId) => {
+  const token = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken');
+  const response = await fetch(`${AUTH_API_URL}/favorites/${userId}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      ...(token && { 'Authorization': `Bearer ${token}` })
+    },
+    body: JSON.stringify({ productId })
+  });
+
+  if (!response.ok) {
+    throw new Error('즐겨찾기 추가에 실패했습니다.');
+  }
+
+  return await response.json();
+};
+
+/**
+ * 즐겨찾기 삭제 API
+ * @param {number} userId - 사용자 ID
+ * @param {number} productId - 상품 ID
+ * @returns {Promise<void>}
+ */
+export const removeFavorite = async (userId, productId) => {
+  const token = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken');
+  const response = await fetch(`${AUTH_API_URL}/favorites/${userId}/products/${productId}`, {
+    method: 'DELETE',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token && { 'Authorization': `Bearer ${token}` })
+    }
+  });
+
+  if (!response.ok) {
+    throw new Error('즐겨찾기 삭제에 실패했습니다.');
+  }
+};
+
+/**
+ * 가격 알림 설정 토글 API
+ * @param {number} userId - 사용자 ID
+ * @param {number} productId - 상품 ID
+ * @param {boolean} enabled - 가격 알림 활성화 여부
+ * @returns {Promise<Object>} - 업데이트된 즐겨찾기 정보
+ */
+export const togglePriceAlert = async (userId, productId, enabled) => {
+  const token = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken');
+  const response = await fetch(`${AUTH_API_URL}/favorites/${userId}/products/${productId}/price-alert?enabled=${enabled}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token && { 'Authorization': `Bearer ${token}` })
+    }
+  });
+
+  if (!response.ok) {
+    throw new Error('가격 알림 설정 변경에 실패했습니다.');
+  }
+
+  return await response.json();
+};
+
+//---- 관리자용 상품 관리 API ----
+/**
+ * 상품 활성화/비활성화 상태 변경 API (관리자 전용)
+ * @param {number} productId - 상품 ID
+ * @param {boolean} isAvailable - 활성화 여부
+ * @returns {Promise<Object>} - 성공/실패 메시지
+ */
+export const updateProductAvailability = async (productId, isAvailable) => {
+  const token = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken');
+  const response = await fetch(`${PRODUCT_API_URL}/products/${productId}/availability`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      ...(token && { 'Authorization': `Bearer ${token}` })
+    },
+    body: JSON.stringify({ isAvailable })
+  });
+
+  if (!response.ok) {
+    throw new Error('상품 활성화 상태 변경에 실패했습니다.');
+  }
+
+  return await response.json();
+};
+
+/**
+ * 상품 정보 수정 API (관리자 전용)
+ * @param {number} productId - 상품 ID
+ * @param {Object} productData - 수정할 상품 정보
+ * @returns {Promise<Object>} - 성공/실패 메시지
+ */
+export const updateProduct = async (productId, productData) => {
+  const token = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken');
+  const response = await fetch(`${PRODUCT_API_URL}/products/${productId}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      ...(token && { 'Authorization': `Bearer ${token}` })
+    },
+    body: JSON.stringify(productData)
+  });
+
+  if (!response.ok) {
+    throw new Error('상품 정보 수정에 실패했습니다.');
+  }
+
+  return await response.json();
+};
+
+/**
+ * 상품 삭제 API (관리자 전용)
+ * @param {number} productId - 상품 ID
+ * @returns {Promise<Object>} - 성공/실패 메시지
+ */
+export const deleteProduct = async (productId) => {
+  const token = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken');
+  const response = await fetch(`${PRODUCT_API_URL}/products/${productId}`, {
+    method: 'DELETE',
+    headers: {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      ...(token && { 'Authorization': `Bearer ${token}` })
+    }
+  });
+
+  if (!response.ok) {
+    throw new Error('상품 삭제에 실패했습니다.');
+  }
+
+  return await response.json();
+};
+
+/**
+ * 가격 정보 수정 API (관리자 전용)
+ * @param {number} priceId - 가격 ID
+ * @param {number} price - 새로운 가격
+ * @returns {Promise<Object>} - 성공/실패 메시지
+ */
+export const updatePrice = async (priceId, price) => {
+  const token = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken');
+  const response = await fetch(`${PRODUCT_API_URL}/prices/${priceId}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      ...(token && { 'Authorization': `Bearer ${token}` })
+    },
+    body: JSON.stringify({ price })
+  });
+
+  if (!response.ok) {
+    throw new Error('가격 정보 수정에 실패했습니다.');
+  }
+
+  return await response.json();
+};
