@@ -20,10 +20,6 @@ import java.util.List;
 @RequiredArgsConstructor
 @Slf4j
 public class DailyScheduler {
-    //크롤링할 웹사이트 url
-    @Value("${website.url}")
-    private String url;
-
     private final CrawlingService crawlingService;
     private final SaveService saveService;
 
