@@ -726,7 +726,7 @@ export const fethCategory = async()=>{
       method:'GET',
       headers:{
         'Content-Type': 'application/json',
-         'Accept': 'application/json'
+        'Accept': 'application/json'
       }
   });
 
@@ -735,8 +735,8 @@ export const fethCategory = async()=>{
 }
 /**
  * 특정 상품 정보 조회 API
- * @param {int} productId 
- * @returns 상품 정보 및 전체 가격 목록 및 리뷰 목록 
+ * @param {int} productId
+ * @returns 상품 정보 및 전체 가격 목록 및 리뷰 목록
  */
 export const fetchProduct = async(productId)=>{
   const response = await fetch(
@@ -744,8 +744,34 @@ export const fetchProduct = async(productId)=>{
       method:'GET',
       headers:{
         'Content-Type': 'application/json',
-         'Accept': 'application/json'
+        'Accept': 'application/json'
       }
+    });
+    const data = await response.json();
+    return data;
+}
+
+/**
+ * 사용자 맞춤 추천 상품 조회 API
+ * JWT 토큰을 통해 사용자 인증 (Gateway에서 검증 후 userId 전달)
+ * @returns {Promise<object>} 추천 상품 목록 (userBased, categoryBased)
+ */
+export const fetchRecommendedProducts = async() => {
+  const token = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken');
+
+  const headers = {
+    'Content-Type': 'application/json',
+    'Accept': 'application/json'
+  };
+
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+
+  const response = await fetch(
+    `${PRODUCT_API_URL}/recommendations/comprehensive`,{
+      method:'GET',
+      headers
     });
     const data = await response.json();
     return data;
