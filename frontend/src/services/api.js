@@ -753,17 +753,25 @@ export const fetchProduct = async(productId)=>{
 
 /**
  * 사용자 맞춤 추천 상품 조회 API
- * @param {number} userId - 사용자 ID
+ * JWT 토큰을 통해 사용자 인증 (Gateway에서 검증 후 userId 전달)
  * @returns {Promise<object>} 추천 상품 목록 (userBased, categoryBased)
  */
-export const fetchRecommendedProducts = async(userId) => {
+export const fetchRecommendedProducts = async() => {
+  const token = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken');
+
+  const headers = {
+    'Content-Type': 'application/json',
+    'Accept': 'application/json'
+  };
+
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+
   const response = await fetch(
-    `${PRODUCT_API_URL}/recommendations/comprehensive/${userId}`,{
+    `${PRODUCT_API_URL}/recommendations/comprehensive`,{
       method:'GET',
-      headers:{
-        'Content-Type': 'application/json',
-        'Accept': 'application/json'
-      }
+      headers
     });
     const data = await response.json();
     return data;

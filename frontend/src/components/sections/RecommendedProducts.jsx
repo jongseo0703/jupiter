@@ -13,10 +13,8 @@ const RecommendedProducts = () => {
   useEffect(() => {
     const loadRecommendations = async () => {
       try {
-        // 테스트용 사용자 ID (추후 실제 로그인 사용자로 변경)
-        const userId = 2; // TODO: 실제 로그인한 사용자 ID 가져오기
-
-        const data = await fetchRecommendedProducts(userId);
+        // JWT 토큰을 통해 사용자 인증 (Gateway에서 검증 후 userId 전달)
+        const data = await fetchRecommendedProducts();
 
         if (data.recommendations) {
           setRecommendations(data.recommendations);
