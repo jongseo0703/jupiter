@@ -28,9 +28,9 @@ public class DatabaseInitializationService implements ApplicationRunner {
         try {
             //모든 테이블 생성
             schemaMapper.createAllTables();
-            log.debug("모든 테이블들이 생성되었습니다");
+            log.warn("모든 테이블들이 생성되었습니다");
         } catch (Exception e) {
-            log.debug("이미 테이블이 존재합니다. {}", e.getMessage());
+            log.warn("이미 테이블이 존재합니다. {}", e.getMessage());
             throw e;
         }
     }

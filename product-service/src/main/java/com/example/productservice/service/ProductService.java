@@ -1,13 +1,10 @@
 package com.example.productservice.service;
 
-import com.example.productservice.domain.Price;
 import com.example.productservice.domain.Product;
 import com.example.productservice.domain.SubCategory;
 import com.example.productservice.domain.TopCategory;
 import com.example.productservice.dto.*;
 import com.example.productservice.repository.*;
-import com.example.productservice.util.UrlShrinkRemover;
-import jakarta.persistence.criteria.CriteriaBuilder;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -16,7 +13,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 @Service
 @Slf4j
@@ -110,7 +106,7 @@ public class ProductService {
         productDto.setVolume((Integer) item[8]);
         // 상품 이미지 URL
         String url = (String) item[2];
-        productDto.setUrl(UrlShrinkRemover.removeShrinkFromUrl(url));
+        productDto.setUrl(url);
         // 상품 설명
         productDto.setDescription((String) item[3]);
 
@@ -170,7 +166,7 @@ public class ProductService {
             productDto.setDescription(product.getDescription());
             //상품 이미지
             String url = product.getUrl();
-            productDto.setUrl(UrlShrinkRemover.removeShrinkFromUrl(url));
+            productDto.setUrl(url);
 
             //카테고리
             SubCategory subCategory = subCategoryRepository.findById(product.getSubCategory().getSubcategoryId()).orElse(null);
@@ -219,22 +215,19 @@ public class ProductService {
                 //리뷰아이디
                 reviewDto.setReviewId((Integer) review[0]);
                 //작성자
-                reviewDto.setWriter(review[1].toString());
+                if(review[1] != null){
+                    reviewDto.setWriter(review[1].toString());
+                }
                 //별점
                 reviewDto.setRating((Integer) review[2]);
                 //작성일
-                reviewDto.setReviewDate(review[3].toString());
-
-                //리뷰 제목과 내용
-                String title = review[4].toString();
-                String comment = review[5].toString();
-                if(!title.equals(comment)){
-                    reviewDto.setTitle(title);
-                    reviewDto.setContent(comment);
-                }else {
-                    //제목과 내용이 같을 경우 제목만 파싱
-                    reviewDto.setTitle(title);
+                if(review[3] != null){
+                    reviewDto.setReviewDate(review[3].toString());
                 }
+
+                //리뷰 제목 내용
+                String comment = review[5].toString();
+                reviewDto.setContent(comment);
 
                 //상점
                 ShopDto shopDto = new ShopDto();

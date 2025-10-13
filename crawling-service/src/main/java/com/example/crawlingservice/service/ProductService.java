@@ -50,10 +50,7 @@ public class ProductService {
         Stock stock = new Stock();
         stock.setAvailable(true);
         stock.setProduct(product);
-        int result = stockMapper.insert(stock);
-        if (result == 1) {
-            log.debug("재고 정보 저장 성공");
-        }
+        stockMapper.insert(stock);
 
         return product;
     }
