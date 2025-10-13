@@ -25,7 +25,6 @@ public class St11DetailPageService {
 
     private final ProductNameParser productNameParser;
     private final CategoryParser categoryParser;
-    private final com.example.crawlingservice.util.CrawlUtil crawlUtil;
 
     /**
      * 상세 페이지에서 카테고리 추출
