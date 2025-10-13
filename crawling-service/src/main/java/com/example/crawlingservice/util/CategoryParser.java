@@ -42,6 +42,10 @@ public class CategoryParser {
         else if (productKind.contains("막걸리") || productKind.contains("탁주")) {
             normalized = "막걸리";
         }
+        //화이트 와인으로 정의
+        else if(productKind.contains("입 안을 맴도는 과실향")){
+            normalized="화이트 와인";
+        }
 
         return normalized;
     }
