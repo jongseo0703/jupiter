@@ -81,6 +81,8 @@ public class SaveService {
         //DB와 상품명 비교
         updateStockStatus(productNames);
 
+        // 모든 상품 저장 완료 후 배치 알림 전송
+        priceService.sendBatchPriceAlerts();
     }
 
     /**

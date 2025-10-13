@@ -1,5 +1,6 @@
 package com.example.authservice.notification.repository;
 
+import java.util.List;
 import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -15,4 +16,6 @@ public interface NotificationSettingsRepository extends JpaRepository<Notificati
   boolean existsByUserId(Long userId);
 
   void deleteByUserId(Long userId);
+
+  List<NotificationSettings> findByPushNotificationsTrue();
 }

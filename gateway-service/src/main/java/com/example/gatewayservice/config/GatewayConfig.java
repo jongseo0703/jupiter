@@ -40,6 +40,9 @@ public class GatewayConfig {
                 .route("product-service", r -> r.path("/product/**")
                         .filters(f -> f.stripPrefix(1))
                         .uri("http://localhost:8085"))
+                .route("notification-service", r -> r.path("/notification/**")
+                        .filters(f -> f.stripPrefix(1))
+                        .uri("http://localhost:8086"))
                 .build();
     }
 }

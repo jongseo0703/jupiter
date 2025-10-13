@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import {fetchProducts, fethCategory} from '../services/api';
+import {fetchProducts, fethCategory, fetchFavorites, addFavorite, removeFavorite} from '../services/api';
 import AlcoholPreloader from '../components/AlcoholPreloader';
 
 function Shop() {
@@ -18,6 +18,17 @@ function Shop() {
   const [categoryData, setCategoryData] = useState({'전체': []});
   const [topCategories, setTopCategories] = useState(['전체']);
   const [products, setProducts] = useState([]);
+  const [favoriteProductIds, setFavoriteProductIds] = useState(new Set());
+
+  // 사용자 ID 가져오기
+  const getUserId = () => {
+    const userInfo = localStorage.getItem('userInfo') || sessionStorage.getItem('userInfo');
+    if (userInfo) {
+      const parsed = JSON.parse(userInfo);
+      return parsed.id || parsed.userId;
+    }
+    return null;
+  };
 
   // 용량 카테고리 정의
   const volumeCategories = [
@@ -96,6 +107,18 @@ function Shop() {
             fetchProducts()
           ]);
 
+          // 즐겨찾기 목록 가져오기 (로그인한 경우)
+          const userId = getUserId();
+          if (userId) {
+            try {
+              const favorites = await fetchFavorites(userId);
+              const favoriteIds = new Set(favorites.map(fav => fav.productId));
+              setFavoriteProductIds(favoriteIds);
+            } catch (err) {
+              console.error('즐겨찾기 목록 로드 실패:', err);
+            }
+          }
+
           // 카테고리 데이터 변환
           const transformedCategoryData = {'전체': []};
           const topCategoryNames = ['전체'];
@@ -160,7 +183,10 @@ function Shop() {
             const product = item.product;
             const avgRating = item.avgRating;
 
-            const lowestPrice = Math.min(...product.priceDtoList.map(p =>p.price));
+            // 백엔드에서 이미 배송비 포함 총액 기준으로 정렬됨 -> 첫 번째 항목이 최저가
+            const lowestPrice = product.priceDtoList.length > 0
+              ? (product.priceDtoList[0].price + product.priceDtoList[0].deliveryFee)
+              : 0;
 
             const prices = product.priceDtoList.map(priceInfo => ({
               store: priceInfo.shopDto.shopName,
@@ -204,6 +230,39 @@ function Shop() {
 
       loadData();
     }, []);
+
+  // 즐겨찾기 토글 함수
+  const toggleFavorite = async (e, productId) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const userId = getUserId();
+    if (!userId) {
+      alert('로그인이 필요합니다.');
+      return;
+    }
+
+    try {
+      const isFavorite = favoriteProductIds.has(productId);
+
+      if (isFavorite) {
+        // 즐겨찾기 삭제
+        await removeFavorite(userId, productId);
+        setFavoriteProductIds(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(productId);
+          return newSet;
+        });
+      } else {
+        // 즐겨찾기 추가
+        await addFavorite(userId, productId);
+        setFavoriteProductIds(prev => new Set([...prev, productId]));
+      }
+    } catch (err) {
+      console.error('즐겨찾기 토글 실패:', err);
+      alert('즐겨찾기 처리 중 오류가 발생했습니다.');
+    }
+  };
 
   return (
     <>
@@ -387,8 +446,15 @@ function Shop() {
                         )}
                       </div>
                       <div className="absolute top-3 right-3 z-10">
-                        <button className="bg-white p-2 rounded-full shadow-md hover:bg-primary hover:text-white transition-colors">
-                          <i className="fas fa-heart text-sm"></i>
+                        <button
+                          onClick={(e) => toggleFavorite(e, product.id)}
+                          className={`p-2 rounded-full shadow-md transition-colors ${
+                            favoriteProductIds.has(product.id)
+                              ? 'bg-yellow-500 text-white hover:bg-yellow-600'
+                              : 'bg-white text-gray-600 hover:bg-yellow-500 hover:text-white'
+                          }`}
+                        >
+                          <i className={`fas fa-star text-sm ${favoriteProductIds.has(product.id) ? 'text-white' : ''}`}></i>
                         </button>
                       </div>
                     </div>

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import authService from '../services/authService';
-import adminService from '../services/adminService';
+import { fetchProducts, fetchProduct, updateProductAvailability, updateProduct, deleteProduct, updatePrice } from '../services/api';
 
 const AdminProducts = () => {
   const navigate = useNavigate();
@@ -20,7 +20,8 @@ const AdminProducts = () => {
     lowestPrice: '',
     category: '',
     image: '',
-    isActive: true
+    isActive: true,
+    prices: [] // 각 상점별 가격 정보 (priceId, shopName, price 포함)
   });
 
   const categories = ['all', '소주', '맥주', '와인', '양주', '전통주'];
@@ -49,11 +50,38 @@ const AdminProducts = () => {
     }
   };
 
-  const loadProducts = () => {
+  const loadProducts = async () => {
     try {
       setIsLoading(true);
-      const data = adminService.getHardcodedProducts();
-      setProducts(data);
+      // 관리자는 비활성 상품도 포함하여 모든 상품을 조회
+      const data = await fetchProducts(true); // includeInactive=true
+
+      // 백엔드 데이터를 프론트엔드 형식으로 변환
+      const transformedProducts = data.map(item => {
+        const product = item.product;
+        // 배송비 포함한 최저가 계산
+        const lowestPrice = product.priceDtoList && product.priceDtoList.length > 0
+          ? Math.min(...product.priceDtoList.map(p => (p.price || 0) + (p.deliveryFee || 0)))
+          : 0;
+
+        // 현재가 (첫 번째 상점 가격 + 배송비)
+        const currentPrice = product.priceDtoList?.[0]
+          ? (product.priceDtoList[0].price || 0) + (product.priceDtoList[0].deliveryFee || 0)
+          : 0;
+
+        return {
+          id: product.productId,
+          name: product.productName,
+          currentPrice: currentPrice,
+          originalPrice: product.yesterdayLowestPrice || lowestPrice,
+          lowestPrice: lowestPrice,
+          category: product.subCategoryDto?.subName || '기타',
+          image: product.url || 'https://images.unsplash.com/photo-1551538827-9c037cb4f32a?w=400',
+          isActive: product.isAvailable !== undefined ? product.isAvailable : true
+        };
+      });
+
+      setProducts(transformedProducts);
     } catch (error) {
       console.error('Failed to load products:', error);
       alert('상품 목록을 불러오는데 실패했습니다.');
@@ -62,32 +90,56 @@ const AdminProducts = () => {
     }
   };
 
-  const handleEdit = (product) => {
-    setSelectedProduct(product);
+  const handleEdit = async (product) => {
+    try {
+      setSelectedProduct(product);
+
+      // 상품의 전체 정보를 가져와서 가격 정보 포함
+      const detailData = await fetchProduct(product.id);
+
+      setEditFormData({
+        name: product.name || '',
+        currentPrice: product.currentPrice || '',
+        originalPrice: product.originalPrice || '',
+        lowestPrice: product.lowestPrice || '',
+        category: product.category || '',
+        image: product.image || '',
+        isActive: product.isActive,
+        prices: detailData.priceDtoList || [] // 각 상점별 가격 정보
+      });
+      setShowEditModal(true);
+    } catch (error) {
+      console.error('Failed to fetch product details:', error);
+      alert('상품 정보를 불러오는데 실패했습니다.');
+    }
+  };
+
+  const handlePriceChange = (priceId, newPrice) => {
     setEditFormData({
-      name: product.name || '',
-      currentPrice: product.currentPrice || '',
-      originalPrice: product.originalPrice || '',
-      lowestPrice: product.lowestPrice || '',
-      category: product.category || '',
-      image: product.image || '',
-      isActive: product.isActive
+      ...editFormData,
+      prices: editFormData.prices.map(p =>
+        p.priceId === priceId ? { ...p, price: Number(newPrice), modified: true } : p
+      )
     });
-    setShowEditModal(true);
   };
 
   const handleSaveEdit = async () => {
     try {
-      const updatedProduct = await adminService.updateProduct(selectedProduct.id, {
-        ...editFormData,
-        currentPrice: Number(editFormData.currentPrice),
-        originalPrice: Number(editFormData.originalPrice),
-        lowestPrice: Number(editFormData.lowestPrice)
+      // 상품 기본 정보 업데이트
+      await updateProduct(selectedProduct.id, {
+        productName: editFormData.name,
+        url: editFormData.image
       });
 
-      setProducts(products.map(p =>
-        p.id === selectedProduct.id ? { ...p, ...updatedProduct } : p
-      ));
+      // 가격 정보 업데이트 (변경된 가격들만)
+      const priceUpdatePromises = editFormData.prices
+        .filter(priceInfo => priceInfo.modified)
+        .map(priceInfo => updatePrice(priceInfo.priceId, priceInfo.price));
+
+      await Promise.all(priceUpdatePromises);
+
+      // UI 업데이트를 위해 다시 로드
+      await loadProducts();
       setShowEditModal(false);
       alert('상품 정보가 성공적으로 수정되었습니다.');
     } catch (error) {
@@ -103,44 +155,32 @@ const AdminProducts = () => {
 
   const confirmDelete = async () => {
     try {
-      await adminService.deleteProduct(selectedProduct.id);
-      setProducts(products.filter(p => p.id !== selectedProduct.id));
+      await deleteProduct(selectedProduct.id);
+      // 삭제된 상품 제거 (실제로는 비활성화)
+      setProducts(products.map(p =>
+        p.id === selectedProduct.id ? { ...p, isActive: false } : p
+      ));
       setShowDeleteModal(false);
-      alert('상품이 성공적으로 삭제되었습니다.');
+      alert('상품이 성공적으로 삭제되었습니다 (비활성화).');
     } catch (error) {
       console.error('Failed to delete product:', error);
       alert('상품 삭제에 실패했습니다.');
     }
   };
 
-  const handleAdd = () => {
-    setEditFormData({
-      name: '',
-      currentPrice: '',
-      originalPrice: '',
-      lowestPrice: '',
-      category: '소주',
-      image: '',
-      isActive: true
-    });
-    setShowAddModal(true);
-  };
-
-  const handleSaveAdd = async () => {
+  const handleToggleActive = async (product) => {
     try {
-      const newProduct = await adminService.addProduct({
-        ...editFormData,
-        currentPrice: Number(editFormData.currentPrice),
-        originalPrice: Number(editFormData.originalPrice),
-        lowestPrice: Number(editFormData.lowestPrice)
-      });
+      const newStatus = !product.isActive;
+      await updateProductAvailability(product.id, newStatus);
 
-      setProducts([...products, newProduct]);
-      setShowAddModal(false);
-      alert('새 상품이 성공적으로 추가되었습니다.');
+      setProducts(products.map(p =>
+        p.id === product.id ? { ...p, isActive: newStatus } : p
+      ));
+
+      alert(`상품이 ${newStatus ? '활성화' : '비활성화'}되었습니다.`);
     } catch (error) {
-      console.error('Failed to add product:', error);
-      alert('상품 추가에 실패했습니다.');
+      console.error('Failed to toggle product status:', error);
+      alert('상품 상태 변경에 실패했습니다.');
     }
   };
 
@@ -185,16 +225,9 @@ const AdminProducts = () => {
                 상품 관리
               </h1>
               <p className="text-gray-600 mt-2">
-                총 {products.length}개의 상품이 등록되어 있습니다. (하드코딩 데이터)
+                총 {products.length}개의 상품이 등록되어 있습니다.
               </p>
             </div>
-            <button
-              onClick={handleAdd}
-              className="bg-primary text-white px-4 py-2 rounded-lg hover:bg-blue-800 transition-colors flex items-center"
-            >
-              <i className="fas fa-plus mr-2"></i>
-              새 상품 추가
-            </button>
           </div>
         </div>
 
@@ -292,21 +325,34 @@ const AdminProducts = () => {
                   </div>
                 </div>
 
-                <div className="flex space-x-2">
+                <div className="space-y-2">
                   <button
-                    onClick={() => handleEdit(product)}
-                    className="flex-1 bg-blue-500 text-white py-2 px-3 rounded text-sm hover:bg-blue-600 transition-colors"
+                    onClick={() => handleToggleActive(product)}
+                    className={`w-full py-2 px-3 rounded text-sm font-medium transition-colors ${
+                      product.isActive
+                        ? 'bg-yellow-500 text-white hover:bg-yellow-600'
+                        : 'bg-green-500 text-white hover:bg-green-600'
+                    }`}
                   >
-                    <i className="fas fa-edit mr-1"></i>
-                    수정
+                    <i className={`fas ${product.isActive ? 'fa-eye-slash' : 'fa-eye'} mr-1`}></i>
+                    {product.isActive ? '비활성화' : '활성화'}
                   </button>
-                  <button
-                    onClick={() => handleDelete(product)}
-                    className="flex-1 bg-red-500 text-white py-2 px-3 rounded text-sm hover:bg-red-600 transition-colors"
-                  >
-                    <i className="fas fa-trash mr-1"></i>
-                    삭제
-                  </button>
+                  <div className="flex space-x-2">
+                    <button
+                      onClick={() => handleEdit(product)}
+                      className="flex-1 bg-blue-500 text-white py-2 px-3 rounded text-sm hover:bg-blue-600 transition-colors"
+                    >
+                      <i className="fas fa-edit mr-1"></i>
+                      수정
+                    </button>
+                    <button
+                      onClick={() => handleDelete(product)}
+                      className="flex-1 bg-red-500 text-white py-2 px-3 rounded text-sm hover:bg-red-600 transition-colors"
+                    >
+                      <i className="fas fa-trash mr-1"></i>
+                      삭제
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -320,15 +366,15 @@ const AdminProducts = () => {
           </div>
         )}
 
-        {/* 수정/추가 모달 */}
-        {(showEditModal || showAddModal) && (
+        {/* 수정 모달 */}
+        {showEditModal && (
           <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-            <div className="relative top-10 mx-auto p-5 border w-full max-w-md shadow-lg rounded-md bg-white">
+            <div className="relative top-10 mx-auto p-5 border w-full max-w-2xl shadow-lg rounded-md bg-white mb-10">
               <div className="mt-3">
                 <h3 className="text-lg font-medium text-gray-900 mb-4">
-                  {showAddModal ? '새 상품 추가' : '상품 정보 수정'}
+                  상품 정보 수정
                 </h3>
-                <div className="space-y-4 max-h-96 overflow-y-auto">
+                <div className="space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       상품명
@@ -337,57 +383,6 @@ const AdminProducts = () => {
                       type="text"
                       value={editFormData.name}
                       onChange={(e) => setEditFormData({...editFormData, name: e.target.value})}
-                      className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      카테고리
-                    </label>
-                    <select
-                      value={editFormData.category}
-                      onChange={(e) => setEditFormData({...editFormData, category: e.target.value})}
-                      className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-                    >
-                      {categories.filter(cat => cat !== 'all').map(category => (
-                        <option key={category} value={category}>{category}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      현재 가격
-                    </label>
-                    <input
-                      type="number"
-                      value={editFormData.currentPrice}
-                      onChange={(e) => setEditFormData({...editFormData, currentPrice: e.target.value})}
-                      className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      원래 가격
-                    </label>
-                    <input
-                      type="number"
-                      value={editFormData.originalPrice}
-                      onChange={(e) => setEditFormData({...editFormData, originalPrice: e.target.value})}
-                      className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      최저 가격
-                    </label>
-                    <input
-                      type="number"
-                      value={editFormData.lowestPrice}
-                      onChange={(e) => setEditFormData({...editFormData, lowestPrice: e.target.value})}
                       className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
                     />
                   </div>
@@ -404,35 +399,75 @@ const AdminProducts = () => {
                     />
                   </div>
 
-                  <div className="flex items-center">
-                    <input
-                      type="checkbox"
-                      id="isActive"
-                      checked={editFormData.isActive}
-                      onChange={(e) => setEditFormData({...editFormData, isActive: e.target.checked})}
-                      className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
-                    />
-                    <label htmlFor="isActive" className="ml-2 block text-sm text-gray-900">
-                      활성 상품
+                  {editFormData.image && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        미리보기
+                      </label>
+                      <img
+                        src={editFormData.image}
+                        alt="미리보기"
+                        className="w-full h-48 object-cover rounded-md"
+                        onError={(e) => {
+                          e.target.src = 'https://images.unsplash.com/photo-1551538827-9c037cb4f32a?w=400';
+                        }}
+                      />
+                    </div>
+                  )}
+
+                  {/* 가격 정보 수정 */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <i className="fas fa-won-sign mr-2"></i>
+                      상점별 가격 정보
                     </label>
+                    <div className="space-y-2 max-h-60 overflow-y-auto">
+                      {editFormData.prices && editFormData.prices.length > 0 ? (
+                        editFormData.prices.map((priceInfo) => (
+                          <div key={priceInfo.priceId} className="flex items-center space-x-2 p-2 bg-gray-50 rounded">
+                            <div className="flex-1">
+                              <div className="text-xs text-gray-600 mb-1">
+                                {priceInfo.shopDto?.shopName || '상점명 없음'}
+                              </div>
+                              <input
+                                type="number"
+                                value={priceInfo.price}
+                                onChange={(e) => handlePriceChange(priceInfo.priceId, e.target.value)}
+                                className="w-full p-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-primary"
+                                placeholder="가격 입력"
+                              />
+                            </div>
+                            <span className="text-xs text-gray-500">원</span>
+                          </div>
+                        ))
+                      ) : (
+                        <p className="text-sm text-gray-500 text-center py-2">
+                          가격 정보가 없습니다.
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
+                    <p className="text-sm text-blue-800">
+                      <i className="fas fa-info-circle mr-2"></i>
+                      가격은 수동으로 수정할 수 있으며, 크롤링으로도 자동 업데이트됩니다.
+                    </p>
                   </div>
                 </div>
 
                 <div className="flex items-center justify-end space-x-3 mt-6">
                   <button
-                    onClick={() => {
-                      setShowEditModal(false);
-                      setShowAddModal(false);
-                    }}
+                    onClick={() => setShowEditModal(false)}
                     className="px-4 py-2 text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300"
                   >
                     취소
                   </button>
                   <button
-                    onClick={showAddModal ? handleSaveAdd : handleSaveEdit}
+                    onClick={handleSaveEdit}
                     className="px-4 py-2 bg-primary text-white rounded-md hover:bg-blue-800"
                   >
-                    {showAddModal ? '추가' : '저장'}
+                    저장
                   </button>
                 </div>
               </div>

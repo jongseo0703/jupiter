@@ -61,6 +61,11 @@ public class SecurityConfig {
                     .permitAll()
                     .requestMatchers("/actuator/**")
                     .permitAll()
+                    // 서비스 간 통신을 위한 엔드포인트
+                    .requestMatchers("/api/v1/favorites/products/*/users")
+                    .permitAll()
+                    .requestMatchers("/api/notification-settings/**")
+                    .permitAll()
 
                     // 웹 페이지들
                     .requestMatchers("/", "/login", "/register", "/dashboard")

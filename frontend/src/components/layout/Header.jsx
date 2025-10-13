@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import authService from '../../services/authService';
+import { fetchFavorites } from '../../services/api';
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -8,6 +9,7 @@ const Header = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
+  const [favoriteCount, setFavoriteCount] = useState(0);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -36,14 +38,29 @@ const Header = () => {
           const userData = await authService.getCurrentUser();
           setUser(userData);
           setIsLoggedIn(true);
+
+          // 즐겨찾기 개수 로드
+          loadFavoriteCount(userData.id || userData.userId);
         } catch (error) {
           console.error('Failed to load user info:', error);
           setIsLoggedIn(false);
           setUser(null);
+          setFavoriteCount(0);
         }
       } else {
         setIsLoggedIn(false);
         setUser(null);
+        setFavoriteCount(0);
+      }
+    };
+
+    const loadFavoriteCount = async (userId) => {
+      try {
+        const favorites = await fetchFavorites(userId);
+        setFavoriteCount(favorites.length);
+      } catch (error) {
+        console.error('Failed to load favorite count:', error);
+        setFavoriteCount(0);
       }
     };
 
@@ -145,9 +162,11 @@ const Header = () => {
               <div className="relative">
                 <Link to="/favorites" className="flex items-center space-x-1 p-2 text-gray-700 hover:text-primary">
                   <i className="fas fa-star text-xl"></i>
-                  <span className="absolute -top-1 -right-1 bg-secondary text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
-                    3
-                  </span>
+                  {favoriteCount > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-secondary text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                      {favoriteCount}
+                    </span>
+                  )}
                 </Link>
               </div>
 

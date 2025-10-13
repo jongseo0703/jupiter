@@ -33,10 +33,6 @@ public class NotificationSettings extends BaseEntity {
 
   @Builder.Default
   @Column(nullable = false)
-  private Boolean emailNotifications = true;
-
-  @Builder.Default
-  @Column(nullable = false)
   private Boolean pushNotifications = true;
 
   @Builder.Default
@@ -56,10 +52,4 @@ public class NotificationSettings extends BaseEntity {
   @Min(value = 1, message = "최소 할인율은 1% 이상이어야 합니다")
   @Max(value = 50, message = "최소 할인율은 50% 이하여야 합니다")
   private Integer minDiscountPercent = 5;
-
-  @Builder.Default
-  @Column(nullable = false)
-  @Min(value = 1, message = "일일 최대 알림 개수는 1개 이상이어야 합니다")
-  @Max(value = 50, message = "일일 최대 알림 개수는 50개 이하여야 합니다")
-  private Integer maxDailyNotifications = 10;
 }

@@ -17,6 +17,8 @@ import java.util.List;
  *     <li>subCategoryDto : 참조한 하위 카테고리</li>
  *     <li>priceDtoList : 가격목록</li>
  *     <li>reviewDtoList : 리뷰 목록</li>
+ *     <li>yesterdayLowestPrice : 어제 최저가</li>
+ *     <li>isAvailable : 상품 활성화 여부</li>
  * </ul>
  */
 @Data
@@ -31,4 +33,6 @@ public class ProductDto {
     private SubCategoryDto subCategoryDto;
     List<PriceDto> priceDtoList;
     List<ReviewDto> reviewDtoList;
+    private Integer yesterdayLowestPrice;  // 어제 최저가
+    private Boolean isAvailable;  // 상품 활성화 여부 (stock.is_available)
 }
