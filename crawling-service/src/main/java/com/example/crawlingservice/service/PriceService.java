@@ -51,17 +51,9 @@ public class PriceService {
             //DB에 저장된 가격과 priceDTO 가격 비교
             if(existing.getPrice() != priceDTO.getPrice()){
                 //가격이 다를 경우 price_log에 저장
-                priceLog.setNewPrice(existing.getPrice());
+                priceLog.setNewPrice(priceDTO.getPrice());
                 priceLog.setPrice(existing);
                 int result =priceLogMapper.insert(priceLog);
-
-                if (result > 0) {
-                    log.debug("변경 가격 로그 저장 - 상품ID: {}, 상점: {}, 기존가격: {}원, 신규가격: {}원",
-                             productShop.getProduct().getProductId(),
-                             productShop.getShop().getShopName(),
-                             existing.getPrice(),
-                             priceDTO.getPrice());
-                }
 
                 // 가격이 변경된 상품 ID 추적 (나중에 배치 알림용)
                 updatedProductIds.add(productShop.getProduct().getProductId());

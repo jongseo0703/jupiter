@@ -19,13 +19,14 @@ public interface ReviewMapper {
     @Options(useGeneratedKeys = true,keyProperty = "reviewId")
     int insert(Review review);
 
+
     /**
-     * 상품_상점 아이디와 작성자로 리뷰정보 조회
+     * 상품_상점 아이디와 리뷰 내용으로 리뷰정보 조회
      * @param productShopId 상품_상점아이디
-     * @param writer 작성자
+     * @param content 리뷰 내용
      * @return 리뷰 정보 반환
      */
-    @Select("select * from review where product_shop_id = #{productShopId} and writer =#{writer}")
-    Review selectByProductShopId(int productShopId, String writer);
+    @Select("select * from review where product_shop_id = #{productShopId} and comment = #{content}")
+    Review selectByProductShopIdAndContent(int productShopId, String content);
 
 }
