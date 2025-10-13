@@ -37,12 +37,12 @@ public class PriceService {
             //DB에 저장된 가격과 priceDTO 가격 비교
             if(existing.getPrice() != priceDTO.getPrice()){
                 //가격이 다를 경우 price_log에 저장
-                priceLog.setNewPrice(existing.getPrice());
+                priceLog.setNewPrice(priceDTO.getPrice());
                 priceLog.setPrice(existing);
                 int result =priceLogMapper.insert(priceLog);
 
                 if (result > 0) {
-                    log.debug("변경 가격 로그 저장");
+                    log.debug("변경 가격 로그 저장: {} → {}", existing.getPrice(), priceDTO.getPrice());
                 }
             }
             // 기존 가격이 있으면 업데이트
