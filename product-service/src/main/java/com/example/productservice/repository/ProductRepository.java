@@ -23,19 +23,20 @@ public interface ProductRepository extends JpaRepository<Product,Integer> {
     List<Integer> findTopAvailableProductIdsByRating();
 
     /**
-     * 상품정보와 하위케테고리명, 가격정보(금액과 상점명)를 조회
+     * 상품정보와 하위케테고리명, 가격정보(금액, 배송비, 상점명)를 조회
+     * 배송비를 포함한 총액으로 정렬하여 실제 최저가 순으로 반환
      * @param productId 조회할 상품 아이디
-     * @return 상품정보 반환
+     * @return 상품정보 반환 (productId, productName, url, description, subName, price, shopName, alcoholPercentage, volume, deliveryFee)
      */
     @Query("SELECT p.productId, p.productName, p.url, p.description, " +
-            "sc.subName, pr.price, s.shopName,p.alcoholPercentage, p.volume " +
+            "sc.subName, pr.price, s.shopName, p.alcoholPercentage, p.volume, pr.deliveryFee " +
             "FROM Product p " +
             "JOIN ProductShop ps ON p.productId = ps.product.productId " +
             "JOIN Price pr ON ps.productShopId = pr.productShop.productShopId " +
             "JOIN Shop s ON ps.shop.shopId = s.shopId " +
             "JOIN SubCategory sc ON p.subCategory.subcategoryId = sc.subcategoryId " +
             "WHERE p.productId = :productId " +
-            "ORDER BY pr.price ASC LIMIT 3")
+            "ORDER BY (pr.price + pr.deliveryFee) ASC LIMIT 3")
     List<Object[]> findProductWithPricesByProductId(Integer productId);
 
     @Query("SELECT p.productId FROM Product p" +
@@ -48,5 +49,15 @@ public interface ProductRepository extends JpaRepository<Product,Integer> {
             "CASE WHEN COUNT(r.reviewId) > 0 THEN 0 ELSE 1 END, " +
             "COUNT(r.reviewId) DESC")
     List<Integer> findAvailableProductIdsByProductId();
+
+    @Query("SELECT p.productId FROM Product p" +
+            "  JOIN Stock s ON p.productId = s.product.productId" +
+            " LEFT JOIN ProductShop ps ON ps.product.productId = p.productId" +
+            " LEFT JOIN Review r ON r.productShop.productShopId = ps.productShopId" +
+            " GROUP BY p.productId " +
+            " ORDER BY " +
+            "CASE WHEN COUNT(r.reviewId) > 0 THEN 0 ELSE 1 END, " +
+            "COUNT(r.reviewId) DESC")
+    List<Integer> findAllProductIds();
 
 }

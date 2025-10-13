@@ -20,10 +20,6 @@ import java.util.List;
 @RequiredArgsConstructor
 @Slf4j
 public class DailyScheduler {
-    //크롤링할 웹사이트 url
-    @Value("${website.url}")
-    private String url;
-
     private final CrawlingService crawlingService;
     private final SaveService saveService;
 
@@ -42,7 +38,7 @@ public class DailyScheduler {
             DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
             //데이터 크롤링 실행
-            List<ProductDTO> crawledData = crawlingService.starePage(url);
+            List<ProductDTO> crawledData = crawlingService.crawlAllShops();
 
             //크롤링된 데이터가 있으면 저장
             if (crawledData != null && !crawledData.isEmpty()) {

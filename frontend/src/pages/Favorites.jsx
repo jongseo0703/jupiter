@@ -1,68 +1,285 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import AlcoholPreloader from '../components/AlcoholPreloader';
+import { fetchFavorites, removeFavorite as removeFavoriteApi, fetchProduct, togglePriceAlert as togglePriceAlertApi } from '../services/api';
+import api from '../services/api';
 
 function Favorites() {
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [favoriteItems, setFavoriteItems] = useState([
-    {
-      id: 1,
-      name: '참이슬 후레쉬',
-      currentPrice: 1890,
-      originalPrice: 2100,
-      lowestPrice: 1790,
-      priceAlert: true,
-      image: 'https://images.unsplash.com/photo-1551538827-9c037cb4f32a?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80',
-      category: '소주',
-      priceHistory: [2100, 1950, 1890],
-      lastChecked: '2시간 전'
-    },
-    {
-      id: 2,
-      name: '하이트 제로',
-      currentPrice: 2680,
-      originalPrice: 2800,
-      lowestPrice: 2450,
-      priceAlert: false,
-      image: 'https://images.unsplash.com/photo-1608270586620-248524c67de9?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80',
-      category: '맥주',
-      priceHistory: [2800, 2750, 2680],
-      lastChecked: '1시간 전'
-    }
-  ]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [favoriteItems, setFavoriteItems] = useState([]);
+  const [error, setError] = useState(null);
+  const [recommendedProducts, setRecommendedProducts] = useState([]);
+  const [currentSlide, setCurrentSlide] = useState(0);
+  const carouselRef = useRef(null);
+  const autoSlideInterval = useRef(null);
 
-  const removeFavorite = (id) => {
-    setFavoriteItems(favoriteItems.filter(item => item.id !== id));
+  // 사용자 ID 가져오기 (로그인한 사용자 ID를 localStorage에서 가져온다고 가정)
+  const getUserId = () => {
+    const userInfo = localStorage.getItem('userInfo') || sessionStorage.getItem('userInfo');
+    if (userInfo) {
+      const parsed = JSON.parse(userInfo);
+      return parsed.id || parsed.userId;
+    }
+    return null;
   };
 
-  const togglePriceAlert = (id) => {
+  // 즐겨찾기 목록 로드
+  useEffect(() => {
+    const loadFavorites = async () => {
+      const userId = getUserId();
+      if (!userId) {
+        setError('로그인이 필요합니다.');
+        setIsLoading(false);
+        return;
+      }
+
+      try {
+        setIsLoading(true);
+        const favorites = await fetchFavorites(userId);
+
+        // 각 즐겨찾기의 상품 정보를 가져와서 병합
+        const favoriteItemsWithDetails = await Promise.all(
+          favorites.map(async (fav) => {
+            try {
+              const productDetail = await fetchProduct(fav.productId);
+
+              // 현재 최저가 계산
+              const priceDtoList = productDetail.priceDtoList || [];
+              const currentLowestPrice = priceDtoList.length > 0
+                ? Math.min(...priceDtoList.map(p => (p.price || 0) + (p.deliveryFee || 0)))
+                : 0;
+
+              // 어제 최저가 (API에서 제공 - null이면 현재가 사용)
+              const yesterdayLowestPrice = productDetail.yesterdayLowestPrice !== null && productDetail.yesterdayLowestPrice !== undefined
+                ? productDetail.yesterdayLowestPrice
+                : currentLowestPrice;
+
+              return {
+                id: fav.productId,
+                favoriteId: fav.id,
+                name: productDetail.productName,
+                currentPrice: currentLowestPrice,
+                originalPrice: yesterdayLowestPrice,
+                lowestPrice: currentLowestPrice,
+                priceAlert: fav.priceAlert !== undefined ? fav.priceAlert : true,
+                image: productDetail.url || 'https://images.unsplash.com/photo-1551538827-9c037cb4f32a?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80',
+                category: productDetail.subCategoryDto?.subName || '주류',
+                priceHistory: [],
+                lastChecked: new Date(fav.createdAt).toLocaleString('ko-KR')
+              };
+            } catch (err) {
+              console.error(`상품 ${fav.productId} 정보 로드 실패:`, err);
+              return null;
+            }
+          })
+        );
+
+        const filteredItems = favoriteItemsWithDetails.filter(item => item !== null);
+        setFavoriteItems(filteredItems);
+
+        // 연관 상품 로드
+        if (filteredItems.length > 0) {
+          loadRecommendedProducts(filteredItems);
+        }
+      } catch (err) {
+        console.error('즐겨찾기 목록 로드 실패:', err);
+        setError(err.message);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadFavorites();
+  }, []);
+
+  // 연관 상품 로드
+  const loadRecommendedProducts = async (favorites) => {
+    try {
+      // 즐겨찾기한 상품들의 카테고리 수집
+      const categories = [...new Set(favorites.map(item => item.category))];
+
+      // 전체 상품 목록 가져오기 (api.get은 이미 파싱된 데이터를 반환)
+      const allProductsWithRating = await api.get('/product/api/list');
+
+      // 데이터 유효성 검사
+      if (!allProductsWithRating || !Array.isArray(allProductsWithRating)) {
+        console.error('API 응답이 배열이 아닙니다:', allProductsWithRating);
+        return;
+      }
+
+      // API 응답 구조: [{ product: {...}, avgRating: ... }]
+      // 즐겨찾기에 없고, 같은 카테고리인 상품들 필터링
+      const favoriteIds = favorites.map(item => item.id);
+      const recommended = allProductsWithRating
+        .filter(item => item && item.product) // product가 있는 항목만
+        .map(item => item.product) // product 객체 추출
+        .filter(product =>
+          product &&
+          !favoriteIds.includes(product.productId) &&
+          categories.includes(product.subCategoryDto?.subName)
+        )
+        .map(product => ({
+          id: product.productId,
+          name: product.productName,
+          price: product.priceDtoList?.[0]?.price || 0,
+          image: product.url,
+          category: product.subCategoryDto?.subName
+        }))
+        .slice(0, 12); // 최대 12개
+
+      setRecommendedProducts(recommended);
+    } catch (error) {
+      console.error('연관 상품 로드 실패:', error);
+    }
+  };
+
+  // 자동 슬라이드
+  useEffect(() => {
+    if (recommendedProducts.length > 4) {
+      autoSlideInterval.current = setInterval(() => {
+        setCurrentSlide(prev => (prev + 1) % Math.ceil(recommendedProducts.length / 4));
+      }, 4000); // 4초마다
+
+      return () => {
+        if (autoSlideInterval.current) {
+          clearInterval(autoSlideInterval.current);
+        }
+      };
+    }
+  }, [recommendedProducts.length]);
+
+  const nextSlide = () => {
+    setCurrentSlide(prev => (prev + 1) % Math.ceil(recommendedProducts.length / 4));
+    // 수동 조작 시 자동 슬라이드 재시작
+    if (autoSlideInterval.current) {
+      clearInterval(autoSlideInterval.current);
+      autoSlideInterval.current = setInterval(() => {
+        setCurrentSlide(prev => (prev + 1) % Math.ceil(recommendedProducts.length / 4));
+      }, 4000);
+    }
+  };
+
+  const prevSlide = () => {
+    setCurrentSlide(prev => prev === 0 ? Math.ceil(recommendedProducts.length / 4) - 1 : prev - 1);
+    // 수동 조작 시 자동 슬라이드 재시작
+    if (autoSlideInterval.current) {
+      clearInterval(autoSlideInterval.current);
+      autoSlideInterval.current = setInterval(() => {
+        setCurrentSlide(prev => (prev + 1) % Math.ceil(recommendedProducts.length / 4));
+      }, 4000);
+    }
+  };
+
+  const removeFavorite = async (productId) => {
+    const userId = getUserId();
+    if (!userId) return;
+
+    try {
+      await removeFavoriteApi(userId, productId);
+      setFavoriteItems(favoriteItems.filter(item => item.id !== productId));
+    } catch (err) {
+      console.error('즐겨찾기 삭제 실패:', err);
+      alert('즐겨찾기 삭제에 실패했습니다.');
+    }
+  };
+
+  const togglePriceAlert = async (productId) => {
+    const userId = getUserId();
+    if (!userId) return;
+
+    // 먼저 UI 업데이트
+    const updatedItem = favoriteItems.find(item => item.id === productId);
+    if (!updatedItem) return;
+
+    const newPriceAlertState = !updatedItem.priceAlert;
+
     setFavoriteItems(favoriteItems.map(item =>
-      item.id === id ? { ...item, priceAlert: !item.priceAlert } : item
+      item.id === productId ? { ...item, priceAlert: newPriceAlertState } : item
     ));
+
+    // 백엔드에 저장
+    try {
+      await togglePriceAlertApi(userId, productId, newPriceAlertState);
+      console.log('가격 알림 설정이 저장되었습니다.');
+    } catch (err) {
+      console.error('가격 알림 설정 저장 실패:', err);
+      // 실패 시 원래 상태로 되돌리기
+      setFavoriteItems(favoriteItems.map(item =>
+        item.id === productId ? { ...item, priceAlert: updatedItem.priceAlert } : item
+      ));
+      alert('알림 설정 저장에 실패했습니다.');
+    }
   };
 
   const getPriceChangePercentage = (current, original) => {
+    if (original === 0 || !original) return '0.0';
     return ((current - original) / original * 100).toFixed(1);
   };
 
-  const handleRefreshPrices = () => {
-    setIsRefreshing(true);
+  // 절약액 통계 계산 (어제 대비 현재 절약액)
+  const calculateSavingsStats = () => {
+    const savings = favoriteItems
+      .map(item => item.originalPrice - item.currentPrice)
+      .filter(saving => saving > 0); // 가격이 하락한 상품만
 
-    // 실제로는 API 호출하여 가격 정보를 새로고침
-    console.log('가격 정보를 새로고침하는 중...');
+    if (savings.length === 0) {
+      return { average: 0, max: 0, total: 0 };
+    }
 
-    // 임시로 1초 후 새로고침 완료
-    setTimeout(() => {
-      setIsRefreshing(false);
-      // 실제로는 새로운 가격 데이터로 state 업데이트
-      console.log('가격 정보 새로고침 완료!');
-    }, 1000);
+    const total = savings.reduce((sum, saving) => sum + saving, 0);
+    const average = Math.round(total / savings.length);
+    const max = Math.max(...savings);
+
+    return { average, max, total };
   };
 
-  useEffect(() => {
-    setIsLoading(true);
-  }, []);
+  const handleRefreshPrices = async () => {
+    setIsRefreshing(true);
+    const userId = getUserId();
+    if (!userId) return;
+
+    try {
+      const favorites = await fetchFavorites(userId);
+      const favoriteItemsWithDetails = await Promise.all(
+        favorites.map(async (fav) => {
+          try {
+            const productDetail = await fetchProduct(fav.productId);
+            const priceDtoList = productDetail.priceDtoList || [];
+            const currentLowestPrice = priceDtoList.length > 0
+              ? Math.min(...priceDtoList.map(p => (p.price || 0) + (p.deliveryFee || 0)))
+              : 0;
+
+            const yesterdayLowestPrice = productDetail.yesterdayLowestPrice !== null && productDetail.yesterdayLowestPrice !== undefined
+              ? productDetail.yesterdayLowestPrice
+              : currentLowestPrice;
+
+            return {
+              id: fav.productId,
+              favoriteId: fav.id,
+              name: productDetail.productName,
+              currentPrice: currentLowestPrice,
+              originalPrice: yesterdayLowestPrice,
+              lowestPrice: currentLowestPrice,
+              priceAlert: true,
+              image: productDetail.url || 'https://images.unsplash.com/photo-1551538827-9c037cb4f32a?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80',
+              category: productDetail.subCategoryDto?.subName || '주류',
+              priceHistory: [],
+              lastChecked: '방금 전'
+            };
+          } catch (err) {
+            return null;
+          }
+        })
+      );
+
+      setFavoriteItems(favoriteItemsWithDetails.filter(item => item !== null));
+    } catch (err) {
+      console.error('가격 새로고침 실패:', err);
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
 
   const handleLoadingComplete = () => {
     setIsLoading(false);
@@ -165,9 +382,9 @@ function Favorites() {
                             </p>
                           </div>
                           <div>
-                            <p className="text-sm text-gray-600">역대 최저가</p>
+                            <p className="text-sm text-gray-600">어제 최저가</p>
                             <p className="text-lg font-semibold text-green-600">
-                              {item.lowestPrice.toLocaleString()}원
+                              {item.originalPrice.toLocaleString()}원
                             </p>
                           </div>
                           <div>
@@ -242,11 +459,6 @@ function Favorites() {
                   <i className="fas fa-arrow-left mr-2"></i>
                   다른 주류 보기
                 </Link>
-
-                <button className="text-gray-600 hover:text-gray-800 font-semibold flex items-center">
-                  <i className="fas fa-download mr-2"></i>
-                  즐겨찾기 내보내기
-                </button>
               </div>
             </div>
           </div>
@@ -267,11 +479,7 @@ function Favorites() {
                   </p>
                   <div className="flex items-center space-x-2">
                     <i className="fas fa-mobile-alt text-blue-600"></i>
-                    <span className="text-sm text-blue-800">모바일 푸시 알림</span>
-                  </div>
-                  <div className="flex items-center space-x-2 mt-1">
-                    <i className="fas fa-envelope text-blue-600"></i>
-                    <span className="text-sm text-blue-800">이메일 알림</span>
+                    <span className="text-sm text-blue-800">SMS 알림</span>
                   </div>
                 </div>
 
@@ -283,11 +491,11 @@ function Favorites() {
                   <div className="space-y-2 text-sm text-green-700">
                     <div className="flex justify-between">
                       <span>평균 절약액</span>
-                      <span className="font-semibold">210원</span>
+                      <span className="font-semibold">{calculateSavingsStats().average.toLocaleString()}원</span>
                     </div>
                     <div className="flex justify-between">
                       <span>최대 절약액</span>
-                      <span className="font-semibold">310원</span>
+                      <span className="font-semibold">{calculateSavingsStats().max.toLocaleString()}원</span>
                     </div>
                     <div className="flex justify-between">
                       <span>추적 중인 상품</span>
@@ -323,38 +531,99 @@ function Favorites() {
           </div>
         </div>
 
-        {/* 추천 주류 섹션 */}
-        <div className="mt-16">
-          <h2 className="text-2xl font-bold text-gray-800 mb-8 text-center">이런 주류는 어떠세요?</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {[
-              { id: 4, name: '처음처럼', price: 1790, image: 'https://images.unsplash.com/photo-1569529465841-dfecdab7503b?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80' },
-              { id: 5, name: '카스 맥주', price: 2450, image: 'https://images.unsplash.com/photo-1608270586620-248524c67de9?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80' },
-              { id: 6, name: '칠레 산타리타 와인', price: 8900, image: 'https://images.unsplash.com/photo-1506377247377-2a5b3b417ebb?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80' },
-              { id: 7, name: '좋은데이 복분자주', price: 4900, image: 'https://images.unsplash.com/photo-1506377247377-2a5b3b417ebb?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80' }
-            ].map(product => (
-              <div key={product.id} className="bg-white rounded-lg shadow-sm overflow-hidden hover:shadow-lg transition-all duration-300">
-                <img
-                  src={product.image}
-                  alt={product.name}
-                  className="w-full h-48 object-cover"
-                />
-                <div className="p-4">
-                  <h3 className="text-lg font-semibold text-gray-800 mb-2">{product.name}</h3>
-                  <div className="flex items-center justify-between">
-                    <span className="text-lg font-bold text-primary">
-                      최저가 ₩{product.price.toLocaleString()}
-                    </span>
-                    <button className="bg-yellow-500 text-white px-4 py-2 rounded-lg hover:bg-yellow-600 transition-colors duration-300 flex items-center">
-                      <i className="fas fa-star mr-1"></i>
-                      즐겨찾기
-                    </button>
-                  </div>
+        {/* 추천 주류 섹션 - 캐러셀 */}
+        {recommendedProducts.length > 0 && (
+          <div className="mt-16">
+            <h2 className="text-2xl font-bold text-gray-800 mb-8 text-center">
+              <i className="fas fa-magic mr-2 text-primary"></i>
+              이런 주류는 어떠세요?
+            </h2>
+            <p className="text-center text-gray-600 mb-6">
+              즐겨찾기와 연관된 추천 상품입니다
+            </p>
+
+            <div className="relative">
+              {/* 왼쪽 화살표 */}
+              {recommendedProducts.length > 4 && (
+                <button
+                  onClick={prevSlide}
+                  className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-4 z-10 bg-white text-primary p-3 rounded-full shadow-lg hover:bg-primary hover:text-white transition-all duration-300"
+                >
+                  <i className="fas fa-chevron-left"></i>
+                </button>
+              )}
+
+              {/* 캐러셀 컨테이너 */}
+              <div className="overflow-hidden" ref={carouselRef}>
+                <div
+                  className="flex transition-transform duration-500 ease-in-out"
+                  style={{ transform: `translateX(-${currentSlide * 100}%)` }}
+                >
+                  {Array.from({ length: Math.ceil(recommendedProducts.length / 4) }).map((_, slideIndex) => (
+                    <div key={slideIndex} className="min-w-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 px-2">
+                      {recommendedProducts.slice(slideIndex * 4, slideIndex * 4 + 4).map(product => (
+                        <div key={product.id} className="bg-white rounded-lg shadow-sm overflow-hidden hover:shadow-lg transition-all duration-300">
+                          <Link to={`/product/${product.id}`}>
+                            <img
+                              src={product.image || 'https://images.unsplash.com/photo-1551538827-9c037cb4f32a?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80'}
+                              alt={product.name}
+                              className="w-full h-48 object-cover"
+                            />
+                          </Link>
+                          <div className="p-4">
+                            <div className="mb-2">
+                              <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
+                                {product.category}
+                              </span>
+                            </div>
+                            <h3 className="text-lg font-semibold text-gray-800 mb-2 truncate">{product.name}</h3>
+                            <div className="flex items-center justify-between">
+                              <span className="text-lg font-bold text-primary">
+                                {product.price.toLocaleString()}원
+                              </span>
+                              <Link
+                                to={`/product/${product.id}`}
+                                className="bg-yellow-500 text-white px-3 py-2 rounded-lg hover:bg-yellow-600 transition-colors duration-300 flex items-center text-sm"
+                              >
+                                <i className="fas fa-star mr-1"></i>
+                                보기
+                              </Link>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ))}
                 </div>
               </div>
-            ))}
+
+              {/* 오른쪽 화살표 */}
+              {recommendedProducts.length > 4 && (
+                <button
+                  onClick={nextSlide}
+                  className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-4 z-10 bg-white text-primary p-3 rounded-full shadow-lg hover:bg-primary hover:text-white transition-all duration-300"
+                >
+                  <i className="fas fa-chevron-right"></i>
+                </button>
+              )}
+
+              {/* 슬라이드 인디케이터 */}
+              {recommendedProducts.length > 4 && (
+                <div className="flex justify-center mt-6 space-x-2">
+                  {Array.from({ length: Math.ceil(recommendedProducts.length / 4) }).map((_, index) => (
+                    <button
+                      key={index}
+                      onClick={() => setCurrentSlide(index)}
+                      className={`w-3 h-3 rounded-full transition-all duration-300 ${
+                        currentSlide === index ? 'bg-primary w-8' : 'bg-gray-300'
+                      }`}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
     </>

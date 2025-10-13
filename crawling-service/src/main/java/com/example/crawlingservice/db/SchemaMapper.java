@@ -88,7 +88,7 @@ public interface SchemaMapper {
             product_shop_id INT AUTO_INCREMENT PRIMARY KEY,
             product_id INT NOT NULL,
             shop_id INT NOT NULL,
-            link VARCHAR(500),
+            link TEXT,
             is_available BOOLEAN,
             FOREIGN KEY (product_id) REFERENCES product(product_id)
                 ON DELETE CASCADE

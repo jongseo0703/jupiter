@@ -16,8 +16,7 @@ import java.util.List;
  * content - 상품 정보<br>
  * alcohol - 도수(파싱한 내용이 없는 경우 0)<br>
  * volume - 용량(ml 기준으로 계산, 파싱한 내용 없을 경우 0)<br>
- * lineup - 구성<br>
- * detailLink - 다나와 상품 상세 페이지<br>
+ * detailLink - 상품 상세 페이지<br>
  * prices - 가격 목록<br>
  * reviews - 리뷰 목록<br>
  */
@@ -47,12 +46,6 @@ public class ProductDTO {
     //용량
     @JsonProperty("volume")
     private int volume;
-    //포장상태
-    @JsonProperty("packaging")
-    private String packaging;
-    //구성
-    @JsonProperty("lineup")
-    private String lineup;
     //상세 링크
     @JsonProperty("detail_link")
     private String detailLink;

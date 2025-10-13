@@ -699,11 +699,16 @@ export const fetchMainProducts = async()=>{
 
 /**
  * 상품목록 페이지의 상품들의 목록 API
+ * @param {boolean} includeInactive - 비활성 상품 포함 여부 (관리자용)
  * @returns 전체 상품 정보
  */
-export const fetchProducts = async()=>{
+export const fetchProducts = async(includeInactive = false)=>{
+  const url = includeInactive
+    ? `${PRODUCT_API_URL}/list?includeInactive=true`
+    : `${PRODUCT_API_URL}/list`;
+
   const response = await fetch(
-    `${PRODUCT_API_URL}/list`,
+    url,
     {
       method:'GET',
       headers:{
@@ -726,7 +731,7 @@ export const fethCategory = async()=>{
       method:'GET',
       headers:{
         'Content-Type': 'application/json',
-         'Accept': 'application/json'
+        'Accept': 'application/json'
       }
   });
 
@@ -735,8 +740,8 @@ export const fethCategory = async()=>{
 }
 /**
  * 특정 상품 정보 조회 API
- * @param {int} productId 
- * @returns 상품 정보 및 전체 가격 목록 및 리뷰 목록 
+ * @param {int} productId
+ * @returns 상품 정보 및 전체 가격 목록 및 리뷰 목록
  */
 export const fetchProduct = async(productId)=>{
   const response = await fetch(
@@ -744,7 +749,7 @@ export const fetchProduct = async(productId)=>{
       method:'GET',
       headers:{
         'Content-Type': 'application/json',
-         'Accept': 'application/json'
+        'Accept': 'application/json'
       }
     });
     const data = await response.json();

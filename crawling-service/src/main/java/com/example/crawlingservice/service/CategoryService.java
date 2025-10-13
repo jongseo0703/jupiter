@@ -51,6 +51,14 @@ public class CategoryService {
             subName = "기타";
         }
 
+        // 상위 카테고리 접두사 제거
+        if (subName.contains("-")) {
+            String[] parts = subName.split("-");
+            if (parts.length == 2) {
+                subName = parts[1].trim();
+            }
+        }
+
         // subName이 '레드', '화이트', '로제'인 경우 와인으로 변경
         if ("레드".equals(subName)) {
             subName = "레드와인";
@@ -60,9 +68,9 @@ public class CategoryService {
             subName = "로제와인";
         }
 
-        // subName에 '담금주' 또는 '소주'가 포함되면 topName을 '소주'로 변경
+        // subName에 '담금주' 또는 '소주'가 포함되면 topName을 '전통주'로 변경
         if (subName.contains("담금주") || subName.contains("소주")) {
-            topName = "소주";
+            topName = "전통주";
         }
         //상위 카테고리 저장
         TopCategory topCategory = saveTopCategory(topName);

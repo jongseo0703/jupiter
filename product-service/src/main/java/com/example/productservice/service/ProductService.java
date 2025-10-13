@@ -1,22 +1,20 @@
 package com.example.productservice.service;
 
-import com.example.productservice.domain.Price;
-import com.example.productservice.domain.Product;
-import com.example.productservice.domain.SubCategory;
-import com.example.productservice.domain.TopCategory;
+import com.example.productservice.domain.*;
 import com.example.productservice.dto.*;
 import com.example.productservice.repository.*;
-import com.example.productservice.util.UrlShrinkRemover;
-import jakarta.persistence.criteria.CriteriaBuilder;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 @Service
 @Slf4j
@@ -27,6 +25,8 @@ public class ProductService {
     private final TopCategoryRepository topCategoryRepository;
     private final PriceRepository priceRepository;
     private final ReviewRepository reviewRepository;
+    private final PriceLogRepository priceLogRepository;
+    private final StockRepository stockRepository;
 
     /**
      * 메인 페이지의 상품 6개 정보 조회 메서드
@@ -59,12 +59,20 @@ public class ProductService {
 
     /**
      * 전체 상품목록을 반환하는 서비스
+     * @param includeInactive 비활성 상품 포함 여부 (관리자용)
      * @return 전체 상품 목록
      */
-    public  List<Map<String, Object>> getProductList(){
+    public  List<Map<String, Object>> getProductList(Boolean includeInactive){
         List<Map<String, Object>> result = new ArrayList<>();
         //상품 아이디 목록
-        List<Integer> productIdList = productRepository.findAvailableProductIdsByProductId();
+        List<Integer> productIdList;
+        if (includeInactive != null && includeInactive) {
+            // 관리자용: 모든 상품 조회 (비활성 포함)
+            productIdList = productRepository.findAllProductIds();
+        } else {
+            // 일반 사용자용: 활성 상품만 조회
+            productIdList = productRepository.findAvailableProductIdsByProductId();
+        }
 
         //해당 상품들의 아이디로 상품 정보 조회(대표 가격 3개까지)
         for(Integer productId : productIdList){
@@ -91,8 +99,8 @@ public class ProductService {
 
     /**
      * 상품 정보목록를 ProductDto에 파싱하는 메서드<br>
-     * 상품 아이디, 상품명, 도수, 이미지 URL, 상품설명, 하위 카테고리명, 상점명, 가격
-     * @param productList 상품 정보목록
+     * 상품 아이디, 상품명, 도수, 이미지 URL, 상품설명, 하위 카테고리명, 상점명, 가격, 배송비
+     * @param productList 상품 정보목록 (productId, productName, url, description, subName, price, shopName, alcoholPercentage, volume, deliveryFee)
      * @param shopDtoList 상점 정보 목록
      * @return productDTO
      */
@@ -110,7 +118,7 @@ public class ProductService {
         productDto.setVolume((Integer) item[8]);
         // 상품 이미지 URL
         String url = (String) item[2];
-        productDto.setUrl(UrlShrinkRemover.removeShrinkFromUrl(url));
+        productDto.setUrl(url);
         // 상품 설명
         productDto.setDescription((String) item[3]);
 
@@ -127,7 +135,7 @@ public class ProductService {
 
         productDto.setSubCategoryDto(subCategoryDto);
 
-        // 각 상점 별 가격 목록
+        // 각 상점 별 가격 목록 (배송비 포함한 총액으로 정렬됨)
         for (Object[] shop : productList) {
             ShopDto shopDto = new ShopDto();
             // 상점명 설정
@@ -136,6 +144,7 @@ public class ProductService {
             // 가격 설정
             PriceDto priceDto = new PriceDto();
             priceDto.setPrice((Integer) shop[5]);
+            priceDto.setDeliveryFee((Integer) shop[9]); // 배송비 추가
 
             // priceDto에 파싱
             priceDto.setShopDto(shopDto);
@@ -170,7 +179,7 @@ public class ProductService {
             productDto.setDescription(product.getDescription());
             //상품 이미지
             String url = product.getUrl();
-            productDto.setUrl(UrlShrinkRemover.removeShrinkFromUrl(url));
+            productDto.setUrl(url);
 
             //카테고리
             SubCategory subCategory = subCategoryRepository.findById(product.getSubCategory().getSubcategoryId()).orElse(null);
@@ -219,22 +228,19 @@ public class ProductService {
                 //리뷰아이디
                 reviewDto.setReviewId((Integer) review[0]);
                 //작성자
-                reviewDto.setWriter(review[1].toString());
+                if(review[1] != null){
+                    reviewDto.setWriter(review[1].toString());
+                }
                 //별점
                 reviewDto.setRating((Integer) review[2]);
                 //작성일
-                reviewDto.setReviewDate(review[3].toString());
-
-                //리뷰 제목과 내용
-                String title = review[4].toString();
-                String comment = review[5].toString();
-                if(!title.equals(comment)){
-                    reviewDto.setTitle(title);
-                    reviewDto.setContent(comment);
-                }else {
-                    //제목과 내용이 같을 경우 제목만 파싱
-                    reviewDto.setTitle(title);
+                if(review[3] != null){
+                    reviewDto.setReviewDate(review[3].toString());
                 }
+
+                //리뷰 제목 내용
+                String comment = review[5].toString();
+                reviewDto.setContent(comment);
 
                 //상점
                 ShopDto shopDto = new ShopDto();
@@ -247,9 +253,110 @@ public class ProductService {
             //특정 상품의 라뷰목록
             productDto.setReviewDtoList(reviewDtoList);
 
+            // 어제 최저가 계산
+            Integer yesterdayLowestPrice = calculateYesterdayLowestPrice(productId);
+            productDto.setYesterdayLowestPrice(yesterdayLowestPrice);
+
+            // 상품 활성화 여부 (stock.is_available)
+            Stock stock = stockRepository.findByProduct_ProductId(productId).orElse(null);
+            if (stock != null) {
+                productDto.setIsAvailable(stock.isAvailable());
+            } else {
+                productDto.setIsAvailable(true); // 기본값: 활성
+            }
+
             return productDto;
 
         }
         return null;
+    }
+
+    /**
+     * 어제 최저가를 계산하는 메서드
+     * @param productId 상품 ID
+     * @return 어제 최저가 (배송비 포함)
+     */
+    private Integer calculateYesterdayLowestPrice(Integer productId) {
+        LocalDate yesterday = LocalDate.now().minusDays(1);
+        LocalDateTime startOfYesterday = yesterday.atStartOfDay();
+        LocalDateTime endOfYesterday = yesterday.atTime(LocalTime.MAX);
+
+        List<PriceLog> yesterdayPriceLogs = priceLogRepository.findYesterdayPriceLogsByProductId(
+            productId, startOfYesterday, endOfYesterday
+        );
+
+        if (yesterdayPriceLogs.isEmpty()) {
+            return null;
+        }
+
+        // 어제의 각 가격에 배송비를 더해서 최저가 계산
+        return yesterdayPriceLogs.stream()
+            .mapToInt(priceLog -> {
+                int price = priceLog.getNewPrice();
+                int deliveryFee = priceLog.getPrice().getDeliveryFee();
+                return price + deliveryFee;
+            })
+            .min()
+            .orElse(0);
+    }
+
+    /**
+     * 상품 활성화/비활성화 상태 변경
+     * @param productId 상품 ID
+     * @param isAvailable 활성화 여부
+     */
+    @Transactional
+    public void updateProductAvailability(Integer productId, Boolean isAvailable) {
+        Stock stock = stockRepository.findByProduct_ProductId(productId)
+            .orElseThrow(() -> new RuntimeException("상품의 재고 정보를 찾을 수 없습니다."));
+
+        stock.setAvailable(isAvailable);
+        stockRepository.save(stock);
+    }
+
+    /**
+     * 상품 정보 수정
+     * @param productId 상품 ID
+     * @param updateData 수정할 데이터
+     */
+    @Transactional
+    public void updateProduct(Integer productId, Map<String, Object> updateData) {
+        Product product = productRepository.findById(productId)
+            .orElseThrow(() -> new RuntimeException("상품을 찾을 수 없습니다."));
+
+        if (updateData.containsKey("productName")) {
+            product.setProductName((String) updateData.get("productName"));
+        }
+        if (updateData.containsKey("brand")) {
+            product.setBrand((String) updateData.get("brand"));
+        }
+        if (updateData.containsKey("description")) {
+            product.setDescription((String) updateData.get("description"));
+        }
+        if (updateData.containsKey("alcoholPercentage")) {
+            product.setAlcoholPercentage(((Number) updateData.get("alcoholPercentage")).doubleValue());
+        }
+        if (updateData.containsKey("volume")) {
+            product.setVolume(((Number) updateData.get("volume")).intValue());
+        }
+        if (updateData.containsKey("url")) {
+            product.setUrl((String) updateData.get("url"));
+        }
+
+        productRepository.save(product);
+    }
+
+    /**
+     * 상품 삭제 (soft delete - 재고를 비활성화)
+     * @param productId 상품 ID
+     */
+    @Transactional
+    public void deleteProduct(Integer productId) {
+        // 실제 삭제 대신 재고를 비활성화
+        Stock stock = stockRepository.findByProduct_ProductId(productId)
+            .orElseThrow(() -> new RuntimeException("상품의 재고 정보를 찾을 수 없습니다."));
+
+        stock.setAvailable(false);
+        stockRepository.save(stock);
     }
 }

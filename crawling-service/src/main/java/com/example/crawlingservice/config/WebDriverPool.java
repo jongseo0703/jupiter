@@ -1,12 +1,12 @@
 package com.example.crawlingservice.config;
 
+import io.github.bonigarcia.wdm.WebDriverManager;
 import jakarta.annotation.PreDestroy;
 import lombok.extern.slf4j.Slf4j;
 import org.openqa.selenium.PageLoadStrategy;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.chrome.ChromeOptions;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.time.Duration;
@@ -23,7 +23,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 @Slf4j
 public class WebDriverPool {
     // 동시 실행 가능한 최대 크롤링 작업 수
-    private static final int POOL_SIZE = 6;
+    private static final int POOL_SIZE = 10;
 
     // WebDriver 보관 풀
     private final BlockingQueue<WebDriver> availableDrivers = new LinkedBlockingQueue<>(POOL_SIZE);
@@ -33,9 +33,6 @@ public class WebDriverPool {
 
     // 현재 생성된 드라이버 수
     private final AtomicInteger createdCount = new AtomicInteger(0);
-
-    @Value("${chrom.driver.path}")
-    private String WEB_DRIVER_PATH;
 
     /**
      * 풀에서 WebDriver 대여
@@ -48,7 +45,14 @@ public class WebDriverPool {
         WebDriver driver = availableDrivers.poll();
 
         if (driver != null) {
-            // 풀에 드라이버가 있으면 바로 반환
+            // 드라이버 상태 체크 (크래시 감지)
+            if (!isDriverHealthy(driver)) {
+                log.warn("크래시된 WebDriver 감지, 새로 생성");
+                safeQuitDriver(driver);
+                allDrivers.remove(driver);
+                createdCount.decrementAndGet();
+                driver = createNewDriver();
+            }
             log.debug("WebDriver 풀에서 대여 (사용 가능: {}개)", availableDrivers.size());
             return driver;
         }
@@ -82,10 +86,19 @@ public class WebDriverPool {
         if (driver == null) return;
 
         try {
+            // 드라이버 상태 체크 (크래시 확인)
+            if (!isDriverHealthy(driver)) {
+                log.warn("크래시된 WebDriver 반납 시도, 폐기");
+                safeQuitDriver(driver);
+                allDrivers.remove(driver);
+                createdCount.decrementAndGet();
+                return;
+            }
+
             // 세션 정리 (다음 사용을 위해)
             driver.manage().deleteAllCookies();
 
-            // 풀에 반납 (5초 타임아웃)
+            // 풀에 반납
             boolean returned = availableDrivers.offer(driver, 5, TimeUnit.SECONDS);
 
             if (returned) {
@@ -107,18 +120,34 @@ public class WebDriverPool {
     }
 
     /**
+     * WebDriver 상태 체크 (크래시 여부 확인)
+     */
+    private boolean isDriverHealthy(WebDriver driver) {
+        try {
+            // 간단한 명령으로 드라이버 응답 확인
+            driver.getTitle();
+            return true;
+        } catch (Exception e) {
+            // 크래시되거나 세션이 종료된 경우
+            log.debug("WebDriver 상태 체크 실패: {}", e.getMessage());
+            return false;
+        }
+    }
+
+    /**
      * 새 WebDriver 생성
      */
     private WebDriver createNewDriver() {
-        System.setProperty("webdriver.chrome.driver", WEB_DRIVER_PATH);
+        // WebDriverManager를 사용하여 자동으로 ChromeDriver 설정
+        WebDriverManager.chromedriver().setup();
 
         ChromeOptions options = createOptimizedChromeOptions();
         WebDriver driver = new ChromeDriver(options);
 
-        // 타임아웃 설정
-        driver.manage().timeouts().pageLoadTimeout(Duration.ofSeconds(30));
-        driver.manage().timeouts().implicitlyWait(Duration.ofSeconds(5));
-        driver.manage().timeouts().scriptTimeout(Duration.ofSeconds(15));
+        // 타임아웃 설정 (공격적 성능 최적화)
+        driver.manage().timeouts().pageLoadTimeout(Duration.ofSeconds(15));
+        driver.manage().timeouts().implicitlyWait(Duration.ofSeconds(2));
+        driver.manage().timeouts().scriptTimeout(Duration.ofSeconds(8));
 
         // 추적 목록에 추가
         allDrivers.put(driver, true);

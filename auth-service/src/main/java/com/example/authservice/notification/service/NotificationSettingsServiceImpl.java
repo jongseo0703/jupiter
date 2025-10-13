@@ -1,7 +1,9 @@
 package com.example.authservice.notification.service;
 
 import java.time.LocalTime;
+import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -33,7 +35,7 @@ public class NotificationSettingsServiceImpl implements NotificationSettingsServ
 
     // 설정이 없으면 기본값으로 응답 (DB에 저장하지 않음)
     return new NotificationSettingsResponse(
-        null, true, true, LocalTime.of(9, 0), LocalTime.of(21, 0), true, 5, 10);
+        null, true, LocalTime.of(9, 0), LocalTime.of(21, 0), true, 5, null);
   }
 
   @Override
@@ -52,13 +54,11 @@ public class NotificationSettingsServiceImpl implements NotificationSettingsServ
     NotificationSettings settings =
         NotificationSettings.builder()
             .user(user)
-            .emailNotifications(request.emailNotifications())
             .pushNotifications(request.pushNotifications())
             .notificationStartTime(request.notificationStartTime())
             .notificationEndTime(request.notificationEndTime())
             .weekendNotifications(request.weekendNotifications())
             .minDiscountPercent(request.minDiscountPercent())
-            .maxDailyNotifications(request.maxDailyNotifications())
             .build();
 
     NotificationSettings savedSettings = notificationSettingsRepository.save(settings);
@@ -77,13 +77,11 @@ public class NotificationSettingsServiceImpl implements NotificationSettingsServ
                     new BusinessException(
                         "알림 설정을 찾을 수 없습니다.", 404, "NOTIFICATION_SETTINGS_NOT_FOUND"));
 
-    settings.setEmailNotifications(request.emailNotifications());
     settings.setPushNotifications(request.pushNotifications());
     settings.setNotificationStartTime(request.notificationStartTime());
     settings.setNotificationEndTime(request.notificationEndTime());
     settings.setWeekendNotifications(request.weekendNotifications());
     settings.setMinDiscountPercent(request.minDiscountPercent());
-    settings.setMaxDailyNotifications(request.maxDailyNotifications());
 
     NotificationSettings updatedSettings = notificationSettingsRepository.save(settings);
     return NotificationSettingsResponse.from(updatedSettings);
@@ -96,5 +94,12 @@ public class NotificationSettingsServiceImpl implements NotificationSettingsServ
       throw new BusinessException("알림 설정을 찾을 수 없습니다.", 404, "NOTIFICATION_SETTINGS_NOT_FOUND");
     }
     notificationSettingsRepository.deleteByUserId(userId);
+  }
+
+  @Override
+  public List<NotificationSettingsResponse> getActiveSettings() {
+    return notificationSettingsRepository.findByPushNotificationsTrue().stream()
+        .map(NotificationSettingsResponse::from)
+        .collect(Collectors.toList());
   }
 }
