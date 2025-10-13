@@ -1,12 +1,12 @@
 package com.example.crawlingservice.config;
 
+import io.github.bonigarcia.wdm.WebDriverManager;
 import jakarta.annotation.PreDestroy;
 import lombok.extern.slf4j.Slf4j;
 import org.openqa.selenium.PageLoadStrategy;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.chrome.ChromeOptions;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.time.Duration;
@@ -33,9 +33,6 @@ public class WebDriverPool {
 
     // 현재 생성된 드라이버 수
     private final AtomicInteger createdCount = new AtomicInteger(0);
-
-    @Value("${chrom.driver.path}")
-    private String WEB_DRIVER_PATH;
 
     /**
      * 풀에서 WebDriver 대여
@@ -110,7 +107,8 @@ public class WebDriverPool {
      * 새 WebDriver 생성
      */
     private WebDriver createNewDriver() {
-        System.setProperty("webdriver.chrome.driver", WEB_DRIVER_PATH);
+        // WebDriverManager를 사용하여 자동으로 ChromeDriver 설정
+        WebDriverManager.chromedriver().setup();
 
         ChromeOptions options = createOptimizedChromeOptions();
         WebDriver driver = new ChromeDriver(options);
