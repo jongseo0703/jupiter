@@ -33,16 +33,28 @@ public class RecommendationController {
 
     /**
      * 종합 추천 (점수 기반 + 카테고리 기반)
-     * GET /api/recommendations/comprehensive/{userId}
+     * Gateway에서 JWT를 검증하고 X-User-Id 헤더로 userId 전달
+     * GET /api/recommendations/comprehensive
      */
-    @GetMapping("/comprehensive/{userId}")
+    @GetMapping("/comprehensive")
     public ResponseEntity<RecommendationResponseDTO> getComprehensiveRecommendations(
-            @PathVariable Long userId) {
-        Map<String, List<ProductDto>> recommendations = recommendationService.getComprehensiveRecommendations(userId);
-        return ResponseEntity.ok(new RecommendationResponseDTO(
-                recommendations,
-                "Comprehensive recommendations generated successfully"
-        ));
+            @RequestHeader(value = "X-User-Id", required = false) String userIdHeader) {
+
+        // X-User-Id 헤더가 없으면 401 응답
+        if (userIdHeader == null) {
+            return ResponseEntity.status(401).build();
+        }
+
+        try {
+            Long userId = Long.parseLong(userIdHeader);
+            Map<String, List<ProductDto>> recommendations = recommendationService.getComprehensiveRecommendations(userId);
+            return ResponseEntity.ok(new RecommendationResponseDTO(
+                    recommendations,
+                    "Comprehensive recommendations generated successfully"
+            ));
+        } catch (NumberFormatException e) {
+            return ResponseEntity.badRequest().build();
+        }
     }
 
     /**
