@@ -2,7 +2,6 @@ package com.example.crawlingservice.service.kihya;
 
 import com.example.crawlingservice.dto.ProductDTO;
 import com.example.crawlingservice.service.ShopCrawlingService;
-import com.example.crawlingservice.util.CrawlUtil;
 import com.example.crawlingservice.util.ProductNameParser;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -32,7 +31,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 @Slf4j
 @RequiredArgsConstructor
 public class KihyaListPageService implements ShopCrawlingService {
-    private final CrawlUtil crawlUtil;
     private final ProductNameParser productNameParser;
     private final KihyaDetailPageService kihyaDetailPageService;
     private final com.example.crawlingservice.config.WebDriverPool webDriverPool;
@@ -66,7 +64,7 @@ public class KihyaListPageService implements ShopCrawlingService {
 
         try {
             // 1단계: 모든 카테고리에서 기본 정보만 수집
-            log.info("키햐 1단계: 목록 페이지 크롤링 시작");
+            log.warn("키햐 1단계: 목록 페이지 크롤링 시작");
             driver.get(shopUrl);
 
             // 페이지 로딩 대기 (카테고리 메뉴가 나타날 때까지)
@@ -103,11 +101,15 @@ public class KihyaListPageService implements ShopCrawlingService {
                 }
             }
 
-            log.info("키햐 목록 페이지 크롤링 완료: 총 {}개 상품", allProducts.size());
+            log.warn("키햐 목록 페이지 크롤링 완료: 총 {}개 상품", allProducts.size());
 
-            // 2단계: 병렬 처리로 상세 페이지 크롤링
-            log.info("키햐 2단계: 상세 페이지 병렬 크롤링 시작 (10개 스레드)");
+            // 2단계: 병렬 처리로 상세 페이지 크롤링 (리뷰 제외)
+            log.warn("키햐 2단계: 상세 페이지 병렬 크롤링 시작 (10개 스레드)");
             enrichProductsInParallel(allProducts);
+
+            // 3단계: 리뷰만 별도로 병렬 크롤링
+            log.warn("키햐 3단계: 리뷰 병렬 크롤링 시작 (10개 스레드)");
+            enrichReviewsInParallel(allProducts);
 
             log.info("키햐에서 총 {}개의 상품을 크롤링했습니다.", allProducts.size());
 
@@ -146,11 +148,9 @@ public class KihyaListPageService implements ShopCrawlingService {
                         Element soldoutEl = item.selectFirst("span.soldout_img");
                         if (soldoutEl != null) {
                             consecutiveSoldOut++;
-                            log.debug("품절 상품 발견 (연속 {}개)", consecutiveSoldOut);
 
                             // 연속 3개 품절이면 카테고리 종료
                             if (consecutiveSoldOut >= maxConsecutiveSoldOut) {
-                                log.info("연속 {}개 품절 상품 발견, 카테고리 크롤링 종료", consecutiveSoldOut);
                                 return products;
                             }
                             continue; // 품절 상품은 스킵
@@ -164,13 +164,8 @@ public class KihyaListPageService implements ShopCrawlingService {
                             products.add(product);
                         }
                     } catch (Exception e) {
-                        log.warn("키햐 상품 파싱 중 오류: {}", e.getMessage());
+                        log.debug("키햐 상품 파싱 중 오류: {}", e.getMessage());
                     }
-                }
-
-                // 새로 추가된 상품이 없으면 로그 출력
-                if (products.size() == beforeSize) {
-                    log.debug("새로 추가된 상품 없음 (현재 {}개)", products.size());
                 }
 
                 // 더보기 버튼 찾기
@@ -317,6 +312,68 @@ public class KihyaListPageService implements ShopCrawlingService {
         }
 
         log.info("병렬 처리 완료: {}/{} 상품", counter.get(), totalProducts);
+    }
+
+    /**
+     * 리뷰만 병렬 처리로 크롤링
+     * @param products 크롤링할 상품 리스트
+     */
+    private void enrichReviewsInParallel(List<ProductDTO> products) {
+        int threadCount = 10; // 리뷰 전용 스레드 수
+        ExecutorService executor = Executors.newFixedThreadPool(threadCount);
+        List<Future<Void>> futures = new ArrayList<>();
+
+        // 스레드 안전한 카운터
+        AtomicInteger counter = new AtomicInteger(0);
+        int totalProducts = products.size();
+
+        for (ProductDTO product : products) {
+            Future<Void> future = executor.submit(() -> {
+                WebDriver driver = null;
+                try {
+                    // WebDriverPool에서 드라이버 대여
+                    driver = webDriverPool.borrowDriver();
+
+                    // 리뷰만 크롤링
+                    kihyaDetailPageService.parseReviewsOnly(driver, product);
+
+                    int current = counter.incrementAndGet();
+                    if (current % 50 == 0) {
+                        log.info("리뷰 크롤링 진행: {}/{}", current, totalProducts);
+                    }
+                } catch (Exception e) {
+                    log.debug("상품 '{}' 리뷰 크롤링 실패 (스킵)", product.getProductName());
+                } finally {
+                    if (driver != null) {
+                        // WebDriverPool에 드라이버 반납
+                        webDriverPool.returnDriver(driver);
+                    }
+                }
+                return null;
+            });
+            futures.add(future);
+        }
+
+        // 모든 작업 완료 대기
+        for (Future<Void> future : futures) {
+            try {
+                future.get();
+            } catch (Exception e) {
+                log.error("리뷰 병렬 작업 실행 중 오류: {}", e.getMessage());
+            }
+        }
+
+        executor.shutdown();
+        try {
+            if (!executor.awaitTermination(60, TimeUnit.MINUTES)) {
+                executor.shutdownNow();
+            }
+        } catch (InterruptedException e) {
+            executor.shutdownNow();
+            Thread.currentThread().interrupt();
+        }
+
+        log.info("리뷰 병렬 처리 완료: {}/{} 상품", counter.get(), totalProducts);
     }
 
     /**
