@@ -6,13 +6,11 @@ import authService from '../services/authService';
 const NotificationSettings = () => {
   const navigate = useNavigate();
   const [settings, setSettings] = useState({
-    emailNotifications: true,
     pushNotifications: true,
     notificationStartTime: '09:00',
     notificationEndTime: '21:00',
     weekendNotifications: true,
-    minDiscountPercent: 5,
-    maxDailyNotifications: 10
+    minDiscountPercent: 5
   });
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -30,13 +28,11 @@ const NotificationSettings = () => {
 
       const data = await notificationService.getSettings();
       setSettings({
-        emailNotifications: data.emailNotifications ?? true,
         pushNotifications: data.pushNotifications ?? true,
         notificationStartTime: data.notificationStartTime || '09:00',
         notificationEndTime: data.notificationEndTime || '21:00',
         weekendNotifications: data.weekendNotifications ?? true,
-        minDiscountPercent: data.minDiscountPercent ?? 5,
-        maxDailyNotifications: data.maxDailyNotifications ?? 10
+        minDiscountPercent: data.minDiscountPercent ?? 5
       });
     } catch (error) {
       console.error('Failed to load notification settings:', error);
@@ -126,30 +122,10 @@ const NotificationSettings = () => {
                 <div className="space-y-4">
                   <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
                     <div className="flex items-center space-x-3">
-                      <i className="fas fa-envelope text-blue-500"></i>
-                      <div>
-                        <h3 className="font-medium text-gray-900">이메일 알림</h3>
-                        <p className="text-sm text-gray-600">가격 변동 시 이메일로 알림을 받습니다</p>
-                      </div>
-                    </div>
-                    <label className="relative inline-flex items-center cursor-pointer">
-                      <input
-                        type="checkbox"
-                        name="emailNotifications"
-                        checked={settings.emailNotifications}
-                        onChange={handleInputChange}
-                        className="sr-only peer"
-                      />
-                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
-                    </label>
-                  </div>
-
-                  <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                    <div className="flex items-center space-x-3">
                       <i className="fas fa-mobile-alt text-green-500"></i>
                       <div>
-                        <h3 className="font-medium text-gray-900">모바일 푸시 알림</h3>
-                        <p className="text-sm text-gray-600">앱 또는 브라우저로 즉시 알림을 받습니다</p>
+                        <h3 className="font-medium text-gray-900">SMS 알림</h3>
+                        <p className="text-sm text-gray-600">가격 변동 시 휴대폰으로 문자 알림을 받습니다</p>
                       </div>
                     </div>
                     <label className="relative inline-flex items-center cursor-pointer">
@@ -230,7 +206,7 @@ const NotificationSettings = () => {
                 <div className="space-y-4">
                   <div>
                     <label htmlFor="minDiscountPercent" className="block text-sm font-medium text-gray-700 mb-2">
-                      최소 할인율 ({settings.minDiscountPercent}% 이상)
+                      최소 가격 하락 비율 ({settings.minDiscountPercent}% 이상)
                     </label>
                     <input
                       type="range"
@@ -238,6 +214,7 @@ const NotificationSettings = () => {
                       name="minDiscountPercent"
                       min="1"
                       max="50"
+                      step="1"
                       value={settings.minDiscountPercent}
                       onChange={handleInputChange}
                       className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider"
@@ -245,26 +222,6 @@ const NotificationSettings = () => {
                     <div className="flex justify-between text-xs text-gray-500 mt-1">
                       <span>1%</span>
                       <span>50%</span>
-                    </div>
-                  </div>
-
-                  <div>
-                    <label htmlFor="maxDailyNotifications" className="block text-sm font-medium text-gray-700 mb-2">
-                      일일 최대 알림 개수 ({settings.maxDailyNotifications}개)
-                    </label>
-                    <input
-                      type="range"
-                      id="maxDailyNotifications"
-                      name="maxDailyNotifications"
-                      min="1"
-                      max="50"
-                      value={settings.maxDailyNotifications}
-                      onChange={handleInputChange}
-                      className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider"
-                    />
-                    <div className="flex justify-between text-xs text-gray-500 mt-1">
-                      <span>1개</span>
-                      <span>50개</span>
                     </div>
                   </div>
                 </div>
@@ -302,14 +259,9 @@ const NotificationSettings = () => {
               </h3>
 
               <div className="space-y-4 text-sm">
-                <div className="p-3 bg-blue-50 rounded-lg">
-                  <h4 className="font-semibold text-blue-900 mb-1">이메일 알림</h4>
-                  <p className="text-blue-700">가격 변동 상세 정보와 함께 알림을 받습니다.</p>
-                </div>
-
                 <div className="p-3 bg-green-50 rounded-lg">
-                  <h4 className="font-semibold text-green-900 mb-1">푸시 알림</h4>
-                  <p className="text-green-700">즉시 알림으로 빠르게 확인할 수 있습니다.</p>
+                  <h4 className="font-semibold text-green-900 mb-1">SMS 알림</h4>
+                  <p className="text-green-700">휴대폰으로 즉시 문자 알림을 받습니다.</p>
                 </div>
 
                 <div className="p-3 bg-yellow-50 rounded-lg">
@@ -318,8 +270,8 @@ const NotificationSettings = () => {
                 </div>
 
                 <div className="p-3 bg-purple-50 rounded-lg">
-                  <h4 className="font-semibold text-purple-900 mb-1">할인율 조건</h4>
-                  <p className="text-purple-700">설정한 할인율 이상일 때만 알림을 받습니다.</p>
+                  <h4 className="font-semibold text-purple-900 mb-1">가격 하락 조건</h4>
+                  <p className="text-purple-700">어제 대비 설정한 비율 이상 가격이 하락할 때만 알림을 받습니다.</p>
                 </div>
               </div>
 
