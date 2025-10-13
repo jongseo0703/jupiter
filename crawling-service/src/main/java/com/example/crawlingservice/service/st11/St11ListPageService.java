@@ -49,7 +49,7 @@ public class St11ListPageService implements ShopCrawlingService {
 
         try {
             // 1단계: 모든 목록 페이지에서 기본 정보만 수집
-            log.info("11번가 1단계: 목록 페이지 크롤링 시작");
+            log.warn("11번가 1단계: 목록 페이지 크롤링 시작");
             driver.get(url);
 
             while (true) {
@@ -69,10 +69,10 @@ public class St11ListPageService implements ShopCrawlingService {
             log.info("11번가 목록 페이지 크롤링 완료: 총 {}개 상품", products.size());
 
             // 2단계: 병렬 처리로 상세 페이지 크롤링
-            log.info("11번가 2단계: 상세 페이지 병렬 크롤링 시작 (8개 스레드)");
+            log.warn("11번가 2단계: 상세 페이지 병렬 크롤링 시작 (8개 스레드)");
             enrichProductsInParallel(products);
 
-            log.info("11번가에서 총 {}개의 상품을 크롤링했습니다.", products.size());
+            log.warn("11번가에서 총 {}개의 상품을 크롤링했습니다.", products.size());
 
         } catch (Exception e) {
             log.error("11번가 상품 목록 크롤링 중 오류 발생: {}", e.getMessage());
@@ -417,10 +417,10 @@ public class St11ListPageService implements ShopCrawlingService {
 
                     int current = counter.incrementAndGet();
                     if (current % 100 == 0) {
-                        log.info("상세 페이지 크롤링 진행: {}/{}", current, totalProducts);
+                        log.warn("상세 페이지 크롤링 진행: {}/{}", current, totalProducts);
                     }
                 } catch (Exception e) {
-                    log.warn("상품 '{}' 상세 페이지 크롤링 실패: {}", product.getProductName(), e.getMessage());
+                    log.debug("상품 '{}' 상세 페이지 크롤링 실패: {}", product.getProductName(), e.getMessage());
                 } finally {
                     if (driver != null) {
                         // WebDriverPool에 드라이버 반납
@@ -451,7 +451,7 @@ public class St11ListPageService implements ShopCrawlingService {
             Thread.currentThread().interrupt();
         }
 
-        log.info("병렬 처리 완료: {}/{} 상품", counter.get(), totalProducts);
+        log.warn("병렬 처리 완료: {}/{} 상품", counter.get(), totalProducts);
     }
 
     /**

@@ -277,10 +277,10 @@ public class KihyaListPageService implements ShopCrawlingService {
 
                     int current = counter.incrementAndGet();
                     if (current % 50 == 0) {
-                        log.info("상세 페이지 크롤링 진행: {}/{}", current, totalProducts);
+                        log.warn("상세 페이지 크롤링 진행: {}/{}", current, totalProducts);
                     }
                 } catch (Exception e) {
-                    log.warn("상품 '{}' 상세 페이지 크롤링 실패: {}", product.getProductName(), e.getMessage());
+                    log.error("상품 '{}' 상세 페이지 크롤링 실패: {}", product.getProductName(), e.getMessage());
                 } finally {
                     if (driver != null) {
                         // WebDriverPool에 드라이버 반납
@@ -311,7 +311,7 @@ public class KihyaListPageService implements ShopCrawlingService {
             Thread.currentThread().interrupt();
         }
 
-        log.info("병렬 처리 완료: {}/{} 상품", counter.get(), totalProducts);
+        log.warn("병렬 처리 완료: {}/{} 상품", counter.get(), totalProducts);
     }
 
     /**
@@ -339,7 +339,7 @@ public class KihyaListPageService implements ShopCrawlingService {
 
                     int current = counter.incrementAndGet();
                     if (current % 50 == 0) {
-                        log.info("리뷰 크롤링 진행: {}/{}", current, totalProducts);
+                        log.warn("리뷰 크롤링 진행: {}/{}", current, totalProducts);
                     }
                 } catch (Exception e) {
                     log.debug("상품 '{}' 리뷰 크롤링 실패 (스킵)", product.getProductName());
@@ -373,7 +373,7 @@ public class KihyaListPageService implements ShopCrawlingService {
             Thread.currentThread().interrupt();
         }
 
-        log.info("리뷰 병렬 처리 완료: {}/{} 상품", counter.get(), totalProducts);
+        log.warn("리뷰 병렬 처리 완료: {}/{} 상품", counter.get(), totalProducts);
     }
 
     /**
