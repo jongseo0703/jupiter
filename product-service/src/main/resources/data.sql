@@ -5,6 +5,7 @@ TRUNCATE TABLE user_product_score;
 TRUNCATE TABLE review;
 TRUNCATE TABLE price;
 TRUNCATE TABLE product_shop;
+TRUNCATE TABLE stock;
 TRUNCATE TABLE product;
 TRUNCATE TABLE shop;
 TRUNCATE TABLE subcategory;
@@ -46,6 +47,24 @@ INSERT INTO product (product_id, product_name, description, brand, alcohol_perce
 (13, '국순당 생막걸리', '전통 방식 생막걸리', '국순당', 6.0, 750, 'https://example.com/kooksoondang.jpg', 7),
 (14, '백세주', '한국 대표 리큐르 막걸리', '국순당', 13.0, 375, 'https://example.com/baekseju.jpg', 7),
 (15, '백화수복', '프리미엄 전통주', '국순당', 13.0, 375, 'https://example.com/baekhwasubok.jpg', 8);
+
+-- 재고
+INSERT INTO stock (stock_id, is_available, product_id) VALUES
+(1, true, 1),
+(2, true, 2),
+(3, true, 3),
+(4, true, 4),
+(5, true, 5),
+(6, true, 6),
+(7, true, 7),
+(8, true, 8),
+(9, true, 9),
+(10, true, 10),
+(11, true, 11),
+(12, true, 12),
+(13, true, 13),
+(14, true, 14),
+(15, true, 15);
 
 -- 상점
 INSERT INTO shop (shop_id, shop_name, logo_icon) VALUES
