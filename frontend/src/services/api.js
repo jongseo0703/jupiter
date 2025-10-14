@@ -952,27 +952,133 @@ export const updatePrice = async (priceId, price) => {
 };
 
 /**
- * 사용자 맞춤 추천 상품 조회 API
+ * 개인 맞춤 추천 상품 조회 API (로그인 사용자용)
  * JWT 토큰을 통해 사용자 인증 (Gateway에서 검증 후 userId 전달)
  * @returns {Promise<object>} 추천 상품 목록 (userBased, categoryBased)
  */
-export const fetchRecommendedProducts = async() => {
+export const fetchPersonalizedRecommendations = async() => {
     const token = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken');
+
+    if (!token) {
+        throw new Error('로그인이 필요한 서비스입니다.');
+    }
 
     const headers = {
         'Content-Type': 'application/json',
-        'Accept': 'application/json'
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${token}`
     };
 
-    if (token) {
-        headers.Authorization = `Bearer ${token}`;
-    }
-
     const response = await fetch(
-        `${PRODUCT_API_URL}/recommendations/comprehensive`,{
+        `${PRODUCT_API_URL}/recommendations/personalized`,{
             method:'GET',
             headers
         });
+
+    if (!response.ok) {
+        if (response.status === 401) {
+            throw new Error('로그인이 필요한 서비스입니다.');
+        }
+        throw new Error('추천 상품을 불러오는데 실패했습니다.');
+    }
+
     const data = await response.json();
     return data;
-}
+};
+
+/**
+ * 인기 상품 조회 API (비로그인 사용자용)
+ * @returns {Promise<object>} 인기 상품 목록
+ */
+export const fetchPopularProducts = async() => {
+    const response = await fetch(
+        `${PRODUCT_API_URL}/recommendations`,{
+            method:'GET',
+            headers:{
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            }
+        });
+
+    if (!response.ok) {
+        throw new Error('인기 상품을 불러오는데 실패했습니다.');
+    }
+
+    const data = await response.json();
+    return data;
+};
+
+/**
+ * 설문 기반 추천 상품 조회 API (신규 회원용)
+ * @param {number|number[]} subcategoryIds - 사용자가 선호하는 서브카테고리 ID (단일 또는 배열)
+ * @returns {Promise<object>} 카테고리 기반 추천 상품 목록
+ */
+export const fetchSurveyBasedRecommendations = async(subcategoryIds) => {
+    // 배열로 변환
+    const idsArray = Array.isArray(subcategoryIds) ? subcategoryIds : [subcategoryIds];
+
+    // 쿼리 파라미터 생성: subcategoryIds=1,2,3
+    const queryString = `subcategoryIds=${idsArray.join(',')}`;
+
+    const response = await fetch(
+        `${PRODUCT_API_URL}/recommendations?${queryString}`,{
+            method:'GET',
+            headers:{
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            }
+        });
+
+    if (!response.ok) {
+        throw new Error('추천 상품을 불러오는데 실패했습니다.');
+    }
+
+    const data = await response.json();
+    return data;
+};
+
+/**
+ * 사용자 활동 기록 API (상품 클릭, 즐겨찾기 등)
+ * @param {number} productId - 상품 ID
+ * @param {string} activityType - 활동 타입 ('CLICK' 또는 'FAVORITE')
+ * @returns {Promise<object>} 성공 응답
+ */
+export const recordUserActivity = async(productId, activityType) => {
+    const token = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken');
+
+    if (!token) {
+        // 비로그인 사용자는 활동 기록하지 않음 (에러 던지지 않음)
+        console.log('비로그인 사용자 - 활동 기록 생략');
+        return;
+    }
+
+    const response = await fetch(
+        `${PRODUCT_API_URL}/recommendations/activities`,{
+            method:'POST',
+            headers:{
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
+                productId,
+                activityType
+            })
+        });
+
+    if (!response.ok) {
+        // 활동 기록 실패는 조용히 처리 (사용자 경험에 영향 없음)
+        console.error('활동 기록 실패:', response.status);
+        return;
+    }
+
+    const data = await response.json();
+    console.log('활동 기록 성공:', data);
+    return data;
+};
+
+/**
+ * 추천 상품 조회 (하위 호환성 유지)
+ * @deprecated fetchPersonalizedRecommendations, fetchPopularProducts, fetchSurveyBasedRecommendations 사용 권장
+ */
+export const fetchRecommendedProducts = fetchPersonalizedRecommendations;
