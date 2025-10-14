@@ -952,34 +952,31 @@ export const updatePrice = async (priceId, price) => {
 };
 
 /**
- * 사용자 맞춤 추천 상품 조회 API
+ * 개인 맞춤 추천 상품 조회 API (로그인 사용자용)
  * JWT 토큰을 통해 사용자 인증 (Gateway에서 검증 후 userId 전달)
  * @returns {Promise<object>} 추천 상품 목록 (userBased, categoryBased)
  */
-export const fetchRecommendedProducts = async() => {
+export const fetchPersonalizedRecommendations = async() => {
     const token = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken');
 
-    console.log('추천 상품 API 호출 - 토큰 존재:', !!token);
-    const headers = {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json'
-    };
-
-    if (token) {
-        headers.Authorization = `Bearer ${token}`;
+    if (!token) {
+        throw new Error('로그인이 필요한 서비스입니다.');
     }
 
+    const headers = {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${token}`
+    };
+
     const response = await fetch(
-        `${PRODUCT_API_URL}/recommendations/comprehensive`,{
+        `${PRODUCT_API_URL}/recommendations/personalized`,{
             method:'GET',
             headers
         });
 
-    console.log('응답 상태:', response.status);
-
     if (!response.ok) {
         if (response.status === 401) {
-            console.error('401 에러 발생 - 헤더:', headers);
             throw new Error('로그인이 필요한 서비스입니다.');
         }
         throw new Error('추천 상품을 불러오는데 실패했습니다.');
@@ -987,4 +984,55 @@ export const fetchRecommendedProducts = async() => {
 
     const data = await response.json();
     return data;
-}
+};
+
+/**
+ * 인기 상품 조회 API (비로그인 사용자용)
+ * @returns {Promise<object>} 인기 상품 목록
+ */
+export const fetchPopularProducts = async() => {
+    const response = await fetch(
+        `${PRODUCT_API_URL}/recommendations`,{
+            method:'GET',
+            headers:{
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            }
+        });
+
+    if (!response.ok) {
+        throw new Error('인기 상품을 불러오는데 실패했습니다.');
+    }
+
+    const data = await response.json();
+    return data;
+};
+
+/**
+ * 설문 기반 추천 상품 조회 API (신규 회원용)
+ * @param {number} subcategoryId - 사용자가 선호하는 서브카테고리 ID
+ * @returns {Promise<object>} 카테고리 기반 추천 상품 목록
+ */
+export const fetchSurveyBasedRecommendations = async(subcategoryId) => {
+    const response = await fetch(
+        `${PRODUCT_API_URL}/recommendations?subcategoryId=${subcategoryId}`,{
+            method:'GET',
+            headers:{
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            }
+        });
+
+    if (!response.ok) {
+        throw new Error('추천 상품을 불러오는데 실패했습니다.');
+    }
+
+    const data = await response.json();
+    return data;
+};
+
+/**
+ * 추천 상품 조회 (하위 호환성 유지)
+ * @deprecated fetchPersonalizedRecommendations, fetchPopularProducts, fetchSurveyBasedRecommendations 사용 권장
+ */
+export const fetchRecommendedProducts = fetchPersonalizedRecommendations;
