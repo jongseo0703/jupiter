@@ -224,19 +224,32 @@ public class RecommendationService {
     }
 
     /**
-     * 설문기반 추천 (신규회원용)
-     * 사용자가 선호하는 카테고리의 인기 상품 추천
+     * 설문기반 추천 (신규회원용 - 복수 카테고리 지원)
+     * 사용자가 선호하는 카테고리들의 상품 추천
+     * @param subcategoryIds - 쉼표로 구분된 서브카테고리 ID 목록 (예: "1,3,5")
+     * @param limit - 반환할 최대 상품 수
      */
-    public List<ProductDto> getSurveyBasedRecommendations(Integer subcategoryId, int limit) {
-        if (subcategoryId == null) {
+    public List<ProductDto> getSurveyBasedRecommendations(String subcategoryIds, int limit) {
+        if (subcategoryIds == null || subcategoryIds.isEmpty()) {
             // 서브카테고리가 없으면 전체 인기 상품 반환
             return getPopularProducts(limit);
         }
 
-        // 특정 서브카테고리의 인기 상품 반환
+        // 쉼표로 구분된 문자열을 Integer Set으로 변환
+        Set<Integer> categoryIdSet = Arrays.stream(subcategoryIds.split(","))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .map(Integer::parseInt)
+                .collect(Collectors.toSet());
+
+        if (categoryIdSet.isEmpty()) {
+            return getPopularProducts(limit);
+        }
+
+        // 선택된 서브카테고리들의 상품 반환
         return productRepository.findAll().stream()
                 .filter(product -> product.getSubCategory() != null
-                        && product.getSubCategory().getSubcategoryId() == subcategoryId)
+                        && categoryIdSet.contains(product.getSubCategory().getSubcategoryId()))
                 .limit(limit)
                 .map(this::convertToDto)
                 .collect(Collectors.toList());

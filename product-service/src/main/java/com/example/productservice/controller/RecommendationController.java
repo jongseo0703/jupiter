@@ -23,19 +23,20 @@ public class RecommendationController {
     private final RecommendationService recommendationService;
 
     /**
-     * 기본 추천 조회 (비로그인 사용자용 - 인기 상품)
+     * 기본 추천 조회 (비로그인 사용자용 - 인기 상품 또는 설문 기반 추천)
      * GET /api/recommendations
+     * @param subcategoryIds - 쉼표로 구분된 서브카테고리 ID 목록 (예: "1,3,5")
      */
     @GetMapping
     public ResponseEntity<RecommendationResponseDTO> getRecommendations(
-            @RequestParam(required = false) Integer subcategoryId) {
+            @RequestParam(required = false) String subcategoryIds) {
 
         List<ProductDto> products;
         String message;
 
-        if (subcategoryId != null) {
-            // 설문 기반 추천
-            products = recommendationService.getSurveyBasedRecommendations(subcategoryId, 10);
+        if (subcategoryIds != null && !subcategoryIds.isEmpty()) {
+            // 설문 기반 추천 (복수 카테고리)
+            products = recommendationService.getSurveyBasedRecommendations(subcategoryIds, 10);
             message = "Survey-based recommendations retrieved successfully";
         } else {
             // 인기 상품 추천

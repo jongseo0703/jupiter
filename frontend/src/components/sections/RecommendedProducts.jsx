@@ -20,38 +20,54 @@ const RecommendedProducts = () => {
     const loadRecommendations = async () => {
       try {
         const token = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken');
-        const preferredSubcategoryId = localStorage.getItem('preferredSubcategoryId'); // 설문 결과
+        const preferredSubcategoryIdsStr = localStorage.getItem('preferredSubcategoryIds'); // 설문 결과 (배열)
+        const preferredSubcategoryIds = preferredSubcategoryIdsStr ? JSON.parse(preferredSubcategoryIdsStr) : null;
 
-        // 1. 로그인 사용자: 개인 맞춤 추천
+        // 1. 로그인 사용자: 개인 맞춤 추천 시도
         if (token) {
           try {
             const data = await fetchPersonalizedRecommendations();
-            if (data.recommendations) {
+
+            // 추천 데이터가 있는지 확인 (빈 배열이 아닌지)
+            const hasUserBased = data.recommendations?.userBased?.length > 0;
+            const hasCategoryBased = data.recommendations?.categoryBased?.length > 0;
+
+            if (hasUserBased || hasCategoryBased) {
+              // 유효한 개인 맞춤 추천이 있음
               setRecommendations(data.recommendations);
               setRecommendationType('personalized');
+              console.log('개인 맞춤 추천 표시');
+              return;
+            } else {
+              console.log('개인 맞춤 추천 데이터 없음, 설문/인기 상품으로 전환');
+              // 추천 데이터가 비어있으면 아래 로직으로 fallback
             }
-            return;
           } catch (err) {
-            console.log('개인 맞춤 추천 실패, 인기 상품으로 전환:', err);
-            // 개인 맞춤 추천 실패 시 인기 상품으로 폴백
+            console.log('개인 맞춤 추천 실패:', err);
+            // 에러 발생 시 아래 로직으로 fallback
           }
         }
 
         // 2. 신규 회원 (설문 결과 있음): 설문 기반 추천
-        if (preferredSubcategoryId) {
-          const data = await fetchSurveyBasedRecommendations(preferredSubcategoryId);
+        if (preferredSubcategoryIds && preferredSubcategoryIds.length > 0) {
+          console.log('설문 기반 추천 호출 - subcategoryIds:', preferredSubcategoryIds);
+          const data = await fetchSurveyBasedRecommendations(preferredSubcategoryIds);
+          console.log('설문 기반 추천 응답:', data);
           if (data.recommendations) {
             setRecommendations(data.recommendations);
             setRecommendationType('survey');
+            console.log('설문 기반 추천 표시');
           }
           return;
         }
 
         // 3. 비로그인 또는 설문 없음: 인기 상품
+        console.log('인기 상품 호출');
         const data = await fetchPopularProducts();
         if (data.recommendations) {
           setRecommendations(data.recommendations);
           setRecommendationType('popular');
+          console.log('인기 상품 표시');
         }
       } catch (err) {
         setError(err.message);

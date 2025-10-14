@@ -1010,12 +1010,18 @@ export const fetchPopularProducts = async() => {
 
 /**
  * 설문 기반 추천 상품 조회 API (신규 회원용)
- * @param {number} subcategoryId - 사용자가 선호하는 서브카테고리 ID
+ * @param {number|number[]} subcategoryIds - 사용자가 선호하는 서브카테고리 ID (단일 또는 배열)
  * @returns {Promise<object>} 카테고리 기반 추천 상품 목록
  */
-export const fetchSurveyBasedRecommendations = async(subcategoryId) => {
+export const fetchSurveyBasedRecommendations = async(subcategoryIds) => {
+    // 배열로 변환
+    const idsArray = Array.isArray(subcategoryIds) ? subcategoryIds : [subcategoryIds];
+
+    // 쿼리 파라미터 생성: subcategoryIds=1,2,3
+    const queryString = `subcategoryIds=${idsArray.join(',')}`;
+
     const response = await fetch(
-        `${PRODUCT_API_URL}/recommendations?subcategoryId=${subcategoryId}`,{
+        `${PRODUCT_API_URL}/recommendations?${queryString}`,{
             method:'GET',
             headers:{
                 'Content-Type': 'application/json',
