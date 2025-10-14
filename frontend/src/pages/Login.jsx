@@ -60,10 +60,19 @@ const Login = () => {
       if (loginResponse.data.passwordChangeRequired) {
         navigate('/password-change-required');
       } else {
+        // 사용자 정보 가져와서 저장
+        try {
+          const userInfo = await authService.getCurrentUser();
+          const storage = formData.rememberMe ? localStorage : sessionStorage;
+          storage.setItem('userInfo', JSON.stringify(userInfo));
+        } catch (error) {
+          console.error('Failed to get user info:', error);
+        }
+
         // 설문 완료 여부 확인
         try {
           const surveyResponse = await api.get('/auth/api/v1/preferences/status');
-          const surveyCompleted = surveyResponse.data.data;
+          const surveyCompleted = surveyResponse.data;
 
           if (!surveyCompleted) {
             // 설문 미완료 시 설문조사 페이지로
@@ -114,10 +123,19 @@ const Login = () => {
       if (verifyResponse.data.passwordChangeRequired) {
         navigate('/password-change-required');
       } else {
+        // 사용자 정보 가져와서 저장
+        try {
+          const userInfo = await authService.getCurrentUser();
+          const storage = formData.rememberMe ? localStorage : sessionStorage;
+          storage.setItem('userInfo', JSON.stringify(userInfo));
+        } catch (error) {
+          console.error('Failed to get user info:', error);
+        }
+
         // 설문 완료 여부 확인
         try {
           const surveyResponse = await api.get('/auth/api/v1/preferences/status');
-          const surveyCompleted = surveyResponse.data.data;
+          const surveyCompleted = surveyResponse.data;
 
           if (!surveyCompleted) {
             // 설문 미완료 시 설문조사 페이지로
