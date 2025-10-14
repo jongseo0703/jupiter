@@ -1,23 +1,73 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { fetchRecommendedProducts } from '../../services/api';
+import {
+  fetchPersonalizedRecommendations,
+  fetchPopularProducts,
+  fetchSurveyBasedRecommendations
+} from '../../services/api';
 
 const RecommendedProducts = () => {
   const [recommendations, setRecommendations] = useState({
     userBased: [],
-    categoryBased: []
+    categoryBased: [],
+    products: [] // 인기상품 또는 설문기반 상품용
   });
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [recommendationType, setRecommendationType] = useState('popular'); // 'personalized', 'popular', 'survey'
 
   useEffect(() => {
     const loadRecommendations = async () => {
       try {
-        // JWT 토큰을 통해 사용자 인증 (Gateway에서 검증 후 userId 전달)
-        const data = await fetchRecommendedProducts();
+        const token = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken');
+        const preferredSubcategoryIdsStr = localStorage.getItem('preferredSubcategoryIds'); // 설문 결과 (배열)
+        const preferredSubcategoryIds = preferredSubcategoryIdsStr ? JSON.parse(preferredSubcategoryIdsStr) : null;
 
+        // 1. 로그인 사용자: 개인 맞춤 추천 시도
+        if (token) {
+          try {
+            const data = await fetchPersonalizedRecommendations();
+
+            // 추천 데이터가 있는지 확인 (빈 배열이 아닌지)
+            const hasUserBased = data.recommendations?.userBased?.length > 0;
+            const hasCategoryBased = data.recommendations?.categoryBased?.length > 0;
+
+            if (hasUserBased || hasCategoryBased) {
+              // 유효한 개인 맞춤 추천이 있음
+              setRecommendations(data.recommendations);
+              setRecommendationType('personalized');
+              console.log('개인 맞춤 추천 표시');
+              return;
+            } else {
+              console.log('개인 맞춤 추천 데이터 없음, 설문/인기 상품으로 전환');
+              // 추천 데이터가 비어있으면 아래 로직으로 fallback
+            }
+          } catch (err) {
+            console.log('개인 맞춤 추천 실패:', err);
+            // 에러 발생 시 아래 로직으로 fallback
+          }
+        }
+
+        // 2. 신규 회원 (설문 결과 있음): 설문 기반 추천
+        if (preferredSubcategoryIds && preferredSubcategoryIds.length > 0) {
+          console.log('설문 기반 추천 호출 - subcategoryIds:', preferredSubcategoryIds);
+          const data = await fetchSurveyBasedRecommendations(preferredSubcategoryIds);
+          console.log('설문 기반 추천 응답:', data);
+          if (data.recommendations) {
+            setRecommendations(data.recommendations);
+            setRecommendationType('survey');
+            console.log('설문 기반 추천 표시');
+          }
+          return;
+        }
+
+        // 3. 비로그인 또는 설문 없음: 인기 상품
+        console.log('인기 상품 호출');
+        const data = await fetchPopularProducts();
         if (data.recommendations) {
           setRecommendations(data.recommendations);
+          setRecommendationType('popular');
+          console.log('인기 상품 표시');
         }
       } catch (err) {
         setError(err.message);
@@ -33,8 +83,11 @@ const RecommendedProducts = () => {
   // 추천 상품이 없으면 렌더링하지 않음
   if (loading) return null;
   if (error) return null;
-  if (recommendations.userBased.length === 0 &&
-      recommendations.categoryBased.length === 0) {
+
+  const hasPersonalizedRecommendations = recommendations.userBased?.length > 0 || recommendations.categoryBased?.length > 0;
+  const hasBasicRecommendations = recommendations.products?.length > 0;
+
+  if (!hasPersonalizedRecommendations && !hasBasicRecommendations) {
     return null;
   }
 
@@ -86,6 +139,30 @@ const RecommendedProducts = () => {
     );
   };
 
+  // 헤더 문구를 추천 타입에 따라 변경
+  const getHeaderText = () => {
+    switch (recommendationType) {
+      case 'personalized':
+        return {
+          title: '당신을 위한 맞춤 추천',
+          subtitle: '취향 분석을 통해 선별된 추천 상품을 만나보세요'
+        };
+      case 'survey':
+        return {
+          title: '당신이 선호하는 카테고리의 추천 상품',
+          subtitle: '선택하신 카테고리의 인기 상품을 확인해보세요'
+        };
+      case 'popular':
+      default:
+        return {
+          title: '인기 상품',
+          subtitle: '많은 분들이 선택한 인기 상품을 만나보세요'
+        };
+    }
+  };
+
+  const headerText = getHeaderText();
+
   return (
     <section className="py-16 bg-white">
       <div className="container mx-auto px-4">
@@ -93,25 +170,38 @@ const RecommendedProducts = () => {
         <div className="text-center mb-12">
           <h2 className="text-3xl lg:text-4xl font-bold text-gray-800 mb-4">
             <i className="fas fa-magic text-primary mr-2"></i>
-            당신을 위한 맞춤 추천
+            {headerText.title}
           </h2>
           <p className="text-gray-600 max-w-2xl mx-auto">
-            취향 분석을 통해 선별된 추천 상품을 만나보세요
+            {headerText.subtitle}
           </p>
         </div>
 
-        {/* Recommendations */}
-        <RecommendationSection
-          title="당신이 좋아할 만한 상품"
-          products={recommendations.userBased}
-          icon="fas fa-star"
-        />
+        {/* Personalized Recommendations */}
+        {recommendationType === 'personalized' && (
+          <>
+            <RecommendationSection
+              title="당신이 좋아할 만한 상품"
+              products={recommendations.userBased}
+              icon="fas fa-star"
+            />
 
-        <RecommendationSection
-          title="비슷한 카테고리 추천"
-          products={recommendations.categoryBased}
-          icon="fas fa-tags"
-        />
+            <RecommendationSection
+              title="비슷한 카테고리 추천"
+              products={recommendations.categoryBased}
+              icon="fas fa-tags"
+            />
+          </>
+        )}
+
+        {/* Popular or Survey-based Recommendations */}
+        {(recommendationType === 'popular' || recommendationType === 'survey') && (
+          <RecommendationSection
+            title={recommendationType === 'survey' ? '추천 상품' : '인기 상품'}
+            products={recommendations.products}
+            icon="fas fa-fire"
+          />
+        )}
       </div>
     </section>
   );

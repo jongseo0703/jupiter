@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import AlcoholPreloader from '../components/AlcoholPreloader';
 import { fetchFavorites, removeFavorite as removeFavoriteApi, fetchProduct, togglePriceAlert as togglePriceAlertApi } from '../services/api';
+import favoriteService from '../services/favoriteService';
 import api from '../services/api';
 
 function Favorites() {
@@ -69,7 +70,13 @@ function Favorites() {
                 lastChecked: new Date(fav.createdAt).toLocaleString('ko-KR')
               };
             } catch (err) {
-              console.error(`상품 ${fav.productId} 정보 로드 실패:`, err);
+              console.warn(`상품 ${fav.productId}는 더 이상 존재하지 않습니다. 즐겨찾기에서 자동으로 제외됩니다.`);
+              // 존재하지 않는 상품은 즐겨찾기에서 자동 삭제
+              try {
+                await removeFavoriteApi(userId, fav.productId);
+              } catch (removeErr) {
+                console.error('즐겨찾기 삭제 실패:', removeErr);
+              }
               return null;
             }
           })
@@ -178,6 +185,9 @@ function Favorites() {
     try {
       await removeFavoriteApi(userId, productId);
       setFavoriteItems(favoriteItems.filter(item => item.id !== productId));
+
+      // 즐겨찾기 변경 알림
+      favoriteService.notifyChange();
     } catch (err) {
       console.error('즐겨찾기 삭제 실패:', err);
       alert('즐겨찾기 삭제에 실패했습니다.');

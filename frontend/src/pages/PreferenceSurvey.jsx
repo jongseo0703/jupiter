@@ -13,14 +13,14 @@ const PreferenceSurvey = () => {
   const [loading, setLoading] = useState(false);
 
   const categories = [
-    { value: '소주', label: '소주', icon: '🍶' },
-    { value: '맥주', label: '맥주', icon: '🍺' },
-    { value: '와인', label: '와인', icon: '🍷' },
-    { value: '위스키', label: '위스키', icon: '🥃' },
-    { value: '보드카', label: '보드카', icon: '🍸' },
-    { value: '사케', label: '사케', icon: '🍶' },
-    { value: '막걸리', label: '막걸리', icon: '🍶' },
-    { value: '기타', label: '기타', icon: '🥂' }
+    { value: '위스키', label: '위스키', icon: '🥃', subcategoryId: 1 }, // 스카치 위스키
+    { value: '와인', label: '와인', icon: '🍷', subcategoryId: 3 }, // 레드 와인
+    { value: '맥주', label: '맥주', icon: '🍺', subcategoryId: 5 }, // 라거
+    { value: '막걸리', label: '막걸리', icon: '🍶', subcategoryId: 7 }, // 막걸리
+    { value: '전통주', label: '전통주', icon: '🍶', subcategoryId: 8 }, // 청주
+    { value: 'IPA', label: 'IPA', icon: '🍺', subcategoryId: 6 }, // IPA
+    { value: '버번', label: '버번', icon: '🥃', subcategoryId: 2 }, // 버번 위스키
+    { value: '화이트와인', label: '화이트와인', icon: '🍷', subcategoryId: 4 } // 화이트 와인
   ];
 
   const priceRanges = [
@@ -66,6 +66,20 @@ const PreferenceSurvey = () => {
     try {
       setLoading(true);
       await api.post('/auth/api/v1/preferences', formData);
+
+      // 선택한 모든 카테고리의 subcategoryId를 배열로 localStorage에 저장
+      const selectedSubcategoryIds = formData.preferredCategories
+        .map(categoryValue => {
+          const categoryData = categories.find(cat => cat.value === categoryValue);
+          return categoryData ? categoryData.subcategoryId : null;
+        })
+        .filter(id => id !== null);
+
+      if (selectedSubcategoryIds.length > 0) {
+        localStorage.setItem('preferredSubcategoryIds', JSON.stringify(selectedSubcategoryIds));
+        console.log('설문 기반 추천용 subcategoryIds 저장:', selectedSubcategoryIds);
+      }
+
       navigate('/');
     } catch (err) {
       setError(err.response?.data?.message || '설문 저장에 실패했습니다');

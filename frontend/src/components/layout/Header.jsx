@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import authService from '../../services/authService';
+import favoriteService from '../../services/favoriteService';
 import { fetchFavorites } from '../../services/api';
+import api from '../../services/api';
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -14,7 +16,7 @@ const Header = () => {
   const location = useLocation();
 
   useEffect(() => {
-    const handleOAuthCallback = () => {
+    const handleOAuthCallback = async () => {
       const urlParams = new URLSearchParams(location.search);
       const accessToken = urlParams.get('access_token');
       const refreshToken = urlParams.get('refresh_token');
@@ -28,7 +30,20 @@ const Header = () => {
         window.history.replaceState({}, document.title, newUrl);
 
         // 사용자 정보 로드
-        loadUserInfo();
+        await loadUserInfo();
+
+        // 설문 완료 여부 확인
+        try {
+          const surveyResponse = await api.get('/auth/api/v1/preferences/status');
+          const surveyCompleted = surveyResponse.data;
+
+          if (!surveyCompleted) {
+            // 설문 미완료 시 설문조사 페이지로
+            navigate('/preference-survey');
+          }
+        } catch (error) {
+          console.error('Failed to check survey status:', error);
+        }
       }
     };
 
@@ -69,7 +84,23 @@ const Header = () => {
       loadUserInfo();
     };
 
+    // 즐겨찾기 변경 이벤트 리스너 등록
+    const handleFavoriteChange = () => {
+      // 로그인 상태 확인 후 즐겨찾기 로드
+      if (authService.isLoggedIn()) {
+        const userInfo = localStorage.getItem('userInfo') || sessionStorage.getItem('userInfo');
+        if (userInfo) {
+          const parsed = JSON.parse(userInfo);
+          const userId = parsed.id || parsed.userId;
+          if (userId) {
+            loadFavoriteCount(userId);
+          }
+        }
+      }
+    };
+
     authService.addListener(handleProfileUpdate);
+    favoriteService.addListener(handleFavoriteChange);
 
     handleOAuthCallback();
     loadUserInfo();
@@ -77,6 +108,7 @@ const Header = () => {
     // 클린업 함수로 이벤트 리스너 제거
     return () => {
       authService.removeListener(handleProfileUpdate);
+      favoriteService.removeListener(handleFavoriteChange);
     };
   }, [location]);
 

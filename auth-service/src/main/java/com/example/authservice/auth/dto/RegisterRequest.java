@@ -6,9 +6,9 @@ import jakarta.validation.constraints.Size;
 
 /** 회원가입 요청을 처리하는 RegisterRequest */
 public record RegisterRequest(
-    // username은 3자에서 50자까지 요구됨.
+    // username은 2자에서 50자까지 요구됨.
     @NotBlank(message = "Username is required")
-        @Size(min = 3, max = 50, message = "Username must be between 3 and 50 characters")
+        @Size(min = 2, max = 50, message = "Username must be between 2 and 50 characters")
         String username,
     // email이 비어있으면 메시지
     @Email(message = "Email should be valid") @NotBlank(message = "Email is required") String email,
