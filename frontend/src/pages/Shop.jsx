@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import {fetchProducts, fethCategory, fetchFavorites, addFavorite, removeFavorite} from '../services/api';
+import favoriteService from '../services/favoriteService';
 import AlcoholPreloader from '../components/AlcoholPreloader';
 
 function Shop() {
@@ -258,6 +259,9 @@ function Shop() {
         await addFavorite(userId, productId);
         setFavoriteProductIds(prev => new Set([...prev, productId]));
       }
+
+      // 즐겨찾기 변경 알림
+      favoriteService.notifyChange();
     } catch (err) {
       console.error('즐겨찾기 토글 실패:', err);
       alert('즐겨찾기 처리 중 오류가 발생했습니다.');
