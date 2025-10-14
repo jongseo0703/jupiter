@@ -211,4 +211,34 @@ public class RecommendationService {
     public List<UserProductScore> getUserAllScores(Long userId) {
         return userProductScoreRepository.findTopProductsByUserId(userId);
     }
+
+    /**
+     * 인기상품 추천 (비로그인 사용자용)
+     * 전체 상품 중 상위 N개 반환 (productId 순)
+     */
+    public List<ProductDto> getPopularProducts(int limit) {
+        return productRepository.findAll().stream()
+                .limit(limit)
+                .map(this::convertToDto)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * 설문기반 추천 (신규회원용)
+     * 사용자가 선호하는 카테고리의 인기 상품 추천
+     */
+    public List<ProductDto> getSurveyBasedRecommendations(Integer subcategoryId, int limit) {
+        if (subcategoryId == null) {
+            // 서브카테고리가 없으면 전체 인기 상품 반환
+            return getPopularProducts(limit);
+        }
+
+        // 특정 서브카테고리의 인기 상품 반환
+        return productRepository.findAll().stream()
+                .filter(product -> product.getSubCategory() != null
+                        && product.getSubCategory().getSubcategoryId() == subcategoryId)
+                .limit(limit)
+                .map(this::convertToDto)
+                .collect(Collectors.toList());
+    }
 }
