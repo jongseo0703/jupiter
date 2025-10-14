@@ -28,7 +28,23 @@ public interface ProductShopMapper {
      * @param shopId 상점 아이디
      * @return 상품_상점 정보 반환
      */
-    @Select("select *from product_shop where product_id = #{productId} and shop_id = #{shopId}")
+    @Select("SELECT ps.product_shop_id, ps.link, ps.is_available, ps.product_id, ps.shop_id, " +
+            "p.product_id AS p_product_id, p.product_name, p.brand, p.url, p.description, p.alcohol_percentage, p.volume, p.subcategory_id " +
+            "FROM product_shop ps " +
+            "INNER JOIN product p ON ps.product_id = p.product_id " +
+            "WHERE ps.product_id = #{productId} AND ps.shop_id = #{shopId}")
+    @Results({
+            @Result(property = "productShopId", column = "product_shop_id"),
+            @Result(property = "link", column = "link"),
+            @Result(property = "available", column = "is_available"),
+            @Result(property = "product.productId", column = "p_product_id"),
+            @Result(property = "product.productName", column = "product_name"),
+            @Result(property = "product.brand", column = "brand"),
+            @Result(property = "product.url", column = "url"),
+            @Result(property = "product.description", column = "description"),
+            @Result(property = "product.alcoholPercentage", column = "alcohol_percentage"),
+            @Result(property = "product.volume", column = "volume")
+    })
     ProductShop selectByProductId(int productId, int shopId);
 
     /**

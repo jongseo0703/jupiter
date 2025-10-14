@@ -28,4 +28,17 @@ public interface ReviewRepository extends JpaRepository<Review,Integer> {
             "inner join Shop s on s.shopId =ps.shop.shopId " +
             "inner join Product p on p.productId =ps.product.productId where p.productId = :productId")
     List<Object[]> findReviewByProductId(Integer productId);
+
+    /**
+     * 특정 상품 리뷰 내용 조회
+     * @param productId 상품 아이디
+     * @return 리뷰 내용 목록
+     */
+    @Query("""
+    SELECT r.comment
+    FROM Review r
+    JOIN r.productShop ps
+    JOIN ps.product p
+    WHERE p.productId = :productId""")
+    List<String>findCommentsByProductId(Integer productId);
 }
