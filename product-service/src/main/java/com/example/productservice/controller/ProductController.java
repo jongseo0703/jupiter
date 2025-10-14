@@ -1,8 +1,11 @@
 package com.example.productservice.controller;
 
+
+import com.example.productservice.dto.BulkProductDTO;
 import com.example.productservice.dto.ProductDto;
 import com.example.productservice.dto.SubCategoryDto;
 import com.example.productservice.dto.TopCategoryDto;
+import com.example.productservice.service.BulkProductService;
 import com.example.productservice.service.CategoryService;
 import com.example.productservice.service.ProductService;
 import com.example.productservice.service.PriceUpdateService;
@@ -20,6 +23,7 @@ public class ProductController {
     private final ProductService productService;
     private final CategoryService categoryService;
     private final PriceUpdateService priceUpdateService;
+    private final BulkProductService bulkProductService;
 
     /**
      * 메인 페이지 상품정보 조회
@@ -140,6 +144,25 @@ public class ProductController {
         try {
             priceUpdateService.checkAndSendPriceAlert(productId);
             return ResponseEntity.ok().body(Map.of("message", "가격 알림 체크 완료"));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    /**
+     * 크롤링 데이터 벌크 생성 (크롤링 서비스 전용)
+     * @param products 상품 목록
+     * @return 저장된 상품 수
+     */
+    @PostMapping("/products/bulk")
+    public ResponseEntity<?> createProductsBulk(@RequestBody List<BulkProductDTO> products) {
+        try {
+            int savedCount = bulkProductService.saveBulkProducts(products);
+            return ResponseEntity.ok().body(Map.of(
+                "message", "벌크 저장 완료",
+                "savedCount", savedCount,
+                "totalCount", products.size()
+            ));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
