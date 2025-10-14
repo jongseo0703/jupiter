@@ -3,6 +3,7 @@ package com.example.crawlingservice.controller;
 import com.example.crawlingservice.scheduler.DailyScheduler;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -21,7 +22,9 @@ import java.util.List;
 public class CrawlingController {
 
     private final DailyScheduler dailyScheduler;
-    private static final String BACKUP_DIR = "crawling-backup";
+
+    @Value("${crawling.backup.dir:crawling-backup}")
+    private String backupDir;
 
     /**
      * 백업 파일 목록 조회
@@ -30,12 +33,12 @@ public class CrawlingController {
     @GetMapping("/backups")
     public ResponseEntity<List<String>> listBackupFiles() {
         try {
-            File backupDir = new File(BACKUP_DIR);
-            if (!backupDir.exists() || !backupDir.isDirectory()) {
+            File backupDirectory = new File(backupDir);
+            if (!backupDirectory.exists() || !backupDirectory.isDirectory()) {
                 return ResponseEntity.ok(new ArrayList<>());
             }
 
-            File[] files = backupDir.listFiles((dir, name) -> name.endsWith(".json"));
+            File[] files = backupDirectory.listFiles((dir, name) -> name.endsWith(".json"));
             List<String> fileNames = files != null
                 ? Arrays.stream(files).map(File::getName).sorted().toList()
                 : new ArrayList<>();
@@ -55,7 +58,7 @@ public class CrawlingController {
     @PostMapping("/restore")
     public ResponseEntity<String> restoreFromBackup(@RequestParam String fileName) {
         try {
-            String filePath = BACKUP_DIR + File.separator + fileName;
+            String filePath = backupDir + File.separator + fileName;
             log.info("백업 파일 복구 요청: {}", filePath);
 
             dailyScheduler.loadAndSaveFromFile(filePath);
@@ -75,12 +78,12 @@ public class CrawlingController {
     @PostMapping("/restore-latest")
     public ResponseEntity<String> restoreLatest() {
         try {
-            File backupDir = new File(BACKUP_DIR);
-            if (!backupDir.exists() || !backupDir.isDirectory()) {
+            File backupDirectory = new File(backupDir);
+            if (!backupDirectory.exists() || !backupDirectory.isDirectory()) {
                 return ResponseEntity.badRequest().body("백업 디렉토리가 없습니다.");
             }
 
-            File[] files = backupDir.listFiles((dir, name) -> name.endsWith(".json"));
+            File[] files = backupDirectory.listFiles((dir, name) -> name.endsWith(".json"));
             if (files == null || files.length == 0) {
                 return ResponseEntity.badRequest().body("백업 파일이 없습니다.");
             }
