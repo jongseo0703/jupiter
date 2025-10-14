@@ -38,3 +38,7 @@ out/
 
 #무시되는 설정파일
 application-dev.properties
+
+#크롤링 백업 파일
+crawling-backup/
+*.json
