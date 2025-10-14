@@ -17,6 +17,7 @@ import lombok.Data;
 @Table(name = "stock")
 public class Stock {
     @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private int stockId;
 
     private boolean isAvailable;
