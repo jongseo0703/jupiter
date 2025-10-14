@@ -2,7 +2,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import PricePredictionChart from '../components/PricePredictionChart';
 import AlcoholPreloader from '../components/AlcoholPreloader';
-import { fetchProduct } from '../services/api';
+import { fetchProduct, recordUserActivity } from '../services/api';
 
 // API 응답 데이터를 컴포넌트에서 사용하는 형태로 변환하는 함수
 const transformApiProductData = (apiData) => {
@@ -129,6 +129,11 @@ function ProductDetail() {
 
         if (transformedProduct) {
           setProduct(transformedProduct);
+
+          // 상품 클릭 활동 기록 (비동기로 실행, 에러 무시)
+          recordUserActivity(parseInt(id), 'CLICK').catch(err => {
+            console.log('활동 기록 실패 (무시):', err);
+          });
         } else {
           // API 데이터가 없으면 에러 페이지로 리디렉션
           navigate('/err');
