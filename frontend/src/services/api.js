@@ -959,6 +959,7 @@ export const updatePrice = async (priceId, price) => {
 export const fetchRecommendedProducts = async() => {
     const token = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken');
 
+    console.log('추천 상품 API 호출 - 토큰 존재:', !!token);
     const headers = {
         'Content-Type': 'application/json',
         'Accept': 'application/json'
@@ -973,6 +974,17 @@ export const fetchRecommendedProducts = async() => {
             method:'GET',
             headers
         });
+
+    console.log('응답 상태:', response.status);
+
+    if (!response.ok) {
+        if (response.status === 401) {
+            console.error('401 에러 발생 - 헤더:', headers);
+            throw new Error('로그인이 필요한 서비스입니다.');
+        }
+        throw new Error('추천 상품을 불러오는데 실패했습니다.');
+    }
+
     const data = await response.json();
     return data;
 }
