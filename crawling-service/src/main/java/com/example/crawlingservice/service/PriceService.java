@@ -10,11 +10,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.client.RestTemplate;
-import org.springframework.beans.factory.annotation.Value;
-import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Map;
 import java.util.Set;
 
 /**
@@ -27,10 +23,6 @@ import java.util.Set;
 public class PriceService {
     private final PriceMapper priceMapper;
     private final PriceLogMapper priceLogMapper;
-    private final RestTemplate restTemplate;
-
-    @Value("${notification.service.url:http://localhost:8086}")
-    private String notificationServiceUrl;
 
     // 가격이 변경된 상품 ID를 추적하는 Set
     private final Set<Integer> updatedProductIds = new HashSet<>();
@@ -85,8 +77,7 @@ public class PriceService {
     }
 
     /**
-     * 크롤링 완료 후 호출: 가격이 변경된 모든 상품에 대해
-     * 상품별 최저가를 비교하여 하락한 경우에만 알림 전송
+     * 크롤링 완료 후 호출: 가격이 변경된 모든 상품 로그 출력
      */
     public void sendBatchPriceAlerts() {
         if (updatedProductIds.isEmpty()) {
@@ -94,21 +85,9 @@ public class PriceService {
             return;
         }
 
-        log.info("총 {}개 상품의 가격 변동 알림 체크 시작", updatedProductIds.size());
-
-        for (Integer productId : updatedProductIds) {
-            try {
-                // Product-service의 알림 API 호출
-                String url = notificationServiceUrl.replace("8086", "8085") + "/api/prices/check-alert/" + productId;
-                restTemplate.postForObject(url, null, String.class);
-                log.debug("상품 ID {}의 가격 알림 체크 요청 전송", productId);
-            } catch (Exception e) {
-                log.error("상품 ID {}의 가격 알림 체크 실패: {}", productId, e.getMessage());
-            }
-        }
+        log.info("총 {}개 상품의 가격이 변동되었습니다. 상품 ID: {}", updatedProductIds.size(), updatedProductIds);
 
         // 처리 완료 후 Set 초기화
         updatedProductIds.clear();
-        log.info("가격 변동 알림 배치 처리 완료");
     }
 }
