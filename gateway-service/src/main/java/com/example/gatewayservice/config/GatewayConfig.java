@@ -31,6 +31,11 @@ public class GatewayConfig {
                         .uri("http://localhost:8084"))
                 .route("community-uploads", r -> r.path("/uploads/**")
                         .uri("http://localhost:8084"))
+                // 사용자 활동 기록 API - JWT 인증 필요
+                .route("product-activities", r -> r.path("/product/api/recommendations/activities/**")
+                        .filters(f -> f.stripPrefix(1)
+                                .filter(jwtAuthenticationFilter))
+                        .uri("http://localhost:8085"))
                 // 개인 맞춤 추천 API - JWT 인증 필요
                 .route("product-personalized-recommendations", r -> r.path("/product/api/recommendations/personalized/**")
                         .filters(f -> f.stripPrefix(1)

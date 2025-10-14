@@ -1,5 +1,6 @@
 package com.example.productservice.controller;
 
+import com.example.productservice.domain.UserActivity;
 import com.example.productservice.domain.UserProductScore;
 import com.example.productservice.dto.ProductDto;
 import com.example.productservice.dto.RecommendationResponseDTO;
@@ -73,6 +74,43 @@ public class RecommendationController {
             ));
         } catch (NumberFormatException e) {
             return ResponseEntity.badRequest().build();
+        }
+    }
+
+    /**
+     * 사용자 활동 기록 (상품 클릭, 즐겨찾기 등)
+     * POST /api/recommendations/activities
+     * Gateway에서 JWT를 검증하고 X-User-Id 헤더로 userId 전달
+     */
+    @PostMapping("/activities")
+    public ResponseEntity<Map<String, String>> recordActivity(
+            @RequestHeader(value = "X-User-Id", required = false) String userIdHeader,
+            @RequestBody Map<String, Object> activityData) {
+
+        // X-User-Id 헤더가 없으면 401 응답
+        if (userIdHeader == null) {
+            return ResponseEntity.status(401).build();
+        }
+
+        try {
+            Long userId = Long.parseLong(userIdHeader);
+            Integer productId = Integer.parseInt(activityData.get("productId").toString());
+            String activityTypeStr = activityData.get("activityType").toString();
+
+            UserActivity.ActivityType activityType = UserActivity.ActivityType.valueOf(activityTypeStr);
+
+            recommendationService.recordUserActivity(userId, productId, activityType);
+
+            return ResponseEntity.ok(Map.of(
+                    "message", "Activity recorded successfully",
+                    "userId", userId.toString(),
+                    "productId", productId.toString(),
+                    "activityType", activityTypeStr
+            ));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "error", "Invalid request: " + e.getMessage()
+            ));
         }
     }
 

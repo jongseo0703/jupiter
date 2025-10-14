@@ -1038,6 +1038,46 @@ export const fetchSurveyBasedRecommendations = async(subcategoryIds) => {
 };
 
 /**
+ * 사용자 활동 기록 API (상품 클릭, 즐겨찾기 등)
+ * @param {number} productId - 상품 ID
+ * @param {string} activityType - 활동 타입 ('CLICK' 또는 'FAVORITE')
+ * @returns {Promise<object>} 성공 응답
+ */
+export const recordUserActivity = async(productId, activityType) => {
+    const token = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken');
+
+    if (!token) {
+        // 비로그인 사용자는 활동 기록하지 않음 (에러 던지지 않음)
+        console.log('비로그인 사용자 - 활동 기록 생략');
+        return;
+    }
+
+    const response = await fetch(
+        `${PRODUCT_API_URL}/recommendations/activities`,{
+            method:'POST',
+            headers:{
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
+                productId,
+                activityType
+            })
+        });
+
+    if (!response.ok) {
+        // 활동 기록 실패는 조용히 처리 (사용자 경험에 영향 없음)
+        console.error('활동 기록 실패:', response.status);
+        return;
+    }
+
+    const data = await response.json();
+    console.log('활동 기록 성공:', data);
+    return data;
+};
+
+/**
  * 추천 상품 조회 (하위 호환성 유지)
  * @deprecated fetchPersonalizedRecommendations, fetchPopularProducts, fetchSurveyBasedRecommendations 사용 권장
  */
