@@ -83,6 +83,10 @@ class AuthService {
     } finally {
       // 토큰 삭제 (서버 요청 실패해도 클라이언트에서는 삭제)
       apiService.clearTokens();
+
+      // 설문조사 결과 localStorage에서 삭제 (백엔드에는 유지)
+      localStorage.removeItem('preferredSubcategoryIds');
+      localStorage.removeItem('preferredSubcategoryId');
     }
   }
 
