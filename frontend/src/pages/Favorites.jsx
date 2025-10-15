@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import AlcoholPreloader from '../components/AlcoholPreloader';
 import { fetchFavorites, removeFavorite as removeFavoriteApi, fetchProduct, togglePriceAlert as togglePriceAlertApi } from '../services/api';
 import favoriteService from '../services/favoriteService';
+import authService from '../services/authService';
 import api from '../services/api';
 
 function Favorites() {
@@ -15,19 +16,9 @@ function Favorites() {
   const carouselRef = useRef(null);
   const autoSlideInterval = useRef(null);
 
-  // 사용자 ID 가져오기 (로그인한 사용자 ID를 localStorage에서 가져온다고 가정)
-  const getUserId = () => {
-    const userInfo = localStorage.getItem('userInfo') || sessionStorage.getItem('userInfo');
-    if (userInfo) {
-      const parsed = JSON.parse(userInfo);
-      return parsed.id || parsed.userId;
-    }
-    return null;
-  };
-
   // 즐겨찾기 목록 로드
   const loadFavorites = async () => {
-    const userId = getUserId();
+    const userId = authService.getUserId();
     if (!userId) {
       setError('로그인이 필요합니다.');
       setIsLoading(false);
@@ -194,7 +185,7 @@ function Favorites() {
   };
 
   const removeFavorite = async (productId) => {
-    const userId = getUserId();
+    const userId = authService.getUserId();
     if (!userId) return;
 
     try {
@@ -210,7 +201,7 @@ function Favorites() {
   };
 
   const togglePriceAlert = async (productId) => {
-    const userId = getUserId();
+    const userId = authService.getUserId();
     if (!userId) return;
 
     // 먼저 UI 업데이트
@@ -261,7 +252,7 @@ function Favorites() {
 
   const handleRefreshPrices = async () => {
     setIsRefreshing(true);
-    const userId = getUserId();
+    const userId = authService.getUserId();
     if (!userId) return;
 
     try {

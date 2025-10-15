@@ -115,6 +115,25 @@ class AuthService {
     return !!(localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken'));
   }
 
+  // 사용자 ID 가져오기 (JWT 토큰에서 추출)
+  getUserId() {
+    const token = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken');
+    if (!token) return null;
+
+    try {
+      // JWT의 payload 부분 디코딩 (base64)
+      const payload = token.split('.')[1];
+      const decoded = JSON.parse(atob(payload));
+
+      // OAuth 로그인과 일반 로그인 모두 지원
+      // sub 필드에 userId가 저장되어 있음 (숫자 또는 문자열)
+      return decoded.sub ? String(decoded.sub) : null;
+    } catch (err) {
+      console.error('토큰 디코딩 실패:', err);
+      return null;
+    }
+  }
+
   // 토큰 갱신
   async refreshToken() {
     return await apiService.refreshToken();
