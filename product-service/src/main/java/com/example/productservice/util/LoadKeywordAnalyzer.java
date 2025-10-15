@@ -19,8 +19,8 @@ public class LoadKeywordAnalyzer {
     private final Komoran komoran;
     private final Map<String, List<String>> keywordMorphemeCache = new ConcurrentHashMap<>();
 
-    //일반적이 감탄사 키워드
-    private static final Set<String> STOPWORDS = Set.of("잘", "매우", "진짜", "정말");
+    //일반적 키워드
+    private static final Set<String> STOPWORDS = Set.of("잘", "매우", "진짜", "정말","좋","없","또","가격");
     // 제외 키워드
     private static final List<String> SERVICE_KEYWORDS = Arrays.asList(
         "배송", "택배", "직원", "서비스", "일처리", "응대",
@@ -140,7 +140,7 @@ public class LoadKeywordAnalyzer {
 
                     if (morphemes.contains(keywordMorph)) {
                         // 문맥 확인
-                        if (isProductContextByMorpheme(keywordMorph, tokens)) {
+                        if (isProductContextByKeyword(keywordMorphemes, tokens)) {
                             count++;
                             log.debug("포함: '{}' (원형: '{}', 카테고리: {})", keyword, keywordMorph, category);
                             break; // 같은 키워드 중복 카운트 방지
@@ -173,55 +173,6 @@ public class LoadKeywordAnalyzer {
 
         return morphemes;
     }
-
-    /**
-     * 형태소 기반 제품 문맥 확인
-     */
-    private boolean isProductContextByMorpheme(String keywordMorph, List<Token> tokens) {
-        // 키워드가 등장하는 위치 찾기
-        int keywordIndex = -1;
-        for (int i = 0; i < tokens.size(); i++) {
-            if (tokens.get(i).getMorph().equals(keywordMorph)) {
-                keywordIndex = i;
-                break;
-            }
-        }
-
-        if (keywordIndex == -1) return false;
-
-        // 앞뒤 5개 형태소 범위 확인
-        int start = Math.max(0, keywordIndex - 5);
-        int end = Math.min(tokens.size(), keywordIndex + 6);
-
-        // 제품 키워드 확인
-        boolean hasProductKeyword = false;
-        for (int i = start; i < end; i++) {
-            String morph = tokens.get(i).getMorph();
-            if (PRODUCT_KEYWORDS.contains(morph) && !morph.equals(keywordMorph)) {
-                hasProductKeyword = true;
-                log.debug("제품 키워드 '{}' 발견", morph);
-                break;
-            }
-        }
-
-        // 서비스 키워드 확인
-        for (int i = start; i < end; i++) {
-            String morph = tokens.get(i).getMorph();
-            if (SERVICE_KEYWORDS.contains(morph)) {
-                log.debug("서비스 키워드 '{}' 발견", morph);
-                // 제품 키워드도 있으면 제품으로 인정
-                if (hasProductKeyword) {
-                    log.debug("하지만 제품 키워드도 있어서 포함");
-                    return true;
-                }
-                return false;
-            }
-        }
-
-        // 서비스 키워드 없으면 제품으로 인정
-        return true;
-    }
-
 
     /**
      * 리뷰목록를 분석하는 메서드
@@ -270,5 +221,32 @@ public class LoadKeywordAnalyzer {
             //전체 대표 키워드별 점수 합산
             total.put(key, total.getOrDefault(key, 0) + current.get(key));
         }
+    }
+
+    private boolean isProductContextByKeyword(List<String> keywordMorphemes, List<Token> tokens) {
+        // 키워드가 등장하는 위치 찾기 (첫 형태소 기준)
+        int index = -1;
+        for (int i = 0; i < tokens.size(); i++) {
+            if (tokens.get(i).getMorph().equals(keywordMorphemes.get(0))) {
+                index = i;
+                break;
+            }
+        }
+        if (index == -1) return false;
+
+        int start = Math.max(0, index - 3); // 앞 3개 형태소
+        int end = Math.min(tokens.size(), index + keywordMorphemes.size() + 3); // 뒤 3개 형태소
+
+        boolean hasProduct = false;
+        boolean hasService = false;
+
+        for (int i = start; i < end; i++) {
+            String morph = tokens.get(i).getMorph();
+            if (PRODUCT_KEYWORDS.contains(morph)) hasProduct = true;
+            if (SERVICE_KEYWORDS.contains(morph)) hasService = true;
+        }
+
+        // 제품 키워드 있으면 제품으로 판단, 없고 서비스만 있으면 제외
+        return hasProduct || !hasService;
     }
 }
