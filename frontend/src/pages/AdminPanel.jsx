@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import authService from '../services/authService';
 import adminService from '../services/adminService';
 import adminNotificationService from '../services/adminNotificationService';
+import { fetchProducts } from '../services/api';
 
 const AdminPanel = () => {
   const navigate = useNavigate();
@@ -49,14 +50,36 @@ const AdminPanel = () => {
     try {
       // 최근 가입한 사용자 5명 조회 (ID 기준 내림차순 - 최신 가입자)
       const usersData = await adminService.getAllUsers(0, 5, 'id', 'desc');
-      const products = adminService.getHardcodedProducts();
+
+      // 실제 상품 데이터 조회 (활성/비활성 모두 포함, 첫 페이지 5개만)
+      const productsData = await fetchProducts(true, 0, 5);
 
       // API 응답 구조에 따라 안전하게 데이터 추출
       const usersList = usersData?.content || [];
       const totalUsers = usersData?.totalElements || 0;
 
+      // 상품 데이터 변환
+      const productsList = (productsData?.content || []).map(item => {
+        const product = item.product;
+        const lowestPrice = product.priceDtoList && product.priceDtoList.length > 0
+          ? Math.min(...product.priceDtoList.map(p => (p.price || 0) + (p.deliveryFee || 0)))
+          : 0;
+        const currentPrice = product.priceDtoList?.[0]
+          ? (product.priceDtoList[0].price || 0) + (product.priceDtoList[0].deliveryFee || 0)
+          : 0;
+
+        return {
+          id: product.productId,
+          name: product.productName,
+          currentPrice: currentPrice,
+          category: product.subCategoryDto?.subName || '기타',
+          image: product.url || 'https://images.unsplash.com/photo-1551538827-9c037cb4f32a?w=400',
+          isActive: product.isAvailable !== undefined ? product.isAvailable : true
+        };
+      });
+
       setRecentUsers(usersList);
-      setRecentProducts(products.slice(0, 5));
+      setRecentProducts(productsList);
 
       // 읽지 않은 알림 수 조회
       let unreadCount = 0;
@@ -67,10 +90,14 @@ const AdminPanel = () => {
         unreadCount = 0;
       }
 
+      // 전체 상품 수와 활성 상품 수 조회 (통계용)
+      const allProductsData = await fetchProducts(true, 0, 1); // 전체 상품 (비활성 포함)
+      const activeProductsData = await fetchProducts(false, 0, 1); // 활성 상품만
+
       setStats({
         totalUsers: totalUsers,
-        totalProducts: products.length,
-        activeProducts: products.filter(p => p.isActive).length,
+        totalProducts: allProductsData?.totalElements || 0,
+        activeProducts: activeProductsData?.totalElements || 0,
         notifications: unreadCount
       });
     } catch (error) {
@@ -78,11 +105,11 @@ const AdminPanel = () => {
 
       // 에러 발생 시 기본값 설정
       setRecentUsers([]);
-      setRecentProducts(adminService.getHardcodedProducts().slice(0, 5));
+      setRecentProducts([]);
       setStats({
         totalUsers: 0,
-        totalProducts: adminService.getHardcodedProducts().length,
-        activeProducts: adminService.getHardcodedProducts().filter(p => p.isActive).length,
+        totalProducts: 0,
+        activeProducts: 0,
         notifications: 0
       });
     }
