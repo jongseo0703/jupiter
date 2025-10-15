@@ -96,4 +96,80 @@ public interface ProductRepository extends JpaRepository<Product,Integer> {
             "COUNT(r.reviewId) DESC")
     List<Integer> findAllProductIdsByCategory(String subCategoryName);
 
+    /**
+     * 검색어로 활성 상품 ID 조회 (상품명 또는 카테고리명으로 검색)
+     * @param searchTerm 검색어
+     * @return 상품 ID 목록
+     */
+    @Query("SELECT p.productId FROM Product p" +
+            "  JOIN Stock s ON p.productId = s.product.productId" +
+            "  JOIN SubCategory sc ON p.subCategory.subcategoryId = sc.subcategoryId" +
+            " LEFT JOIN ProductShop ps ON ps.product.productId = p.productId" +
+            " LEFT JOIN Review r ON r.productShop.productShopId = ps.productShopId" +
+            "  WHERE s.isAvailable = true AND (LOWER(p.productName) LIKE LOWER(CONCAT('%', :searchTerm, '%')) " +
+            "     OR LOWER(sc.subName) LIKE LOWER(CONCAT('%', :searchTerm, '%')))" +
+            " GROUP BY p.productId " +
+            " ORDER BY " +
+            "CASE WHEN COUNT(r.reviewId) > 0 THEN 0 ELSE 1 END, " +
+            "COUNT(r.reviewId) DESC")
+    List<Integer> findAvailableProductIdsBySearch(String searchTerm);
+
+    /**
+     * 검색어로 모든 상품 ID 조회 (활성/비활성 모두, 상품명 또는 카테고리명으로 검색)
+     * @param searchTerm 검색어
+     * @return 상품 ID 목록
+     */
+    @Query("SELECT p.productId FROM Product p" +
+            "  JOIN Stock s ON p.productId = s.product.productId" +
+            "  JOIN SubCategory sc ON p.subCategory.subcategoryId = sc.subcategoryId" +
+            " LEFT JOIN ProductShop ps ON ps.product.productId = p.productId" +
+            " LEFT JOIN Review r ON r.productShop.productShopId = ps.productShopId" +
+            "  WHERE LOWER(p.productName) LIKE LOWER(CONCAT('%', :searchTerm, '%')) " +
+            "     OR LOWER(sc.subName) LIKE LOWER(CONCAT('%', :searchTerm, '%'))" +
+            " GROUP BY p.productId " +
+            " ORDER BY " +
+            "CASE WHEN COUNT(r.reviewId) > 0 THEN 0 ELSE 1 END, " +
+            "COUNT(r.reviewId) DESC")
+    List<Integer> findAllProductIdsBySearch(String searchTerm);
+
+    /**
+     * 카테고리와 검색어로 활성 상품 ID 조회
+     * @param subCategoryName 하위 카테고리명
+     * @param searchTerm 검색어
+     * @return 상품 ID 목록
+     */
+    @Query("SELECT p.productId FROM Product p" +
+            "  JOIN Stock s ON p.productId = s.product.productId" +
+            "  JOIN SubCategory sc ON p.subCategory.subcategoryId = sc.subcategoryId" +
+            " LEFT JOIN ProductShop ps ON ps.product.productId = p.productId" +
+            " LEFT JOIN Review r ON r.productShop.productShopId = ps.productShopId" +
+            "  WHERE s.isAvailable = true AND sc.subName = :subCategoryName " +
+            "    AND (LOWER(p.productName) LIKE LOWER(CONCAT('%', :searchTerm, '%')) " +
+            "     OR LOWER(sc.subName) LIKE LOWER(CONCAT('%', :searchTerm, '%')))" +
+            " GROUP BY p.productId " +
+            " ORDER BY " +
+            "CASE WHEN COUNT(r.reviewId) > 0 THEN 0 ELSE 1 END, " +
+            "COUNT(r.reviewId) DESC")
+    List<Integer> findAvailableProductIdsByCategoryAndSearch(String subCategoryName, String searchTerm);
+
+    /**
+     * 카테고리와 검색어로 모든 상품 ID 조회 (활성/비활성 모두)
+     * @param subCategoryName 하위 카테고리명
+     * @param searchTerm 검색어
+     * @return 상품 ID 목록
+     */
+    @Query("SELECT p.productId FROM Product p" +
+            "  JOIN Stock s ON p.productId = s.product.productId" +
+            "  JOIN SubCategory sc ON p.subCategory.subcategoryId = sc.subcategoryId" +
+            " LEFT JOIN ProductShop ps ON ps.product.productId = p.productId" +
+            " LEFT JOIN Review r ON r.productShop.productShopId = ps.productShopId" +
+            "  WHERE sc.subName = :subCategoryName " +
+            "    AND (LOWER(p.productName) LIKE LOWER(CONCAT('%', :searchTerm, '%')) " +
+            "     OR LOWER(sc.subName) LIKE LOWER(CONCAT('%', :searchTerm, '%')))" +
+            " GROUP BY p.productId " +
+            " ORDER BY " +
+            "CASE WHEN COUNT(r.reviewId) > 0 THEN 0 ELSE 1 END, " +
+            "COUNT(r.reviewId) DESC")
+    List<Integer> findAllProductIdsByCategoryAndSearch(String subCategoryName, String searchTerm);
+
 }

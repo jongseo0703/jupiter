@@ -702,9 +702,11 @@ export const fetchMainProducts = async()=>{
  * @param {boolean} includeInactive - 비활성 상품 포함 여부 (관리자용)
  * @param {number} page - 페이지 번호 (0부터 시작, 기본값: 0)
  * @param {number} size - 페이지 크기 (기본값: 20)
+ * @param {string} category - 카테고리 필터 (선택사항)
+ * @param {string} searchTerm - 검색어 (상품명 또는 카테고리명으로 검색, 선택사항)
  * @returns 페이징된 상품 정보 (content, currentPage, pageSize, totalElements, totalPages 등)
  */
-export const fetchProducts = async(includeInactive = false, page = 0, size = 20, category = null)=>{
+export const fetchProducts = async(includeInactive = false, page = 0, size = 20, category = null, searchTerm = null)=>{
     const params = new URLSearchParams();
     if (includeInactive) {
         params.append('includeInactive', 'true');
@@ -713,6 +715,9 @@ export const fetchProducts = async(includeInactive = false, page = 0, size = 20,
     params.append('size', size.toString());
     if (category && category !== 'all') {
         params.append('category', category);
+    }
+    if (searchTerm && searchTerm.trim()) {
+        params.append('searchTerm', searchTerm.trim());
     }
 
     const response = await fetch(
