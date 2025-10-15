@@ -33,6 +33,7 @@ public class DailyScheduler {
 
     @Value("${crawling.backup.dir:crawling-backup}")
     private String backupDir;
+
     private static final String BACKUP_FILE_PREFIX = "crawled-data-";
 
     /**
@@ -51,15 +52,19 @@ public class DailyScheduler {
 
             //데이터 크롤링 실행
             List<ProductDTO> crawledData = crawlingService.crawlAllShops();
-            String backupFilePath = saveToFile(crawledData, startTime);
-            log.info("크롤링 데이터를 파일로 백업: {}", backupFilePath);
 
             //크롤링된 데이터가 있으면 저장
             if (crawledData != null && !crawledData.isEmpty()) {
                 log.debug("총 {}개 상품 수집",crawledData.size());
-                //DB 저장
+
+                // 파일로 백업
+                String backupFilePath = saveToFile(crawledData, startTime);
+                log.info("크롤링 데이터를 파일로 백업: {}", backupFilePath);
+
+                //Crawling DB 저장
                 saveService.saveProducts(crawledData);
-                log.debug("데이터베이스에 저장");
+                log.debug("크롤링 데이터베이스에 저장");
+
                 //Product-service로 데이터 전송
                 boolean sent = productServiceClient.sendBulkProducts(crawledData);
                 if (sent) {
@@ -109,6 +114,7 @@ public class DailyScheduler {
             return null;
         }
     }
+
     /**
      * 백업 파일에서 데이터를 읽어서 DB에 저장
      * @param filePath 백업 파일 경로

@@ -132,7 +132,7 @@ public class CategoryService {
     public SubCategory saveSubCategory(String subName, TopCategory topCategory) {
         // 먼저 기존 카테고리 조회 (subName + topCategoryId 조합으로)
         SubCategory existing = subCategoryMapper.getSubCategoryByNameAndTopCategory(
-                subName, topCategory.getTopCategoryId());
+            subName, topCategory.getTopCategoryId());
         if (existing != null) {
             return existing;
         }
