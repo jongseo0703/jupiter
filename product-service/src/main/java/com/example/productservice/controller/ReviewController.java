@@ -2,11 +2,14 @@ package com.example.productservice.controller;
 
 import com.example.productservice.service.ReviewAnalyzeSerivce;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api")
@@ -21,6 +24,10 @@ public class ReviewController {
      */
     @GetMapping("/review/{productId}")
     public ResponseEntity<?> getReview(@PathVariable("productId") int productId){
+        Map<String, Map<String, Integer>> result = reviewAnalyzeSerivce.reviewScore(productId);
+        if(result.isEmpty()){
+            return ResponseEntity.noContent().build();
+        }
         return ResponseEntity.ok(reviewAnalyzeSerivce.reviewScore(productId));
     }
 }
