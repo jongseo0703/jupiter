@@ -103,9 +103,10 @@ public class ProductService {
      * @param page 페이지 번호 (0부터 시작)
      * @param size 페이지 크기
      * @param category 카테고리 필터 (선택사항, null이면 전체)
+     * @param searchTerm 검색어 (상품명 또는 카테고리명으로 검색, null이면 전체)
      * @return 페이징된 상품 목록 및 메타데이터
      */
-    public Map<String, Object> getProductListPaged(Boolean includeInactive, Integer page, Integer size, String category) {
+    public Map<String, Object> getProductListPaged(Boolean includeInactive, Integer page, Integer size, String category, String searchTerm) {
         List<Map<String, Object>> result = new ArrayList<>();
 
         try {
@@ -114,9 +115,25 @@ public class ProductService {
 
             // category가 "all"이거나 null/빈문자열이면 전체 조회
             boolean filterByCategory = category != null && !category.isEmpty() && !"all".equalsIgnoreCase(category);
+            // searchTerm이 있으면 검색 필터링
+            boolean filterBySearch = searchTerm != null && !searchTerm.trim().isEmpty();
 
-            if (filterByCategory) {
-                // 카테고리별 조회
+            if (filterByCategory && filterBySearch) {
+                // 카테고리 + 검색어 필터링
+                if (includeInactive != null && includeInactive) {
+                    allProductIdList = productRepository.findAllProductIdsByCategoryAndSearch(category, searchTerm);
+                } else {
+                    allProductIdList = productRepository.findAvailableProductIdsByCategoryAndSearch(category, searchTerm);
+                }
+            } else if (filterBySearch) {
+                // 검색어만 필터링
+                if (includeInactive != null && includeInactive) {
+                    allProductIdList = productRepository.findAllProductIdsBySearch(searchTerm);
+                } else {
+                    allProductIdList = productRepository.findAvailableProductIdsBySearch(searchTerm);
+                }
+            } else if (filterByCategory) {
+                // 카테고리만 필터링
                 if (includeInactive != null && includeInactive) {
                     allProductIdList = productRepository.findAllProductIdsByCategory(category);
                 } else {
