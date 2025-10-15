@@ -117,6 +117,10 @@ public class RecommendationService {
      * Product 엔티티를 ProductDto로 변환
      */
     private ProductDto convertToDto(Product product) {
+        if (product == null) {
+            return null;
+        }
+
         ProductDto dto = new ProductDto();
         dto.setProductId(product.getProductId());
         dto.setProductName(product.getProductName());
@@ -144,23 +148,30 @@ public class RecommendationService {
         }
 
         // Price 정보 추가
-        List<Object[]> priceList = priceRepository.findByProductId(product.getProductId());
-        List<PriceDto> priceDtoList = new ArrayList<>();
-        for (Object[] price : priceList) {
-            PriceDto priceDto = new PriceDto();
-            priceDto.setPriceId((Integer) price[0]);
-            priceDto.setPrice((Integer) price[1]);
-            priceDto.setDeliveryFee((Integer) price[2]);
-            priceDto.setLink(price[3].toString());
+        try {
+            List<Object[]> priceList = priceRepository.findByProductId(product.getProductId());
+            List<PriceDto> priceDtoList = new ArrayList<>();
+            for (Object[] price : priceList) {
+                if (price != null && price.length >= 6) {
+                    PriceDto priceDto = new PriceDto();
+                    priceDto.setPriceId((Integer) price[0]);
+                    priceDto.setPrice((Integer) price[1]);
+                    priceDto.setDeliveryFee(price[2] != null ? (Integer) price[2] : 0);
+                    priceDto.setLink(price[3] != null ? price[3].toString() : "");
 
-            ShopDto shopDto = new ShopDto();
-            shopDto.setShopName((String) price[4]);
-            shopDto.setLogoIcon((String) price[5]);
-            priceDto.setShopDto(shopDto);
+                    ShopDto shopDto = new ShopDto();
+                    shopDto.setShopName(price[4] != null ? (String) price[4] : "알 수 없음");
+                    shopDto.setLogoIcon(price[5] != null ? (String) price[5] : "");
+                    priceDto.setShopDto(shopDto);
 
-            priceDtoList.add(priceDto);
+                    priceDtoList.add(priceDto);
+                }
+            }
+            dto.setPriceDtoList(priceDtoList);
+        } catch (Exception e) {
+            log.error("Failed to load price info for product {}: {}", product.getProductId(), e.getMessage());
+            dto.setPriceDtoList(new ArrayList<>());
         }
-        dto.setPriceDtoList(priceDtoList);
 
         return dto;
     }
