@@ -1,17 +1,23 @@
 package com.example.productservice.util;
 
 
-import kr.co.shineware.nlp.komoran.constant.DEFAULT_MODEL;
+import jakarta.annotation.PostConstruct;
 import kr.co.shineware.nlp.komoran.core.Komoran;
 import kr.co.shineware.nlp.komoran.model.KomoranResult;
 import kr.co.shineware.nlp.komoran.model.Token;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Component;
 
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Slf4j
+@Component
+@RequiredArgsConstructor
 public class LoadKeywordAnalyzer {
     private final Komoran komoran;
+    private final Map<String, List<String>> keywordMorphemeCache = new ConcurrentHashMap<>();
 
     // 제외 키워드
     private static final List<String> SERVICE_KEYWORDS = Arrays.asList(
@@ -35,13 +41,6 @@ public class LoadKeywordAnalyzer {
     // 만족도 평가
     private final Map<String, List<String>> satisfactionKeywords = new LinkedHashMap<>();
 
-    public LoadKeywordAnalyzer() {
-        this.komoran = new Komoran(DEFAULT_MODEL.FULL);
-        loadFlavorKeywords();
-        loadBodyKeywords();
-        loadValueKeywords();
-        loadSatisfactionKeywords();
-    }
     /**
      * 맛표현 키워드
      */
@@ -81,6 +80,14 @@ public class LoadKeywordAnalyzer {
                 "기대 이상", "입문자 추천", "재구매", "최고","맘에드네요","굳","기대","맛있","짱","편리","좋았"));
         satisfactionKeywords.put("보통이에요", Arrays.asList("그닥","아쉽", "별로", "나쁘진 않은","괜찮","에매","다르","다른","그럭저럭","개성은 없"));
         satisfactionKeywords.put("별로에요", Arrays.asList("불만족","실망","최악","상한","느린","늦","선입선출이 잘안","상할"));
+    }
+
+    @PostConstruct
+    public void init() {
+        loadFlavorKeywords();
+        loadBodyKeywords();
+        loadValueKeywords();
+        loadSatisfactionKeywords();
     }
 
 
@@ -125,10 +132,11 @@ public class LoadKeywordAnalyzer {
 
             for (String keyword : keywordMap.get(category)) {
                 // 키워드도 형태소 분석하여 원형 추출
-                List<String> keywordMorphemes = extractMorphemes(keyword);
+                List<String> keywordMorphemes = keywordMorphemeCache.computeIfAbsent(keyword, this::extractMorphemes);
 
                 // 형태소 리스트에서 키워드 원형 찾기
                 for (String keywordMorph : keywordMorphemes) {
+
                     if (morphemes.contains(keywordMorph)) {
                         // 문맥 확인
                         if (isProductContextByMorpheme(keywordMorph, tokens)) {

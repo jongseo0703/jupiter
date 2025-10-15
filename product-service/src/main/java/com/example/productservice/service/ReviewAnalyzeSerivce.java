@@ -15,6 +15,7 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class ReviewAnalyzeSerivce {
     private final ReviewRepository reviewRepository;
+    private final LoadKeywordAnalyzer loadKeywordAnalyzer;
 
     /**
      * 특정 상품의 리뷰 내용을 분석하여 점수를 부여하는 메서드
@@ -31,7 +32,6 @@ public class ReviewAnalyzeSerivce {
         }
 
         //리뷰내용 분석하여 점수화 하는 클래스 초기화
-        LoadKeywordAnalyzer loadKeywordAnalyzer = new LoadKeywordAnalyzer();
         return loadKeywordAnalyzer.analyzeReview(commentList);
     }
 }
