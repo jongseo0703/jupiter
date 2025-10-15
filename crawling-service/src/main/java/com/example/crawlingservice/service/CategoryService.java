@@ -59,19 +59,42 @@ public class CategoryService {
             }
         }
 
-        // subName이 '레드', '화이트', '로제'인 경우 와인으로 변경
+        // subName 변경
         if ("레드".equals(subName)) {
             subName = "레드와인";
         } else if ("화이트".equals(subName)) {
             subName = "화이트와인";
         } else if ("로제".equals(subName)) {
             subName = "로제와인";
+        } else if ("전통주".equals(subName)) {
+            subName="기타전통주";
+        } else if ("와인".equals(subName)) {
+            subName="기타 와인";
+        }else if ("과실주".equals(subName)||"기타".equals(subName)) {
+            subName="기타 과실주";
+        } else if("양주".equals(subName)){
+            subName="기타 양주";
         }
 
-        // subName에 '담금주' 또는 '소주'가 포함되면 topName을 '전통주'로 변경
-        if (subName.contains("담금주") || subName.contains("소주")) {
+        //topName 변경
+        if (subName.contains("담금주") ||
+                subName.contains("소주") ||
+                subName.contains("기타전통주")||
+                subName.contains("일반증류주")||
+                subName.contains("약주")||
+                subName.contains("탁주")){
             topName = "전통주";
+        }else if(subName.contains("리큐르")||
+                subName.contains("양주")){
+            topName = "양주";
+        }else if(subName.contains("와인")){
+            topName = "와인";
+        }else if(subName.contains("일본")){
+            topName = "기타";
+        } else if (subName.contains("과실주")||subName.contains("복분자주")) {
+            topName="과실주";
         }
+
         //상위 카테고리 저장
         TopCategory topCategory = saveTopCategory(topName);
         //하위 카테고리 저장
@@ -101,14 +124,15 @@ public class CategoryService {
 
     /**
      * 하위 카테고리 저장하는 메서드<br>
-     * 카테고리명이 존재 할 경우 무시
+     * 카테고리명과 상위 카테고리 조합이 존재 할 경우 무시
      * @param subName 카테고리명
      * @param topCategory 참조된 상위 카테고리
      * @return 하위 카테고리
      */
     public SubCategory saveSubCategory(String subName, TopCategory topCategory) {
-        // 먼저 기존 카테고리 조회
-        SubCategory existing = subCategoryMapper.getSubCategoryByName(subName);
+        // 먼저 기존 카테고리 조회 (subName + topCategoryId 조합으로)
+        SubCategory existing = subCategoryMapper.getSubCategoryByNameAndTopCategory(
+                subName, topCategory.getTopCategoryId());
         if (existing != null) {
             return existing;
         }

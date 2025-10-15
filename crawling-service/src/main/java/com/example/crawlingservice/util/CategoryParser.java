@@ -43,12 +43,14 @@ public class CategoryParser {
             normalized = "막걸리";
         }
         //화이트 와인으로 정의
-        else if(productKind.contains("입 안을 맴도는 과실향")){
-            normalized="화이트 와인";
+        else if(productKind.contains("와인")){
+            normalized="기타 와인";
         }
         //래드와인-> 레드와인
         else if (productKind.contains("래드 와인")) {
             normalized="레드 와인";
+        } else if (productKind.contains("전통주")) {
+            normalized="기타 전통주";
         }
 
         return normalized;
@@ -69,14 +71,24 @@ public class CategoryParser {
 
         // productKind에 따라 category 보정
         if (productKind.contains("브랜디") ||
-            productKind.contains("데킬라") ||
-            productKind.contains("진") ||
-            productKind.contains("보드카") ||
-            productKind.contains("럼")) {
+                productKind.contains("데킬라") ||
+                productKind.contains("진") ||
+                productKind.contains("보드카") ||
+                productKind.contains("리큐르") ||
+                productKind.contains("럼")) {
             adjustedCategory = "양주";
         }
-        else if (productKind.contains("소주")) {
+        else if (productKind.contains("소주")||
+                productKind.contains("전통주")||
+                productKind.contains("일반증류주")||
+                productKind.contains("약주")) {
             adjustedCategory = "전통주";
+        }
+        else if (productKind.contains("와인")) {
+            adjustedCategory="와인";
+        }
+        else if(productKind.contains("복분자주")){
+            adjustedCategory= "과실주";
         }
 
         return adjustedCategory;

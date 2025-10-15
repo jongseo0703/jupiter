@@ -1,6 +1,5 @@
 package com.example.crawlingservice.service;
 
-import com.example.crawlingservice.db.ProductMapper;
 import com.example.crawlingservice.db.ProductShopMapper;
 import com.example.crawlingservice.domain.Product;
 import com.example.crawlingservice.domain.ProductShop;
@@ -14,16 +13,12 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-/**
- * 상품_상점 정보 저장하는 클래스
- */
 @Service
 @Slf4j
 @RequiredArgsConstructor
 @Transactional
 public class ProductShopService {
     private final ProductShopMapper productShopMapper;
-    private final ProductMapper productMapper;
 
     /**
      * 상품_상점 정보를 저장하는 메서드<br>
@@ -95,3 +90,4 @@ public class ProductShopService {
         }
     }
 }
+

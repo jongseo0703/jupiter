@@ -23,7 +23,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 @Slf4j
 public class WebDriverPool {
     // 동시 실행 가능한 최대 크롤링 작업 수
-    private static final int POOL_SIZE = 10;
+    private static final int POOL_SIZE = 5;
 
     // WebDriver 보관 풀
     private final BlockingQueue<WebDriver> availableDrivers = new LinkedBlockingQueue<>(POOL_SIZE);

@@ -70,8 +70,8 @@ public class PriceService {
             int result =priceLogMapper.insert(priceLog);
             if (result > 0) {
                 log.debug("초기 가격을 로그에 저장 - 상품ID: {}, 가격: {}원",
-                         productShop.getProduct().getProductId(),
-                         newPrice.getPrice());
+                        productShop.getProduct().getProductId(),
+                        newPrice.getPrice());
             }
         }
     }
