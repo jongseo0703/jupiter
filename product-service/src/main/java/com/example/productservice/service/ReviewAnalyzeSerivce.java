@@ -25,6 +25,11 @@ public class ReviewAnalyzeSerivce {
         //특정 상품의 리뷰 내용 목록
         List<String>commentList= reviewRepository.findCommentsByProductId(productId);
 
+        //리뷰의 존재 확인
+        if(commentList.isEmpty()){
+            return null;
+        }
+
         //리뷰내용 분석하여 점수화 하는 클래스 초기화
         LoadKeywordAnalyzer loadKeywordAnalyzer = new LoadKeywordAnalyzer();
         return loadKeywordAnalyzer.analyzeReview(commentList);
