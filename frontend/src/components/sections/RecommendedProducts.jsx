@@ -108,14 +108,6 @@ const RecommendedProducts = () => {
       ? product.priceDtoList[0].price + (product.priceDtoList[0].deliveryFee || 0)
       : 0;
 
-    // 가격 목록 (최대 3개)
-    const prices = product.priceDtoList
-      ? product.priceDtoList.slice(0, 3).map(priceInfo => ({
-          store: priceInfo.shopDto?.shopName || '알 수 없음',
-          price: priceInfo.price + (priceInfo.deliveryFee || 0)
-        }))
-      : [];
-
     return (
       <div className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-xl transition-shadow duration-300 group flex flex-col h-full">
         <Link to={`/product/${product.productId}`}>
@@ -143,8 +135,14 @@ const RecommendedProducts = () => {
 
           <div className="mt-auto">
             {lowestPrice > 0 && (
-              <div className="text-primary font-bold text-2xl">
-                최저가 ₩{lowestPrice.toLocaleString()}
+              <div className="bg-blue-900 text-white font-bold px-4 py-2 rounded-lg shadow-md">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs opacity-90 flex items-center gap-1">
+                    <i className="fas fa-tag"></i>
+                    최저가
+                  </span>
+                  <span className="text-lg">₩{lowestPrice.toLocaleString()}</span>
+                </div>
               </div>
             )}
           </div>
