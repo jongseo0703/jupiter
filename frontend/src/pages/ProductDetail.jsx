@@ -2,7 +2,8 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import PricePredictionChart from '../components/PricePredictionChart';
 import AlcoholPreloader from '../components/AlcoholPreloader';
-import { fetchProduct, recordUserActivity } from '../services/api';
+import { fetchProduct, recordUserActivity, reviewAnalyzer } from '../services/api';
+import { processReviewAnalysis } from '../utils/processReviewAnalysis';
 
 // API 응답 데이터를 컴포넌트에서 사용하는 형태로 변환하는 함수
 const transformApiProductData = (apiData) => {
@@ -114,6 +115,7 @@ function ProductDetail() {
   const [visiblePriceCount, setVisiblePriceCount] = useState(4);
   const [selectedShop, setSelectedShop] = useState('all');
   const [selectedRating, setSelectedRating] = useState('all');
+  const [reviewAnalysis, setReviewAnalysis] = useState(null);
 
 
   useEffect(() => {
@@ -153,6 +155,23 @@ function ProductDetail() {
     loadData();
   }, [id, navigate]);
 
+  // 리뷰 분석표
+  useEffect(() => {
+    const fetchReviewAnalysis = async () => {
+      try {
+        const analysisData = await reviewAnalyzer(id);
+        setReviewAnalysis(analysisData);
+      } catch (err) {
+        setError(err.message);
+        navigate('/err');
+      }
+    };
+
+    if (id) {
+      fetchReviewAnalysis();
+    }
+  }, [id]);
+
   // 상품이 변경되면 리뷰 페이지 및 가격 표시 초기화
   useEffect(() => {
     setCurrentReviewPage(1);
@@ -162,6 +181,9 @@ function ProductDetail() {
   const handleLoadingComplete = () => {
     setIsLoading(false);
   };
+
+  // 리뷰 분석 데이터 처리
+  const analysisCategories = processReviewAnalysis(reviewAnalysis);
 
   // 리뷰 별점 통계 계산 함수
   const calculateRatingStats = (reviews) => {
@@ -539,6 +561,40 @@ function ProductDetail() {
               </div>
             </div>
           </div>
+
+          {/* 리뷰 키워드 분석 */}
+          {analysisCategories && analysisCategories.length > 0 && (
+            <div className="bg-white border border-gray-200 rounded-lg p-6 mb-6">
+              <h4 className="text-lg font-bold text-gray-800 mb-4">리뷰 키워드 분석</h4>
+              <div className="space-y-5">
+                {analysisCategories.map((category, index) => (
+                  <div key={index} className="border-b border-gray-100 pb-5 last:border-b-0">
+                    <div className="mb-3">
+                      <span className="text-base font-semibold text-gray-800">{category.categoryName}</span>
+                    </div>
+                    <div className="space-y-2">
+                      {category.topKeywords.map((item, idx) => (
+                        <div key={idx} className="flex items-center gap-3">
+                          <span className="text-sm font-medium text-primary whitespace-nowrap min-w-[120px]">
+                            {item.keyword}
+                          </span>
+                          <div className="flex-1 bg-gray-200 rounded-full h-3">
+                            <div
+                              className="bg-primary h-3 rounded-full transition-all duration-300"
+                              style={{ width: `${item.percentage}%` }}
+                            ></div>
+                          </div>
+                          <span className="text-sm font-bold text-gray-700 min-w-[45px] text-right">
+                            {item.percentage}%
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* 개별 리뷰 */}
           {filteredReviews.length > 0 ? (
