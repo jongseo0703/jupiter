@@ -155,22 +155,22 @@ function ProductDetail() {
     loadData();
   }, [id, navigate]);
 
-  // 리뷰 분석표
+  // 리뷰 분석 API 호출 (페이지 로드 시 한 번만 실행)
   useEffect(() => {
     const fetchReviewAnalysis = async () => {
       try {
         const analysisData = await reviewAnalyzer(id);
+        console.log('리뷰 분석 데이터:', analysisData);
         setReviewAnalysis(analysisData);
       } catch (err) {
-        setError(err.message);
-        navigate('/err');
+        console.error('리뷰 분석 요청 실패:', err);
       }
     };
 
     if (id) {
       fetchReviewAnalysis();
     }
-  }, [id]);
+  }, [id, navigate]);
 
   // 상품이 변경되면 리뷰 페이지 및 가격 표시 초기화
   useEffect(() => {
@@ -184,6 +184,21 @@ function ProductDetail() {
 
   // 리뷰 분석 데이터 처리
   const analysisCategories = processReviewAnalysis(reviewAnalysis);
+
+  // 카테고리별 아이콘 매핑
+  const getCategoryIcon = (categoryName) => {
+    const iconMap = {
+      '맛': 'fa-utensils',
+      '바디감': 'fa-wine-bottle',
+      '가성비': 'fa-won-sign',
+      '만족도': 'fa-smile',
+      '향': 'fa-leaf',
+      '품질': 'fa-star',
+      '포장': 'fa-box',
+      '배송': 'fa-truck'
+    };
+    return iconMap[categoryName] || 'fa-tag';
+  };
 
   // 리뷰 별점 통계 계산 함수
   const calculateRatingStats = (reviews) => {
@@ -564,34 +579,53 @@ function ProductDetail() {
 
           {/* 리뷰 키워드 분석 */}
           {analysisCategories && analysisCategories.length > 0 && (
-            <div className="bg-white border border-gray-200 rounded-lg p-6 mb-6">
-              <h4 className="text-lg font-bold text-gray-800 mb-4">리뷰 키워드 분석</h4>
-              <div className="space-y-5">
+            <div className="bg-white rounded-lg shadow-sm overflow-hidden mb-6">
+              <div className="bg-gradient-to-r from-primary to-blue-600 text-white p-6">
+                <div className="flex items-center space-x-3">
+                  <i className="fas fa-chart-bar text-2xl"></i>
+                  <div>
+                    <h3 className="text-xl font-bold">리뷰 키워드 분석</h3>
+                  </div>
+                </div>
+              </div>
+              <div className="p-6">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 {analysisCategories.map((category, index) => (
-                  <div key={index} className="border-b border-gray-100 pb-5 last:border-b-0">
-                    <div className="mb-3">
+                  <div key={index} className="border border-gray-200 rounded-lg p-4">
+                    <div className="mb-3 text-center flex items-center justify-center gap-2">
+                      <i className={`fas ${getCategoryIcon(category.categoryName)} text-primary`}></i>
                       <span className="text-base font-semibold text-gray-800">{category.categoryName}</span>
                     </div>
                     <div className="space-y-2">
-                      {category.topKeywords.map((item, idx) => (
-                        <div key={idx} className="flex items-center gap-3">
-                          <span className="text-sm font-medium text-primary whitespace-nowrap min-w-[120px]">
-                            {item.keyword}
-                          </span>
-                          <div className="flex-1 bg-gray-200 rounded-full h-3">
-                            <div
-                              className="bg-primary h-3 rounded-full transition-all duration-300"
-                              style={{ width: `${item.percentage}%` }}
-                            ></div>
+                      {category.topKeywords.map((item, idx) => {
+                        const starCount = Math.round((item.percentage / 100) * 5);
+                        return (
+                          <div key={idx} className="flex flex-col items-center">
+                            <span className="text-sm font-medium text-gray-700 mb-1">
+                              {item.keyword}
+                            </span>
+                            <div className="flex items-center gap-2">
+                              <div className="flex items-center">
+                                {[...Array(5)].map((_, starIdx) => (
+                                  <i
+                                    key={starIdx}
+                                    className={`fas fa-star text-sm ${
+                                      starIdx < starCount ? 'text-secondary' : 'text-gray-300'
+                                    }`}
+                                  ></i>
+                                ))}
+                              </div>
+                              <span className="text-xs font-bold text-gray-700">
+                                {item.percentage}%
+                              </span>
+                            </div>
                           </div>
-                          <span className="text-sm font-bold text-gray-700 min-w-[45px] text-right">
-                            {item.percentage}%
-                          </span>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
                 ))}
+                </div>
               </div>
             </div>
           )}
