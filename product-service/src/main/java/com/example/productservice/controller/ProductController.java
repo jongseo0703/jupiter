@@ -36,15 +36,21 @@ public class ProductController {
     }
 
     /**
-     * 상품 목록 페이지 조회
+     * 상품 목록 페이지 조회 (페이징 지원)
      * @param includeInactive 비활성 상품 포함 여부 (관리자용)
-     * @return 전체 상품 정보
+     * @param page 페이지 번호 (0부터 시작, 기본값: 0)
+     * @param size 페이지 크기 (기본값: 20)
+     * @param category 카테고리 필터 (선택사항)
+     * @return 페이징된 상품 정보
      */
     @GetMapping("/list")
     public ResponseEntity<?> getProductList(
-            @RequestParam(required = false, defaultValue = "false") Boolean includeInactive) {
-        List<Map<String, Object>> productDtoList = productService.getProductList(includeInactive);
-        return ResponseEntity.ok().body(productDtoList);
+            @RequestParam(required = false, defaultValue = "false") Boolean includeInactive,
+            @RequestParam(required = false, defaultValue = "0") Integer page,
+            @RequestParam(required = false, defaultValue = "20") Integer size,
+            @RequestParam(required = false) String category) {
+        Map<String, Object> result = productService.getProductListPaged(includeInactive, page, size, category);
+        return ResponseEntity.ok().body(result);
     }
 
     /**
