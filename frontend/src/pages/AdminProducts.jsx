@@ -242,12 +242,12 @@ const AdminProducts = () => {
   const confirmDelete = async () => {
     try {
       await deleteProduct(selectedProduct.id);
-      // 삭제된 상품 제거 (실제로는 비활성화)
-      setProducts(products.map(p =>
-        p.id === selectedProduct.id ? { ...p, isActive: false } : p
-      ));
+      // 삭제된 상품을 목록에서 완전히 제거
+      setProducts(products.filter(p => p.id !== selectedProduct.id));
       setShowDeleteModal(false);
-      alert('상품이 성공적으로 삭제되었습니다 (비활성화).');
+      alert('상품이 완전히 삭제되었습니다.');
+      // 상품 목록 새로고침
+      await loadProducts();
     } catch (error) {
       console.error('Failed to delete product:', error);
       alert('상품 삭제에 실패했습니다.');

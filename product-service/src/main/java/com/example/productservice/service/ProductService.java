@@ -497,16 +497,35 @@ public class ProductService {
     }
 
     /**
-     * 상품 삭제 (soft delete - 재고를 비활성화)
+     * 상품 완전 삭제 (hard delete)
      * @param productId 상품 ID
      */
     @Transactional
     public void deleteProduct(Integer productId) {
-        // 실제 삭제 대신 재고를 비활성화
-        Stock stock = stockRepository.findByProduct_ProductId(productId)
-            .orElseThrow(() -> new RuntimeException("상품의 재고 정보를 찾을 수 없습니다."));
+        // 상품 존재 여부 확인
+        Product product = productRepository.findById(productId)
+            .orElseThrow(() -> new RuntimeException("상품을 찾을 수 없습니다."));
 
-        stock.setAvailable(false);
-        stockRepository.save(stock);
+        // 관련 데이터 삭제 (외래키 제약 조건 고려)
+        // 1. 재고 정보 삭제
+        stockRepository.findByProduct_ProductId(productId).ifPresent(stockRepository::delete);
+
+        // 2. 가격 정보 삭제 (priceId로 삭제)
+        List<Object[]> prices = priceRepository.findByProductId(productId);
+        for (Object[] priceData : prices) {
+            Integer priceId = (Integer) priceData[0];
+            priceRepository.deleteById(priceId);
+        }
+
+        // 3. 리뷰 삭제 (reviewId로 삭제)
+        List<Object[]> reviews = reviewRepository.findReviewByProductId(productId);
+        for (Object[] reviewData : reviews) {
+            Integer reviewId = (Integer) reviewData[0];
+            reviewRepository.deleteById(reviewId);
+        }
+
+        // 4. 상품 삭제
+        productRepository.delete(product);
+        log.info("상품 ID {} 완전 삭제 완료", productId);
     }
 }
