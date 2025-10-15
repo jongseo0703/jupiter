@@ -231,7 +231,7 @@ public class ProductService {
     public ProductDto getProductDto(List<Object[]> productList,List<PriceDto> shopDtoList){
         ProductDto productDto = new ProductDto();
         //상품의 기본 정보 추출
-        Object[] item = productList.get(0);
+        Object[] item = productList.getFirst();
         // 상품 아이디
         productDto.setProductId((Integer) item[0]);
         // 상품명
@@ -253,11 +253,16 @@ public class ProductService {
 
         //상위 카테고리명
         if (subName != null) {
-            TopCategoryDto topCategoryDto = new TopCategoryDto();
-            String topName = topCategoryRepository.findByTopCategoryTopcategoryName(subName);
-            if (topName != null) {
-                topCategoryDto.setTopName(topName);
-                subCategoryDto.setTopCategoryDto(topCategoryDto);
+            try {
+                TopCategoryDto topCategoryDto = new TopCategoryDto();
+                String topName = topCategoryRepository.findByTopCategoryTopcategoryName(subName);
+                if (topName != null) {
+                    topCategoryDto.setTopName(topName);
+                    subCategoryDto.setTopCategoryDto(topCategoryDto);
+                }
+            } catch (Exception e) {
+                log.warn("상위 카테고리 조회 실패 (subName: {}): {}", subName, e.getMessage());
+                // 상위 카테고리 조회 실패해도 상품은 표시
             }
         }
 
