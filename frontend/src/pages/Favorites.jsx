@@ -120,12 +120,13 @@ function Favorites() {
       // 즐겨찾기한 상품들의 카테고리 수집
       const categories = [...new Set(favorites.map(item => item.category))];
 
-      // 전체 상품 목록 가져오기 (api.get은 이미 파싱된 데이터를 반환)
-      const allProductsWithRating = await api.get('/product/api/list');
+      // 전체 상품 목록 가져오기 (페이징 응답이므로 content 필드에서 배열 추출)
+      const response = await api.get('/product/api/list');
+      const allProductsWithRating = response.content || [];
 
       // 데이터 유효성 검사
-      if (!allProductsWithRating || !Array.isArray(allProductsWithRating)) {
-        console.error('API 응답이 배열이 아닙니다:', allProductsWithRating);
+      if (!Array.isArray(allProductsWithRating)) {
+        console.error('API 응답의 content가 배열이 아닙니다:', allProductsWithRating);
         return;
       }
 
