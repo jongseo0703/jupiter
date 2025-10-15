@@ -13,9 +13,9 @@ public interface TopCategoryRepository extends JpaRepository<TopCategory,Integer
      * @param subName 하위 카테고리 명
      * @return 상위 카테고리 명
      */
-    @Query("select DISTINCT t.topName from TopCategory t " +
-            "inner join SubCategory s on s.topCategory.topcategoryId =t.topcategoryId " +
-            "where s.subName = :subName " +
-            "order by t.topcategoryId limit 1")
+    @Query(value = "SELECT DISTINCT tc.top_name FROM topcategory tc " +
+            "INNER JOIN subcategory sc ON sc.topcategory_id = tc.topcategory_id " +
+            "WHERE sc.sub_name = :subName " +
+            "LIMIT 1", nativeQuery = true)
     String findByTopCategoryTopcategoryName(String subName);
 }

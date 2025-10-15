@@ -109,10 +109,13 @@ function Shop() {
           setIsLoading(true);
 
           // 카테고리 데이터와 상품 데이터를 병렬로 가져오기
-          const [categoryResponse, productsResponse] = await Promise.all([
+          const [categoryResponse, productsPageResponse] = await Promise.all([
             fethCategory(),
-            fetchProducts()
+            fetchProducts(false, 0, 1000) // 모든 상품 가져오기 (페이지 크기를 크게 설정)
           ]);
+
+          // 페이징 응답에서 content 추출
+          const productsResponse = productsPageResponse.content || [];
 
           // 즐겨찾기 목록 가져오기 (로그인한 경우)
           const userId = getUserId();
