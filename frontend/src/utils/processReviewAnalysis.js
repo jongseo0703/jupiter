@@ -25,17 +25,17 @@ export const processReviewAnalysis = (analysisData) => {
       .map(([keyword, score]) => ({ keyword, score }))
       .sort((a, b) => b.score - a.score);
 
-    //0이 아닌 상위 2개만 추출
+    //0이 아닌 상위 1개만 추출
     const topKeywords = sortedKeywords
       .filter(item => item.score > 0)
-      .slice(0, 2)
+      .slice(0, 1)
       .map(item => ({
         keyword: item.keyword,
         score: item.score,
         percentage: totalScore > 0 ? Math.round((item.score / totalScore) * 100) : 0
       }));
 
-    // 만약 상위 카테고리가 1개 라면 categories에 1개만 추가
+    // 카테고리 있으면 저장
     if (topKeywords.length > 0) {
       categories.push({
         categoryName,
