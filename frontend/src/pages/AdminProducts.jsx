@@ -42,6 +42,15 @@ const AdminProducts = () => {
     loadProducts(0);
   }, [selectedCategory]);
 
+  // 검색어 변경 시 첫 페이지로 이동하면서 새로 로드 (디바운스 적용)
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      loadProducts(0);
+    }, 500); // 500ms 디바운스
+
+    return () => clearTimeout(timeoutId);
+  }, [searchTerm]);
+
   const checkAdminAccess = async () => {
     try {
       if (!authService.isLoggedIn()) {
@@ -64,8 +73,8 @@ const AdminProducts = () => {
   const loadProducts = async (page = currentPage) => {
     try {
       setIsLoading(true);
-      // 관리자는 비활성 상품도 포함하여 모든 상품을 조회 (페이징 + 카테고리 필터링 포함)
-      const data = await fetchProducts(true, page, pageSize, selectedCategory); // includeInactive=true
+      // 관리자는 비활성 상품도 포함하여 모든 상품을 조회 (페이징 + 카테고리 필터링 + 검색 포함)
+      const data = await fetchProducts(true, page, pageSize, selectedCategory, searchTerm); // includeInactive=true
 
       console.log('API Response:', data); // 디버깅용
 
@@ -203,12 +212,8 @@ const AdminProducts = () => {
     }
   };
 
-  // 검색어 필터링만 프론트엔드에서 처리 (카테고리는 백엔드에서 처리됨)
-  const filteredProducts = products.filter(product => {
-    const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         product.category.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesSearch;
-  });
+  // 백엔드에서 검색과 카테고리 필터링을 모두 처리하므로 프론트엔드 필터링 불필요
+  const filteredProducts = products;
 
   const getPriceChangePercentage = (current, original) => {
     return ((current - original) / original * 100).toFixed(1);
