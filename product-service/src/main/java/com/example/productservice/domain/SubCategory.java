@@ -16,6 +16,7 @@ import lombok.Data;
 @Table(name = "subcategory")
 public class SubCategory {
     @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "subcategory_id")
     private int subcategoryId;
     
