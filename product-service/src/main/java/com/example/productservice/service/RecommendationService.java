@@ -263,6 +263,7 @@ public class RecommendationService {
      * @param subcategoryIds - 쉼표로 구분된 서브카테고리 ID 목록 (예: "1,3,5")
      * @param limit - 반환할 최대 상품 수
      */
+    @Transactional(readOnly = true)
     public List<ProductDto> getSurveyBasedRecommendations(String subcategoryIds, int limit) {
         if (subcategoryIds == null || subcategoryIds.isEmpty()) {
             // 서브카테고리가 없으면 전체 인기 상품 반환
