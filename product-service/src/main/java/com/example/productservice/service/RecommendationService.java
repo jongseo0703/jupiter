@@ -4,6 +4,8 @@ import com.example.productservice.domain.*;
 import com.example.productservice.dto.ProductDto;
 import com.example.productservice.dto.SubCategoryDto;
 import com.example.productservice.dto.TopCategoryDto;
+import com.example.productservice.dto.PriceDto;
+import com.example.productservice.dto.ShopDto;
 import com.example.productservice.repository.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -28,6 +30,7 @@ public class RecommendationService {
     private final UserActivityRepository userActivityRepository;
     private final UserProductScoreRepository userProductScoreRepository;
     private final ProductRepository productRepository;
+    private final PriceRepository priceRepository;
 
     // 점수 가중치
     private static final double CLICK_SCORE = 3.0;
@@ -114,6 +117,10 @@ public class RecommendationService {
      * Product 엔티티를 ProductDto로 변환
      */
     private ProductDto convertToDto(Product product) {
+        if (product == null) {
+            return null;
+        }
+
         ProductDto dto = new ProductDto();
         dto.setProductId(product.getProductId());
         dto.setProductName(product.getProductName());
@@ -138,6 +145,32 @@ public class RecommendationService {
             }
 
             dto.setSubCategoryDto(subCategoryDto);
+        }
+
+        // Price 정보 추가
+        try {
+            List<Object[]> priceList = priceRepository.findByProductId(product.getProductId());
+            List<PriceDto> priceDtoList = new ArrayList<>();
+            for (Object[] price : priceList) {
+                if (price != null && price.length >= 6) {
+                    PriceDto priceDto = new PriceDto();
+                    priceDto.setPriceId((Integer) price[0]);
+                    priceDto.setPrice((Integer) price[1]);
+                    priceDto.setDeliveryFee(price[2] != null ? (Integer) price[2] : 0);
+                    priceDto.setLink(price[3] != null ? price[3].toString() : "");
+
+                    ShopDto shopDto = new ShopDto();
+                    shopDto.setShopName(price[4] != null ? (String) price[4] : "알 수 없음");
+                    shopDto.setLogoIcon(price[5] != null ? (String) price[5] : "");
+                    priceDto.setShopDto(shopDto);
+
+                    priceDtoList.add(priceDto);
+                }
+            }
+            dto.setPriceDtoList(priceDtoList);
+        } catch (Exception e) {
+            log.error("Failed to load price info for product {}: {}", product.getProductId(), e.getMessage());
+            dto.setPriceDtoList(new ArrayList<>());
         }
 
         return dto;
@@ -196,11 +229,11 @@ public class RecommendationService {
     public Map<String, List<ProductDto>> getComprehensiveRecommendations(Long userId) {
         Map<String, List<ProductDto>> recommendations = new HashMap<>();
 
-        // 1. 사용자 행동 기반 추천 (점수가 높은 상품)
+        // 1. 사용자 행동 기반 추천 (점수가 높은 상품) - 5개
         recommendations.put("userBased", getRecommendedProducts(userId, 5));
 
-        // 2. 카테고리 기반 추천
-        recommendations.put("categoryBased", getRecommendedProductsByCategory(userId, 5));
+        // 2. 카테고리 기반 추천 - 10개
+        recommendations.put("categoryBased", getRecommendedProductsByCategory(userId, 10));
 
         return recommendations;
     }
