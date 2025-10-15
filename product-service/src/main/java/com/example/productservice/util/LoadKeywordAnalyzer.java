@@ -1,15 +1,17 @@
 package com.example.productservice.util;
 
 
+import kr.co.shineware.nlp.komoran.constant.DEFAULT_MODEL;
+import kr.co.shineware.nlp.komoran.core.Komoran;
+import kr.co.shineware.nlp.komoran.model.KomoranResult;
+import kr.co.shineware.nlp.komoran.model.Token;
 import lombok.extern.slf4j.Slf4j;
 
-import java.util.Arrays;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 @Slf4j
 public class LoadKeywordAnalyzer {
+    private final Komoran komoran;
 
     // 제외 키워드
     private static final List<String> SERVICE_KEYWORDS = Arrays.asList(
@@ -34,6 +36,7 @@ public class LoadKeywordAnalyzer {
     private final Map<String, List<String>> satisfactionKeywords = new LinkedHashMap<>();
 
     public LoadKeywordAnalyzer() {
+        this.komoran = new Komoran(DEFAULT_MODEL.FULL);
         loadFlavorKeywords();
         loadBodyKeywords();
         loadValueKeywords();
@@ -89,25 +92,50 @@ public class LoadKeywordAnalyzer {
      * @return 점수
      */
     private Map<String, Integer> analyzeCategory(String comment, Map<String, List<String>> keywordMap) {
-        return analyzeCategoryWithContext(comment, keywordMap);
+        return analyzeCategoryWithMorpheme(comment, keywordMap);
     }
 
     /**
-     * 문맥을 고려한 간단한 분석 메서드
+     * 형태소 분석 기반 카테고리 분석
      */
-    private Map<String, Integer> analyzeCategoryWithContext(String comment, Map<String, List<String>> keywordMap) {
+    private Map<String, Integer> analyzeCategoryWithMorpheme(String comment, Map<String, List<String>> keywordMap) {
         Map<String, Integer> scores = new LinkedHashMap<>();
 
+        //형태소 분석 수행
+        KomoranResult result = komoran.analyze(comment);
+        List<Token> tokens = result.getTokenList();
+
+        // 형태소 원형 추출
+        List<String> morphemes = new ArrayList<>();
+        for (Token token : tokens) {
+            String pos = token.getPos(); // 품사
+            String morph = token.getMorph(); // 형태소 원형
+
+            // NNG(일반명사), NNP(고유명사), VA(형용사), VV(동사), MAG(일반부사) 추출
+            if (pos.startsWith("NN") || pos.startsWith("VA") || pos.startsWith("VV") || pos.equals("MAG")) {
+                morphemes.add(morph);
+            }
+        }
+
+        log.debug("형태소 분석 결과: {}", morphemes);
+
+        // 각 카테고리별로 형태소 매칭
         for (String category : keywordMap.keySet()) {
             int count = 0;
 
             for (String keyword : keywordMap.get(category)) {
-                if (comment.contains(keyword)) {
-                    // 키워드 주변 문맥 확인 (앞뒤 30글자)
-                    if (isProductContext(comment, keyword)) {
-                        count++;
-                    } else {
-                        log.debug("제외: '{}' - 서비스 문맥", keyword);
+                // 키워드도 형태소 분석하여 원형 추출
+                List<String> keywordMorphemes = extractMorphemes(keyword);
+
+                // 형태소 리스트에서 키워드 원형 찾기
+                for (String keywordMorph : keywordMorphemes) {
+                    if (morphemes.contains(keywordMorph)) {
+                        // 문맥 확인
+                        if (isProductContextByMorpheme(keywordMorph, tokens)) {
+                            count++;
+                            log.debug("포함: '{}' (원형: '{}', 카테고리: {})", keyword, keywordMorph, category);
+                            break; // 같은 키워드 중복 카운트 방지
+                        }
                     }
                 }
             }
@@ -118,35 +146,61 @@ public class LoadKeywordAnalyzer {
     }
 
     /**
-     * 키워드가 제품 관련 문맥인지 확인 메서드
-     * @param comment 전체 리뷰
-     * @param keyword 찾은 키워드
-     * @return 제품 관련이면 true
+     * 키워드의 형태소 원형 추출
      */
-    private boolean isProductContext(String comment, String keyword) {
-        int index = comment.indexOf(keyword);
-        if (index == -1) return false;
+    private List<String> extractMorphemes(String keyword) {
+        List<String> morphemes = new ArrayList<>();
+        KomoranResult result = komoran.analyze(keyword);
 
-        // 키워드 앞뒤 30글자 추출
-        int start = Math.max(0, index - 30);
-        int end = Math.min(comment.length(), index + keyword.length() + 30);
-        String context = comment.substring(start, end);
+        for (Token token : result.getTokenList()) {
+            String pos = token.getPos();
+            String morph = token.getMorph();
 
-        //근처에 제품 키워드가 있는지 확인
-        boolean hasProductKeyword = false;
-        for (String productKeyword : PRODUCT_KEYWORDS) {
-            if (context.contains(productKeyword) && !productKeyword.equals(keyword)) {
-                log.debug("제품 키워드 '{}' 발견 in context", productKeyword);
-                hasProductKeyword = true;
+            // 의미있는 품사만 추출
+            if (pos.startsWith("NN") || pos.startsWith("VA") || pos.startsWith("VV") || pos.equals("MAG")) {
+                morphemes.add(morph);
+            }
+        }
+
+        return morphemes;
+    }
+
+    /**
+     * 형태소 기반 제품 문맥 확인
+     */
+    private boolean isProductContextByMorpheme(String keywordMorph, List<Token> tokens) {
+        // 키워드가 등장하는 위치 찾기
+        int keywordIndex = -1;
+        for (int i = 0; i < tokens.size(); i++) {
+            if (tokens.get(i).getMorph().equals(keywordMorph)) {
+                keywordIndex = i;
                 break;
             }
         }
 
-        //근처에 서비스 키워드가 있는지 확인
-        for (String serviceKeyword : SERVICE_KEYWORDS) {
-            if (context.contains(serviceKeyword)) {
-                log.debug("서비스 키워드 '{}' 발견 in context: '{}'", serviceKeyword, context);
-                // 제품 키워드도 함께 있으면 제품 문맥으로 간주
+        if (keywordIndex == -1) return false;
+
+        // 앞뒤 5개 형태소 범위 확인
+        int start = Math.max(0, keywordIndex - 5);
+        int end = Math.min(tokens.size(), keywordIndex + 6);
+
+        // 제품 키워드 확인
+        boolean hasProductKeyword = false;
+        for (int i = start; i < end; i++) {
+            String morph = tokens.get(i).getMorph();
+            if (PRODUCT_KEYWORDS.contains(morph) && !morph.equals(keywordMorph)) {
+                hasProductKeyword = true;
+                log.debug("제품 키워드 '{}' 발견", morph);
+                break;
+            }
+        }
+
+        // 서비스 키워드 확인
+        for (int i = start; i < end; i++) {
+            String morph = tokens.get(i).getMorph();
+            if (SERVICE_KEYWORDS.contains(morph)) {
+                log.debug("서비스 키워드 '{}' 발견", morph);
+                // 제품 키워드도 있으면 제품으로 인정
                 if (hasProductKeyword) {
                     log.debug("하지만 제품 키워드도 있어서 포함");
                     return true;
@@ -155,7 +209,7 @@ public class LoadKeywordAnalyzer {
             }
         }
 
-        // 서비스 키워드가 없으면 제품 관련으로 간주
+        // 서비스 키워드 없으면 제품으로 인정
         return true;
     }
 
@@ -181,7 +235,7 @@ public class LoadKeywordAnalyzer {
             mergeScores(result.get("가성비"), analyzeCategory(comment, valueKeywords));
             mergeScores(result.get("만족도"), analyzeCategory(comment, satisfactionKeywords));
         }
-
+        log.debug("리뷰 분석 결과 {}",result);
         return result;
     }
 
