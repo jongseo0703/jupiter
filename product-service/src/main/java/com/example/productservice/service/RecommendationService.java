@@ -249,6 +249,7 @@ public class RecommendationService {
      * 인기상품 추천 (비로그인 사용자용)
      * 전체 상품 중 상위 N개 반환 (productId 순)
      */
+    @Transactional(readOnly = true)
     public List<ProductDto> getPopularProducts(int limit) {
         return productRepository.findAll().stream()
                 .limit(limit)
