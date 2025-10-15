@@ -24,12 +24,23 @@ const AdminProducts = () => {
     prices: [] // 각 상점별 가격 정보 (priceId, shopName, price 포함)
   });
 
+  // 페이징 관련 state
+  const [currentPage, setCurrentPage] = useState(0);
+  const [pageSize] = useState(20);
+  const [totalPages, setTotalPages] = useState(0);
+  const [totalElements, setTotalElements] = useState(0);
+
   const categories = ['all', '소주', '맥주', '와인', '양주', '전통주'];
 
   useEffect(() => {
     checkAdminAccess();
     loadProducts();
   }, []);
+
+  // 카테고리 변경 시 첫 페이지로 이동하면서 새로 로드
+  useEffect(() => {
+    loadProducts(0);
+  }, [selectedCategory]);
 
   const checkAdminAccess = async () => {
     try {
@@ -50,14 +61,22 @@ const AdminProducts = () => {
     }
   };
 
-  const loadProducts = async () => {
+  const loadProducts = async (page = currentPage) => {
     try {
       setIsLoading(true);
-      // 관리자는 비활성 상품도 포함하여 모든 상품을 조회
-      const data = await fetchProducts(true); // includeInactive=true
+      // 관리자는 비활성 상품도 포함하여 모든 상품을 조회 (페이징 + 카테고리 필터링 포함)
+      const data = await fetchProducts(true, page, pageSize, selectedCategory); // includeInactive=true
+
+      console.log('API Response:', data); // 디버깅용
+
+      // 페이징 메타데이터 설정
+      setTotalPages(data.totalPages || 0);
+      setTotalElements(data.totalElements || 0);
+      setCurrentPage(data.currentPage || 0);
 
       // 백엔드 데이터를 프론트엔드 형식으로 변환
-      const transformedProducts = data.map(item => {
+      const productList = data.content || [];
+      const transformedProducts = productList.map(item => {
         const product = item.product;
         // 배송비 포함한 최저가 계산
         const lowestPrice = product.priceDtoList && product.priceDtoList.length > 0
@@ -184,11 +203,11 @@ const AdminProducts = () => {
     }
   };
 
+  // 검색어 필터링만 프론트엔드에서 처리 (카테고리는 백엔드에서 처리됨)
   const filteredProducts = products.filter(product => {
     const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          product.category.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCategory = selectedCategory === 'all' || product.category === selectedCategory;
-    return matchesSearch && matchesCategory;
+    return matchesSearch;
   });
 
   const getPriceChangePercentage = (current, original) => {
@@ -363,6 +382,89 @@ const AdminProducts = () => {
           <div className="text-center py-12">
             <i className="fas fa-box-open text-4xl text-gray-400 mb-4"></i>
             <p className="text-gray-600">검색 조건에 맞는 상품이 없습니다.</p>
+          </div>
+        )}
+
+        {/* 페이지네이션 */}
+        {totalPages > 1 && (
+          <div className="mt-8 flex items-center justify-center space-x-2">
+            <button
+              onClick={() => loadProducts(0)}
+              disabled={currentPage === 0}
+              className={`px-3 py-2 rounded ${
+                currentPage === 0
+                  ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                  : 'bg-white text-gray-700 hover:bg-gray-100'
+              }`}
+            >
+              <i className="fas fa-angle-double-left"></i>
+            </button>
+            <button
+              onClick={() => loadProducts(currentPage - 1)}
+              disabled={currentPage === 0}
+              className={`px-3 py-2 rounded ${
+                currentPage === 0
+                  ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                  : 'bg-white text-gray-700 hover:bg-gray-100'
+              }`}
+            >
+              <i className="fas fa-angle-left"></i>
+            </button>
+
+            {[...Array(totalPages)].map((_, index) => {
+              // 현재 페이지 근처만 표시
+              if (
+                index === 0 || // 첫 페이지
+                index === totalPages - 1 || // 마지막 페이지
+                (index >= currentPage - 2 && index <= currentPage + 2) // 현재 페이지 근처
+              ) {
+                return (
+                  <button
+                    key={index}
+                    onClick={() => loadProducts(index)}
+                    className={`px-4 py-2 rounded ${
+                      currentPage === index
+                        ? 'bg-primary text-white'
+                        : 'bg-white text-gray-700 hover:bg-gray-100'
+                    }`}
+                  >
+                    {index + 1}
+                  </button>
+                );
+              } else if (
+                index === currentPage - 3 ||
+                index === currentPage + 3
+              ) {
+                return <span key={index} className="px-2">...</span>;
+              }
+              return null;
+            })}
+
+            <button
+              onClick={() => loadProducts(currentPage + 1)}
+              disabled={currentPage >= totalPages - 1}
+              className={`px-3 py-2 rounded ${
+                currentPage >= totalPages - 1
+                  ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                  : 'bg-white text-gray-700 hover:bg-gray-100'
+              }`}
+            >
+              <i className="fas fa-angle-right"></i>
+            </button>
+            <button
+              onClick={() => loadProducts(totalPages - 1)}
+              disabled={currentPage >= totalPages - 1}
+              className={`px-3 py-2 rounded ${
+                currentPage >= totalPages - 1
+                  ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                  : 'bg-white text-gray-700 hover:bg-gray-100'
+              }`}
+            >
+              <i className="fas fa-angle-double-right"></i>
+            </button>
+            <span className="ml-4 text-sm text-gray-600">
+              {currentPage + 1} / {totalPages} 페이지 (총 {totalElements}개)
+            </span>
           </div>
         )}
 

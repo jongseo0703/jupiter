@@ -698,17 +698,25 @@ export const fetchMainProducts = async()=>{
 }
 
 /**
- * 상품목록 페이지의 상품들의 목록 API
+ * 상품목록 페이지의 상품들의 목록 API (페이징 지원)
  * @param {boolean} includeInactive - 비활성 상품 포함 여부 (관리자용)
- * @returns 전체 상품 정보
+ * @param {number} page - 페이지 번호 (0부터 시작, 기본값: 0)
+ * @param {number} size - 페이지 크기 (기본값: 20)
+ * @returns 페이징된 상품 정보 (content, currentPage, pageSize, totalElements, totalPages 등)
  */
-export const fetchProducts = async(includeInactive = false)=>{
-    const url = includeInactive
-        ? `${PRODUCT_API_URL}/list?includeInactive=true`
-        : `${PRODUCT_API_URL}/list`;
+export const fetchProducts = async(includeInactive = false, page = 0, size = 20, category = null)=>{
+    const params = new URLSearchParams();
+    if (includeInactive) {
+        params.append('includeInactive', 'true');
+    }
+    params.append('page', page.toString());
+    params.append('size', size.toString());
+    if (category && category !== 'all') {
+        params.append('category', category);
+    }
 
     const response = await fetch(
-        url,
+        `${PRODUCT_API_URL}/list?${params.toString()}`,
         {
             method:'GET',
             headers:{
