@@ -101,14 +101,15 @@ public class CategoryService {
 
     /**
      * 하위 카테고리 저장하는 메서드<br>
-     * 카테고리명이 존재 할 경우 무시
+     * 카테고리명과 상위 카테고리 조합이 존재 할 경우 무시
      * @param subName 카테고리명
      * @param topCategory 참조된 상위 카테고리
      * @return 하위 카테고리
      */
     public SubCategory saveSubCategory(String subName, TopCategory topCategory) {
-        // 먼저 기존 카테고리 조회
-        SubCategory existing = subCategoryMapper.getSubCategoryByName(subName);
+        // 먼저 기존 카테고리 조회 (subName + topCategoryId 조합으로)
+        SubCategory existing = subCategoryMapper.getSubCategoryByNameAndTopCategory(
+            subName, topCategory.getTopCategoryId());
         if (existing != null) {
             return existing;
         }

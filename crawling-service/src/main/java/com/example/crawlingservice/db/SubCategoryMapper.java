@@ -30,4 +30,14 @@ public interface SubCategoryMapper {
     @Select("select * from subcategory s inner join topcategory t on s.topcategory_id =t.topcategory_id " +
             "where s.sub_name = #{subName}")
     SubCategory getSubCategoryByName(String subName);
+
+    /**
+     * 하위 카테고리명과 상위 카테고리 ID로 조회
+     * @param subName 하위 카테고리명
+     * @param topCategoryId 상위 카테고리 ID
+     * @return 하위 카테고리
+     */
+    @Select("select * from subcategory s inner join topcategory t on s.topcategory_id = t.topcategory_id " +
+            "where s.sub_name = #{subName} and s.topcategory_id = #{topCategoryId}")
+    SubCategory getSubCategoryByNameAndTopCategory(String subName, Integer topCategoryId);
 }
