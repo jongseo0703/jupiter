@@ -79,7 +79,7 @@ public class LoadKeywordAnalyzer {
         satisfactionKeywords.put("추천해요", Arrays.asList("만족", "좋다", "또 마시고 싶다", "추천", "선물", "포장상태 좋은",
                 "기대 이상", "입문자 추천", "재구매", "최고","맘에드네요","굳","기대","맛있","짱","편리","좋았"));
         satisfactionKeywords.put("보통이에요", Arrays.asList("그닥","아쉽", "별로", "나쁘진 않은","괜찮","에매","다르","다른","그럭저럭","개성은 없"));
-        satisfactionKeywords.put("별로에요", Arrays.asList("불만족","실망","최악","상한","느린","늦","선입선출이 잘안","상할"));
+        satisfactionKeywords.put("별로에요", Arrays.asList("불만족","실망","최악","상한"));
     }
 
     @PostConstruct
