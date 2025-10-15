@@ -26,78 +26,92 @@ function Favorites() {
   };
 
   // 즐겨찾기 목록 로드
-  useEffect(() => {
-    const loadFavorites = async () => {
-      const userId = getUserId();
-      if (!userId) {
-        setError('로그인이 필요합니다.');
-        setIsLoading(false);
-        return;
-      }
+  const loadFavorites = async () => {
+    const userId = getUserId();
+    if (!userId) {
+      setError('로그인이 필요합니다.');
+      setIsLoading(false);
+      return;
+    }
 
-      try {
-        setIsLoading(true);
-        const favorites = await fetchFavorites(userId);
+    try {
+      setIsLoading(true);
+      const favorites = await fetchFavorites(userId);
 
-        // 각 즐겨찾기의 상품 정보를 가져와서 병합
-        const favoriteItemsWithDetails = await Promise.all(
-          favorites.map(async (fav) => {
+      // 각 즐겨찾기의 상품 정보를 가져와서 병합
+      const favoriteItemsWithDetails = await Promise.all(
+        favorites.map(async (fav) => {
+          try {
+            const productDetail = await fetchProduct(fav.productId);
+
+            // 현재 최저가 계산
+            const priceDtoList = productDetail.priceDtoList || [];
+            const currentLowestPrice = priceDtoList.length > 0
+              ? Math.min(...priceDtoList.map(p => (p.price || 0) + (p.deliveryFee || 0)))
+              : 0;
+
+            // 어제 최저가 (API에서 제공 - null이면 현재가 사용)
+            const yesterdayLowestPrice = productDetail.yesterdayLowestPrice !== null && productDetail.yesterdayLowestPrice !== undefined
+              ? productDetail.yesterdayLowestPrice
+              : currentLowestPrice;
+
+            return {
+              id: fav.productId,
+              favoriteId: fav.id,
+              name: productDetail.productName,
+              currentPrice: currentLowestPrice,
+              originalPrice: yesterdayLowestPrice,
+              lowestPrice: currentLowestPrice,
+              priceAlert: fav.priceAlert !== undefined ? fav.priceAlert : true,
+              image: productDetail.url || 'https://images.unsplash.com/photo-1551538827-9c037cb4f32a?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80',
+              category: productDetail.subCategoryDto?.subName || '주류',
+              priceHistory: [],
+              lastChecked: new Date(fav.createdAt).toLocaleString('ko-KR')
+            };
+          } catch (err) {
+            console.warn(`상품 ${fav.productId}는 더 이상 존재하지 않습니다. 즐겨찾기에서 자동으로 제외됩니다.`);
+            // 존재하지 않는 상품은 즐겨찾기에서 자동 삭제
             try {
-              const productDetail = await fetchProduct(fav.productId);
-
-              // 현재 최저가 계산
-              const priceDtoList = productDetail.priceDtoList || [];
-              const currentLowestPrice = priceDtoList.length > 0
-                ? Math.min(...priceDtoList.map(p => (p.price || 0) + (p.deliveryFee || 0)))
-                : 0;
-
-              // 어제 최저가 (API에서 제공 - null이면 현재가 사용)
-              const yesterdayLowestPrice = productDetail.yesterdayLowestPrice !== null && productDetail.yesterdayLowestPrice !== undefined
-                ? productDetail.yesterdayLowestPrice
-                : currentLowestPrice;
-
-              return {
-                id: fav.productId,
-                favoriteId: fav.id,
-                name: productDetail.productName,
-                currentPrice: currentLowestPrice,
-                originalPrice: yesterdayLowestPrice,
-                lowestPrice: currentLowestPrice,
-                priceAlert: fav.priceAlert !== undefined ? fav.priceAlert : true,
-                image: productDetail.url || 'https://images.unsplash.com/photo-1551538827-9c037cb4f32a?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80',
-                category: productDetail.subCategoryDto?.subName || '주류',
-                priceHistory: [],
-                lastChecked: new Date(fav.createdAt).toLocaleString('ko-KR')
-              };
-            } catch (err) {
-              console.warn(`상품 ${fav.productId}는 더 이상 존재하지 않습니다. 즐겨찾기에서 자동으로 제외됩니다.`);
-              // 존재하지 않는 상품은 즐겨찾기에서 자동 삭제
-              try {
-                await removeFavoriteApi(userId, fav.productId);
-              } catch (removeErr) {
-                console.error('즐겨찾기 삭제 실패:', removeErr);
-              }
-              return null;
+              await removeFavoriteApi(userId, fav.productId);
+            } catch (removeErr) {
+              console.error('즐겨찾기 삭제 실패:', removeErr);
             }
-          })
-        );
+            return null;
+          }
+        })
+      );
 
-        const filteredItems = favoriteItemsWithDetails.filter(item => item !== null);
-        setFavoriteItems(filteredItems);
+      const filteredItems = favoriteItemsWithDetails.filter(item => item !== null);
+      setFavoriteItems(filteredItems);
 
-        // 연관 상품 로드
-        if (filteredItems.length > 0) {
-          loadRecommendedProducts(filteredItems);
-        }
-      } catch (err) {
-        console.error('즐겨찾기 목록 로드 실패:', err);
-        setError(err.message);
-      } finally {
-        setIsLoading(false);
+      // 연관 상품 로드
+      if (filteredItems.length > 0) {
+        loadRecommendedProducts(filteredItems);
       }
+    } catch (err) {
+      console.error('즐겨찾기 목록 로드 실패:', err);
+      setError(err.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // 초기 로드
+  useEffect(() => {
+    loadFavorites();
+  }, []);
+
+  // favoriteService 변경 감지
+  useEffect(() => {
+    const handleFavoriteChange = () => {
+      loadFavorites();
     };
 
-    loadFavorites();
+    favoriteService.addListener(handleFavoriteChange);
+
+    return () => {
+      favoriteService.removeListener(handleFavoriteChange);
+    };
   }, []);
 
   // 연관 상품 로드
@@ -295,7 +309,7 @@ function Favorites() {
     setIsLoading(false);
   };
 
-  if (favoriteItems.length === 0) {
+  if (!isLoading && favoriteItems.length === 0) {
     return (
       <>
         <AlcoholPreloader isLoading={isLoading} handleLoadingComplete={handleLoadingComplete} />
