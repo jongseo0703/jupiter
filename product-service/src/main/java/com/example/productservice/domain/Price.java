@@ -17,6 +17,7 @@ import lombok.Data;
 @Table(name = "price")
 public class Price {
     @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private int priceId;
 
     private int price;

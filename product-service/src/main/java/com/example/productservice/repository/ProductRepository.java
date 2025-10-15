@@ -5,8 +5,10 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 
 import java.util.List;
+import java.util.Optional;
 
 public interface ProductRepository extends JpaRepository<Product,Integer> {
+    Optional<Product> findByProductName(String productName);
     /**
      * 재고가 있고 평균 별점이 높고 리뷰수가 많은 상품들의 아이디 조회
      * @return 상품 아이디와 평균 별점 목록

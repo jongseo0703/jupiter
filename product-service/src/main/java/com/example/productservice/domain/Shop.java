@@ -1,8 +1,6 @@
 package com.example.productservice.domain;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
 import lombok.Data;
 
 /**
@@ -18,6 +16,7 @@ import lombok.Data;
 @Table(name = "shop")
 public class Shop {
     @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private int shopId;
 
     private String shopName;

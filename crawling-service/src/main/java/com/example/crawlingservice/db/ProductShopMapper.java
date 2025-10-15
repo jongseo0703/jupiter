@@ -18,7 +18,7 @@ public interface ProductShopMapper {
      * @param productShop
      * @return
      */
-    @Insert("insert product_shop(product_id,shop_id,link) values (#{product.productId},#{shop.shopId},#{link})")
+    @Insert("insert product_shop(product_id,shop_id,link,is_available) values (#{product.productId},#{shop.shopId},#{link},#{isAvailable})")
     @Options(useGeneratedKeys = true,keyProperty = "productShopId")
     int insert(ProductShop productShop);
 
@@ -36,7 +36,7 @@ public interface ProductShopMapper {
     @Results({
             @Result(property = "productShopId", column = "product_shop_id"),
             @Result(property = "link", column = "link"),
-            @Result(property = "available", column = "is_available"),
+            @Result(property = "isAvailable", column = "is_available"),
             @Result(property = "product.productId", column = "p_product_id"),
             @Result(property = "product.productName", column = "product_name"),
             @Result(property = "product.brand", column = "brand"),
@@ -95,7 +95,7 @@ public interface ProductShopMapper {
             "WHERE ps.product_id = #{productId}")
     @Results({
             @Result(property = "productShopId", column = "product_shop_id"),
-            @Result(property = "available", column = "is_available"),
+            @Result(property = "isAvailable", column = "is_available"),
             @Result(property = "shop.shopName", column = "shop_name")
     })
     List<ProductShop> selectAllByProductId(int productId);
