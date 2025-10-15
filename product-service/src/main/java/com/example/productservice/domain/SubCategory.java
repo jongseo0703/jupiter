@@ -13,12 +13,19 @@ import lombok.Data;
  */
 @Entity
 @Data
-@Table(name = "subcategory")
+@Table(name = "subcategory",
+    uniqueConstraints = @UniqueConstraint(
+        name = "unique_sub_name_topcategory",
+        columnNames = {"sub_name", "topcategory_id"}
+    )
+)
 public class SubCategory {
     @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "subcategory_id")
     private int subcategoryId;
-    
+
+    @Column(name = "sub_name")
     private String subName;
 
     @ManyToOne(fetch = FetchType.LAZY)

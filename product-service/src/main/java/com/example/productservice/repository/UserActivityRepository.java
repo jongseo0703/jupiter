@@ -9,5 +9,4 @@ import java.util.List;
 @Repository
 public interface UserActivityRepository extends JpaRepository<UserActivity, Long> {
     List<UserActivity> findByUserId(Long userId);
-    List<UserActivity> findByUserIdAndProductId(Long userId, Integer productId);
 }

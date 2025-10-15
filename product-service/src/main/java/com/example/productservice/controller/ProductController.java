@@ -1,8 +1,11 @@
 package com.example.productservice.controller;
 
+
+import com.example.productservice.dto.BulkProductDTO;
 import com.example.productservice.dto.ProductDto;
 import com.example.productservice.dto.SubCategoryDto;
 import com.example.productservice.dto.TopCategoryDto;
+import com.example.productservice.service.BulkProductService;
 import com.example.productservice.service.CategoryService;
 import com.example.productservice.service.ProductService;
 import com.example.productservice.service.PriceUpdateService;
@@ -20,6 +23,7 @@ public class ProductController {
     private final ProductService productService;
     private final CategoryService categoryService;
     private final PriceUpdateService priceUpdateService;
+    private final BulkProductService bulkProductService;
 
     /**
      * 메인 페이지 상품정보 조회
@@ -32,15 +36,21 @@ public class ProductController {
     }
 
     /**
-     * 상품 목록 페이지 조회
+     * 상품 목록 페이지 조회 (페이징 지원)
      * @param includeInactive 비활성 상품 포함 여부 (관리자용)
-     * @return 전체 상품 정보
+     * @param page 페이지 번호 (0부터 시작, 기본값: 0)
+     * @param size 페이지 크기 (기본값: 20)
+     * @param category 카테고리 필터 (선택사항)
+     * @return 페이징된 상품 정보
      */
     @GetMapping("/list")
     public ResponseEntity<?> getProductList(
-            @RequestParam(required = false, defaultValue = "false") Boolean includeInactive) {
-        List<Map<String, Object>> productDtoList = productService.getProductList(includeInactive);
-        return ResponseEntity.ok().body(productDtoList);
+            @RequestParam(required = false, defaultValue = "false") Boolean includeInactive,
+            @RequestParam(required = false, defaultValue = "0") Integer page,
+            @RequestParam(required = false, defaultValue = "20") Integer size,
+            @RequestParam(required = false) String category) {
+        Map<String, Object> result = productService.getProductListPaged(includeInactive, page, size, category);
+        return ResponseEntity.ok().body(result);
     }
 
     /**
@@ -140,6 +150,25 @@ public class ProductController {
         try {
             priceUpdateService.checkAndSendPriceAlert(productId);
             return ResponseEntity.ok().body(Map.of("message", "가격 알림 체크 완료"));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    /**
+     * 크롤링 데이터 벌크 생성 (크롤링 서비스 전용)
+     * @param products 상품 목록
+     * @return 저장된 상품 수
+     */
+    @PostMapping("/products/bulk")
+    public ResponseEntity<?> createProductsBulk(@RequestBody List<BulkProductDTO> products) {
+        try {
+            int savedCount = bulkProductService.saveBulkProducts(products);
+            return ResponseEntity.ok().body(Map.of(
+                "message", "벌크 저장 완료",
+                "savedCount", savedCount,
+                "totalCount", products.size()
+            ));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }

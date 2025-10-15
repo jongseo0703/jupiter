@@ -60,16 +60,37 @@ const Login = () => {
       if (loginResponse.data.passwordChangeRequired) {
         navigate('/password-change-required');
       } else {
+        // 사용자 정보 가져와서 저장
+        try {
+          const userInfo = await authService.getCurrentUser();
+          const storage = formData.rememberMe ? localStorage : sessionStorage;
+          storage.setItem('userInfo', JSON.stringify(userInfo));
+        } catch (error) {
+          console.error('Failed to get user info:', error);
+        }
+
         // 설문 완료 여부 확인
         try {
           const surveyResponse = await api.get('/auth/api/v1/preferences/status');
-          const surveyCompleted = surveyResponse.data.data;
+          const surveyCompleted = surveyResponse.data;
 
           if (!surveyCompleted) {
             // 설문 미완료 시 설문조사 페이지로
             navigate('/preference-survey');
           } else {
-            // 설문 완료 시 홈으로
+            // 설문 완료 시 백엔드에서 선호도 불러오기
+            try {
+              const preferenceResponse = await api.get('/auth/api/v1/preferences');
+              const preferences = preferenceResponse.data.data;
+
+              // preferredCategories를 subcategoryId 배열로 변환하여 localStorage에 저장
+              if (preferences && preferences.preferredCategories && preferences.preferredCategories.length > 0) {
+                localStorage.setItem('preferredSubcategoryIds', JSON.stringify(preferences.preferredCategories));
+                console.log('로그인 시 선호도 불러오기 완료:', preferences.preferredCategories);
+              }
+            } catch (prefError) {
+              console.error('Failed to load preferences:', prefError);
+            }
             navigate('/');
           }
         } catch (error) {
@@ -102,16 +123,37 @@ const Login = () => {
       if (verifyResponse.data.passwordChangeRequired) {
         navigate('/password-change-required');
       } else {
+        // 사용자 정보 가져와서 저장
+        try {
+          const userInfo = await authService.getCurrentUser();
+          const storage = formData.rememberMe ? localStorage : sessionStorage;
+          storage.setItem('userInfo', JSON.stringify(userInfo));
+        } catch (error) {
+          console.error('Failed to get user info:', error);
+        }
+
         // 설문 완료 여부 확인
         try {
           const surveyResponse = await api.get('/auth/api/v1/preferences/status');
-          const surveyCompleted = surveyResponse.data.data;
+          const surveyCompleted = surveyResponse.data;
 
           if (!surveyCompleted) {
             // 설문 미완료 시 설문조사 페이지로
             navigate('/preference-survey');
           } else {
-            // 설문 완료 시 홈으로
+            // 설문 완료 시 백엔드에서 선호도 불러오기
+            try {
+              const preferenceResponse = await api.get('/auth/api/v1/preferences');
+              const preferences = preferenceResponse.data.data;
+
+              // preferredCategories를 subcategoryId 배열로 변환하여 localStorage에 저장
+              if (preferences && preferences.preferredCategories && preferences.preferredCategories.length > 0) {
+                localStorage.setItem('preferredSubcategoryIds', JSON.stringify(preferences.preferredCategories));
+                console.log('로그인 시 선호도 불러오기 완료:', preferences.preferredCategories);
+              }
+            } catch (prefError) {
+              console.error('Failed to load preferences:', prefError);
+            }
             navigate('/');
           }
         } catch (error) {

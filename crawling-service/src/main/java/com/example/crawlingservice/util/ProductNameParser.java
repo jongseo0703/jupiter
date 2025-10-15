@@ -63,10 +63,10 @@ public class ProductNameParser {
 
         // (), [] 모두 제거
         String cleaned = productName
-            // () 제거
-            .replaceAll("\\([^)]*\\)", "")
-            // [] 제거
-            .replaceAll("\\[[^]]*\\]", "")
+                // () 안에 도수, 용량 단위 없으면 제거
+                .replaceAll("\\((?!.*(도|%|l|ml|L|ML)).*?\\)", "")
+                // [] 안에 도수, 용량 단위 없으면 제거
+                .replaceAll("\\[(?!.*(도|%|l|ml|L|ML)).*?\\]", "")
             // 앞뒤 공백 제거
             .trim();
 

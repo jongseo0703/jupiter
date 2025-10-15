@@ -5,8 +5,10 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 
 import java.util.List;
+import java.util.Optional;
 
 public interface ProductRepository extends JpaRepository<Product,Integer> {
+    Optional<Product> findByProductName(String productName);
     /**
      * 재고가 있고 평균 별점이 높고 리뷰수가 많은 상품들의 아이디 조회
      * @return 상품 아이디와 평균 별점 목록
@@ -59,5 +61,39 @@ public interface ProductRepository extends JpaRepository<Product,Integer> {
             "CASE WHEN COUNT(r.reviewId) > 0 THEN 0 ELSE 1 END, " +
             "COUNT(r.reviewId) DESC")
     List<Integer> findAllProductIds();
+
+    /**
+     * 카테고리별로 활성 상품 ID 조회 (SubCategory 이름으로 필터링)
+     * @param subCategoryName 하위 카테고리명
+     * @return 상품 ID 목록
+     */
+    @Query("SELECT p.productId FROM Product p" +
+            "  JOIN Stock s ON p.productId = s.product.productId" +
+            "  JOIN SubCategory sc ON p.subCategory.subcategoryId = sc.subcategoryId" +
+            " LEFT JOIN ProductShop ps ON ps.product.productId = p.productId" +
+            " LEFT JOIN Review r ON r.productShop.productShopId = ps.productShopId" +
+            "  WHERE s.isAvailable = true AND sc.subName = :subCategoryName" +
+            " GROUP BY p.productId " +
+            " ORDER BY " +
+            "CASE WHEN COUNT(r.reviewId) > 0 THEN 0 ELSE 1 END, " +
+            "COUNT(r.reviewId) DESC")
+    List<Integer> findAvailableProductIdsByCategory(String subCategoryName);
+
+    /**
+     * 카테고리별로 모든 상품 ID 조회 (활성/비활성 모두, SubCategory 이름으로 필터링)
+     * @param subCategoryName 하위 카테고리명
+     * @return 상품 ID 목록
+     */
+    @Query("SELECT p.productId FROM Product p" +
+            "  JOIN Stock s ON p.productId = s.product.productId" +
+            "  JOIN SubCategory sc ON p.subCategory.subcategoryId = sc.subcategoryId" +
+            " LEFT JOIN ProductShop ps ON ps.product.productId = p.productId" +
+            " LEFT JOIN Review r ON r.productShop.productShopId = ps.productShopId" +
+            "  WHERE sc.subName = :subCategoryName" +
+            " GROUP BY p.productId " +
+            " ORDER BY " +
+            "CASE WHEN COUNT(r.reviewId) > 0 THEN 0 ELSE 1 END, " +
+            "COUNT(r.reviewId) DESC")
+    List<Integer> findAllProductIdsByCategory(String subCategoryName);
 
 }

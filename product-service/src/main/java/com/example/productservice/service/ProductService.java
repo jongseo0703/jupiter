@@ -98,6 +98,130 @@ public class ProductService {
     }
 
     /**
+     * 페이징된 상품목록을 반환하는 서비스
+     * @param includeInactive 비활성 상품 포함 여부 (관리자용)
+     * @param page 페이지 번호 (0부터 시작)
+     * @param size 페이지 크기
+     * @param category 카테고리 필터 (선택사항, null이면 전체)
+     * @return 페이징된 상품 목록 및 메타데이터
+     */
+    public Map<String, Object> getProductListPaged(Boolean includeInactive, Integer page, Integer size, String category) {
+        List<Map<String, Object>> result = new ArrayList<>();
+
+        try {
+            // 상품 아이디 목록
+            List<Integer> allProductIdList;
+
+            // category가 "all"이거나 null/빈문자열이면 전체 조회
+            boolean filterByCategory = category != null && !category.isEmpty() && !"all".equalsIgnoreCase(category);
+
+            if (filterByCategory) {
+                // 카테고리별 조회
+                if (includeInactive != null && includeInactive) {
+                    allProductIdList = productRepository.findAllProductIdsByCategory(category);
+                } else {
+                    allProductIdList = productRepository.findAvailableProductIdsByCategory(category);
+                }
+            } else {
+                // 전체 조회
+                if (includeInactive != null && includeInactive) {
+                    allProductIdList = productRepository.findAllProductIds();
+                } else {
+                    allProductIdList = productRepository.findAvailableProductIdsByProductId();
+                }
+            }
+
+            // 전체 상품 수
+            int totalElements = allProductIdList.size();
+            int totalPages = totalElements == 0 ? 1 : (int) Math.ceil((double) totalElements / size);
+
+            // 페이지 범위 검증
+            if (page < 0) {
+                page = 0;
+            }
+            if (page >= totalPages && totalElements > 0) {
+                page = totalPages - 1;
+            }
+
+            // 페이징 처리
+            int startIndex = page * size;
+            int endIndex = Math.min(startIndex + size, totalElements);
+
+            // 현재 페이지에 해당하는 상품 ID만 추출
+            List<Integer> pagedProductIdList = new ArrayList<>();
+            if (startIndex < totalElements) {
+                pagedProductIdList = allProductIdList.subList(startIndex, endIndex);
+            }
+
+            // 해당 상품들의 아이디로 상품 정보 조회
+            for (Integer productId : pagedProductIdList) {
+                try {
+                    // 리뷰별점 평균
+                    Double avgRatingResult = reviewRepository.findAvgRatingByProductId(productId);
+                    double avgRatings = avgRatingResult != null ? avgRatingResult : 0.0;
+
+                    List<PriceDto> shopDtoList = new ArrayList<>();
+
+                    // 상품정보 리스트(가격은 낮은 순 3개까지)
+                    List<Object[]> productList = productRepository.findProductWithPricesByProductId(productId);
+                    if (!productList.isEmpty()) {
+                        ProductDto productDto = getProductDto(productList, shopDtoList);
+
+                        // 상품 활성화 여부 추가
+                        Stock stock = stockRepository.findByProduct_ProductId(productId).orElse(null);
+                        if (stock != null) {
+                            productDto.setIsAvailable(stock.isAvailable());
+                        } else {
+                            productDto.setIsAvailable(true); // 기본값: 활성
+                        }
+
+                        // 어제 최저가 계산
+                        Integer yesterdayLowestPrice = calculateYesterdayLowestPrice(productId);
+                        productDto.setYesterdayLowestPrice(yesterdayLowestPrice);
+
+                        Map<String, Object> productWithRating = new HashMap<>();
+                        productWithRating.put("product", productDto);
+                        productWithRating.put("avgRating", avgRatings);
+                        result.add(productWithRating);
+                    }
+                } catch (Exception e) {
+                    log.error("상품 ID {}의 정보를 조회하는 중 오류 발생: {}", productId, e.getMessage(), e);
+                    // 에러가 발생한 상품은 건너뛰고 계속 진행
+                }
+            }
+
+            // 페이징 메타데이터 포함
+            Map<String, Object> response = new HashMap<>();
+            response.put("content", result);
+            response.put("currentPage", page);
+            response.put("pageSize", size);
+            response.put("totalElements", totalElements);
+            response.put("totalPages", totalPages);
+            response.put("isFirst", page == 0);
+            response.put("isLast", page >= totalPages - 1);
+
+            log.debug("페이징 처리 완료 - 페이지: {}/{}, 조회된 상품 수: {}", page + 1, totalPages, result.size());
+
+            return response;
+        } catch (Exception e) {
+            log.error("페이징 처리 중 오류 발생: {}", e.getMessage(), e);
+
+            // 에러 발생 시 빈 결과 반환
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("content", result);
+            errorResponse.put("currentPage", 0);
+            errorResponse.put("pageSize", size);
+            errorResponse.put("totalElements", 0);
+            errorResponse.put("totalPages", 1);
+            errorResponse.put("isFirst", true);
+            errorResponse.put("isLast", true);
+            errorResponse.put("error", e.getMessage());
+
+            return errorResponse;
+        }
+    }
+
+    /**
      * 상품 정보목록를 ProductDto에 파싱하는 메서드<br>
      * 상품 아이디, 상품명, 도수, 이미지 URL, 상품설명, 하위 카테고리명, 상점명, 가격, 배송비
      * @param productList 상품 정보목록 (productId, productName, url, description, subName, price, shopName, alcoholPercentage, volume, deliveryFee)
@@ -107,7 +231,7 @@ public class ProductService {
     public ProductDto getProductDto(List<Object[]> productList,List<PriceDto> shopDtoList){
         ProductDto productDto = new ProductDto();
         //상품의 기본 정보 추출
-        Object[] item = productList.get(0);
+        Object[] item = productList.getFirst();
         // 상품 아이디
         productDto.setProductId((Integer) item[0]);
         // 상품명
@@ -128,10 +252,19 @@ public class ProductService {
         subCategoryDto.setSubName(subName);
 
         //상위 카테고리명
-        TopCategoryDto topCategoryDto = new TopCategoryDto();
-        String topName = topCategoryRepository.findByTopCategoryTopcategoryName(subName);
-        topCategoryDto.setTopName(topName);
-        subCategoryDto.setTopCategoryDto(topCategoryDto);
+        if (subName != null) {
+            try {
+                TopCategoryDto topCategoryDto = new TopCategoryDto();
+                String topName = topCategoryRepository.findByTopCategoryTopcategoryName(subName);
+                if (topName != null) {
+                    topCategoryDto.setTopName(topName);
+                    subCategoryDto.setTopCategoryDto(topCategoryDto);
+                }
+            } catch (Exception e) {
+                log.warn("상위 카테고리 조회 실패 (subName: {}): {}", subName, e.getMessage());
+                // 상위 카테고리 조회 실패해도 상품은 표시
+            }
+        }
 
         productDto.setSubCategoryDto(subCategoryDto);
 

@@ -17,6 +17,7 @@ import lombok.Data;
 @Table(name = "product_shop")
 public class ProductShop {
     @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private int productShopId;
 
     private String link;

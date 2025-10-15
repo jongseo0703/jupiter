@@ -1,14 +1,15 @@
 package com.example.productservice.repository;
 
 import com.example.productservice.domain.Price;
-import com.example.productservice.domain.PriceLog;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
+import java.util.Optional;
 
 public interface PriceRepository extends JpaRepository<Price,Integer> {
+    Optional<Price> findByProductShop_ProductShopId(int productShopId);
     /**
      * 특정 상품의 전체 가격 정보 조회
      * @param productId 상품 아이디
