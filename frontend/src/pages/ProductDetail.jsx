@@ -579,32 +579,25 @@ function ProductDetail() {
 
           {/* 리뷰 키워드 분석 */}
           {analysisCategories && analysisCategories.length > 0 && (
-            <div className="bg-white rounded-lg shadow-sm overflow-hidden mb-6">
-              <div className="bg-gradient-to-r from-primary to-blue-600 text-white p-6">
-                <div className="flex items-center space-x-3">
-                  <i className="fas fa-chart-bar text-2xl"></i>
-                  <div>
-                    <h3 className="text-xl font-bold">리뷰 키워드 분석</h3>
-                  </div>
-                </div>
-              </div>
-              <div className="p-6">
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="mb-8">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 {analysisCategories.map((category, index) => (
-                  <div key={index} className="border border-gray-200 rounded-lg p-4">
-                    <div className="mb-3 text-center flex items-center justify-center gap-2">
-                      <i className={`fas ${getCategoryIcon(category.categoryName)} text-primary`}></i>
-                      <span className="text-base font-semibold text-gray-800">{category.categoryName}</span>
+                  <div key={index} className="bg-white rounded-lg shadow-sm p-5 border border-gray-200">
+                    <div className="mb-4 text-center">
+                      <div className="inline-flex items-center justify-center w-12 h-12 bg-blue-50 rounded-full mb-2">
+                        <i className={`fas ${getCategoryIcon(category.categoryName)} text-primary text-lg`}></i>
+                      </div>
+                      <h4 className="text-base font-bold text-gray-800">{category.categoryName}</h4>
                     </div>
-                    <div className="space-y-2">
+                    <div className="space-y-3">
                       {category.topKeywords.map((item, idx) => {
                         const starCount = Math.round((item.percentage / 100) * 5);
                         return (
-                          <div key={idx} className="flex flex-col items-center">
-                            <span className="text-sm font-medium text-gray-700 mb-1">
-                              {item.keyword}
+                          <div key={idx} className="text-center">
+                            <span className="text-sm text-gray-700 block mb-2">
+                              "{item.keyword}"
                             </span>
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center justify-center gap-2">
                               <div className="flex items-center">
                                 {[...Array(5)].map((_, starIdx) => (
                                   <i
@@ -615,7 +608,7 @@ function ProductDetail() {
                                   ></i>
                                 ))}
                               </div>
-                              <span className="text-xs font-bold text-gray-700">
+                              <span className="text-xs font-bold text-gray-600">
                                 {item.percentage}%
                               </span>
                             </div>
@@ -625,7 +618,6 @@ function ProductDetail() {
                     </div>
                   </div>
                 ))}
-                </div>
               </div>
             </div>
           )}
