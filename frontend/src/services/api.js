@@ -1090,3 +1090,29 @@ export const recordUserActivity = async(productId, activityType) => {
  * @deprecated fetchPersonalizedRecommendations, fetchPopularProducts, fetchSurveyBasedRecommendations 사용 권장
  */
 export const fetchRecommendedProducts = fetchPersonalizedRecommendations;
+
+/**
+ * 리뷰 분석 API 메서드
+ * @param {상품 아이디} productId 
+ * @returns 분석표
+ */
+export const reviewAnalyzer = async (productId) => {
+    try {
+        const response = await fetch(`${PRODUCT_API_URL}/review/${productId}`, {
+            method: "GET",
+            headers: {
+                "Content-Type": "application/json",
+            },
+        });
+
+        if (!response.ok) {
+            // 리뷰가 없으면 종료
+            return; 
+        }
+
+        const data = await response.json();
+        return data;  
+    } catch (error) {
+         throw new Error('리뷰 분석 API 요청 실패 : '+error.toString);
+    }
+};
