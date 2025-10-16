@@ -594,7 +594,7 @@ function ProductDetail() {
                         const starCount = Math.round((item.percentage / 100) * 5);
                         return (
                           <div key={idx} className="text-center">
-                            <span className="text-sm text-gray-700 block mb-2">
+                            <span className="text-sm text-blue-700 bg-blue-200 px-2 py-1 rounded block mb-2 inline-block">
                               "{item.keyword}"
                             </span>
                             <div className="flex items-center justify-center gap-2">
