@@ -19,8 +19,6 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -39,8 +37,6 @@ public class PriceUpdateService {
     @Value("${gateway.url:http://localhost:8080}")
     private String gatewayUrl;
 
-    // 가격 변경된 상품 ID를 추적하고 지연 알림 처리
-    private final Map<Integer, Integer> pendingAlerts = new ConcurrentHashMap<>();
     private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
 
     /**
@@ -65,9 +61,6 @@ public class PriceUpdateService {
             return;
         }
 
-        // 업데이트 전 상품의 최저가 계산 (배송비 포함)
-        Integer oldProductLowestPrice = calculateCurrentLowestPrice(productId);
-
         // 가격 업데이트
         price.setPrice(newPrice);
         priceRepository.save(price);
@@ -85,10 +78,8 @@ public class PriceUpdateService {
         log.debug("가격 업데이트 완료 - priceId: {}, productId: {}, oldPrice: {}원, newPrice: {}원",
             priceId, productId, currentPrice, newPrice);
 
-        // 이전 최저가를 저장하고 3초 후 알림 예약
-        pendingAlerts.put(productId, oldProductLowestPrice);
-
-        // 3초 후 실행되는 알림 작업 예약 (이전 예약은 자동으로 취소됨)
+        // 3초 후 실행되는 알림 작업 예약
+        // 알림에서는 "어제 최저가 vs 현재 최저가"를 비교하므로, oldProductLowestPrice를 따로 저장할 필요 없음
         scheduler.schedule(() -> sendDelayedPriceAlert(productId), 3, TimeUnit.SECONDS);
 
         log.debug("가격 알림 예약 - productId: {}, 3초 후 최저가 체크 및 알림 전송", productId);
@@ -99,62 +90,13 @@ public class PriceUpdateService {
      * 별도 트랜잭션에서 실행되어야 함
      */
     private void sendDelayedPriceAlert(Integer productId) {
-        Integer oldProductLowestPrice = pendingAlerts.remove(productId);
-
-        if (oldProductLowestPrice == null) {
-            log.debug("이미 처리된 알림 - productId: {}", productId);
-            return;
-        }
-
         try {
             // ApplicationContext를 통해 프록시 빈을 가져와서 @Transactional이 작동하도록 함
             PriceUpdateService proxy = applicationContext.getBean(PriceUpdateService.class);
-            proxy.processPriceAlert(productId, oldProductLowestPrice);
+            // checkAndSendPriceAlert 메서드를 재사용 (어제 최저가 vs 현재 최저가 비교)
+            proxy.checkAndSendPriceAlert(productId);
         } catch (Exception e) {
             log.error("지연 알림 전송 실패 - productId: {}, 에러: {}", productId, e.getMessage(), e);
-        }
-    }
-
-    /**
-     * 가격 알림 처리 (새로운 트랜잭션)
-     */
-    @Transactional
-    public void processPriceAlert(Integer productId, Integer oldProductLowestPrice) {
-        // 현재 최저가 계산
-        Integer newProductLowestPrice = calculateCurrentLowestPrice(productId);
-
-        log.info("지연 알림 체크 - productId: {}, 이전최저가: {}원, 현재최저가: {}원",
-                productId, oldProductLowestPrice, newProductLowestPrice);
-
-        // 최저가가 하락했을 때만 알림 전송
-        if (oldProductLowestPrice != null && newProductLowestPrice != null &&
-            newProductLowestPrice < oldProductLowestPrice) {
-
-            // 최저가를 가진 상점 찾기
-            List<Price> prices = priceRepository.findAllByProductShop_Product_ProductId(productId);
-            if (!prices.isEmpty()) {
-                Price lowestPriceEntry = prices.stream()
-                    .min((p1, p2) -> Integer.compare(
-                        p1.getPrice() + p1.getDeliveryFee(),
-                        p2.getPrice() + p2.getDeliveryFee()
-                    ))
-                    .get();
-
-                PriceChangeRequest request = new PriceChangeRequest(
-                        productId,
-                        lowestPriceEntry.getProductShop().getProduct().getProductName(),
-                        oldProductLowestPrice,
-                        newProductLowestPrice,
-                        lowestPriceEntry.getProductShop().getShop().getShopName());
-
-                String url = gatewayUrl + "/notification/api/notifications/price-change";
-                restTemplate.postForObject(url, request, String.class);
-                log.info("✅ 상품 최저가 하락 알림 전송 - productId: {}, 이전최저가: {}원 → 현재최저가: {}원",
-                        productId, oldProductLowestPrice, newProductLowestPrice);
-            }
-        } else {
-            log.info("최저가 변동 없거나 상승 - productId: {}, 이전: {}원, 현재: {}원 (알림 미전송)",
-                    productId, oldProductLowestPrice, newProductLowestPrice);
         }
     }
 
@@ -176,6 +118,7 @@ public class PriceUpdateService {
 
     /**
      * 어제 최저가 계산 (배송비 포함)
+     * ProductService와 동일한 로직: 어제 하루(1일 전 00:00 ~ 23:59)의 price_log에서 최저가 계산
      */
     private Integer calculateYesterdayLowestPrice(Integer productId) {
         LocalDate yesterday = LocalDate.now().minusDays(1);

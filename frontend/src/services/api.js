@@ -702,9 +702,11 @@ export const fetchMainProducts = async()=>{
  * @param {boolean} includeInactive - 비활성 상품 포함 여부 (관리자용)
  * @param {number} page - 페이지 번호 (0부터 시작, 기본값: 0)
  * @param {number} size - 페이지 크기 (기본값: 20)
+ * @param {string} category - 카테고리 필터 (선택사항)
+ * @param {string} searchTerm - 검색어 (상품명 또는 카테고리명으로 검색, 선택사항)
  * @returns 페이징된 상품 정보 (content, currentPage, pageSize, totalElements, totalPages 등)
  */
-export const fetchProducts = async(includeInactive = false, page = 0, size = 20, category = null)=>{
+export const fetchProducts = async(includeInactive = false, page = 0, size = 20, category = null, searchTerm = null)=>{
     const params = new URLSearchParams();
     if (includeInactive) {
         params.append('includeInactive', 'true');
@@ -713,6 +715,9 @@ export const fetchProducts = async(includeInactive = false, page = 0, size = 20,
     params.append('size', size.toString());
     if (category && category !== 'all') {
         params.append('category', category);
+    }
+    if (searchTerm && searchTerm.trim()) {
+        params.append('searchTerm', searchTerm.trim());
     }
 
     const response = await fetch(
@@ -1090,3 +1095,29 @@ export const recordUserActivity = async(productId, activityType) => {
  * @deprecated fetchPersonalizedRecommendations, fetchPopularProducts, fetchSurveyBasedRecommendations 사용 권장
  */
 export const fetchRecommendedProducts = fetchPersonalizedRecommendations;
+
+/**
+ * 리뷰 분석 API 메서드
+ * @param {상품 아이디} productId 
+ * @returns 분석표
+ */
+export const reviewAnalyzer = async (productId) => {
+    try {
+        const response = await fetch(`${PRODUCT_API_URL}/review/${productId}`, {
+            method: "GET",
+            headers: {
+                "Content-Type": "application/json",
+            },
+        });
+
+        if (!response.ok) {
+            // 리뷰가 없으면 종료
+            return; 
+        }
+
+        const data = await response.json();
+        return data;  
+    } catch (error) {
+         throw new Error('리뷰 분석 API 요청 실패 : '+error.toString);
+    }
+};

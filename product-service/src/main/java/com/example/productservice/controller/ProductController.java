@@ -41,6 +41,7 @@ public class ProductController {
      * @param page 페이지 번호 (0부터 시작, 기본값: 0)
      * @param size 페이지 크기 (기본값: 20)
      * @param category 카테고리 필터 (선택사항)
+     * @param searchTerm 검색어 (상품명 또는 카테고리명으로 검색, 선택사항)
      * @return 페이징된 상품 정보
      */
     @GetMapping("/list")
@@ -48,8 +49,9 @@ public class ProductController {
             @RequestParam(required = false, defaultValue = "false") Boolean includeInactive,
             @RequestParam(required = false, defaultValue = "0") Integer page,
             @RequestParam(required = false, defaultValue = "20") Integer size,
-            @RequestParam(required = false) String category) {
-        Map<String, Object> result = productService.getProductListPaged(includeInactive, page, size, category);
+            @RequestParam(required = false) String category,
+            @RequestParam(required = false) String searchTerm) {
+        Map<String, Object> result = productService.getProductListPaged(includeInactive, page, size, category, searchTerm);
         return ResponseEntity.ok().body(result);
     }
 

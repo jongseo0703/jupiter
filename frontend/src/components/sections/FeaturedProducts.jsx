@@ -1,27 +1,13 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { fetchMainProducts, fetchFavorites, addFavorite, removeFavorite, recordUserActivity } from '../../services/api';
+import favoriteService from '../../services/favoriteService';
+import authService from '../../services/authService';
 
 const FeaturedProducts = () => {
   const [products,setProducts] = useState([]);
   const [error, setError] = useState(null);
   const [favoriteProductIds, setFavoriteProductIds] = useState(new Set());
-
-  // 사용자 ID 가져오기 (JWT 토큰에서 추출)
-  const getUserId = () => {
-    const token = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken');
-    if (!token) return null;
-
-    try {
-      // JWT의 payload 부분 디코딩 (base64)
-      const payload = token.split('.')[1];
-      const decoded = JSON.parse(atob(payload));
-      return decoded.sub; // sub 필드에 userId가 저장되어 있음
-    } catch (err) {
-      console.error('토큰 디코딩 실패:', err);
-      return null;
-    }
-  };
 
     useEffect(() => {
     const loadProducts = async () => {
@@ -29,7 +15,7 @@ const FeaturedProducts = () => {
         const data = await fetchMainProducts();
 
         // 즐겨찾기 목록 가져오기 (로그인한 경우)
-        const userId = getUserId();
+        const userId = authService.getUserId();
         if (userId) {
           try {
             const favorites = await fetchFavorites(userId);
@@ -82,7 +68,7 @@ const FeaturedProducts = () => {
     e.preventDefault();
     e.stopPropagation();
 
-    const userId = getUserId();
+    const userId = authService.getUserId();
     if (!userId) {
       alert('로그인이 필요합니다.');
       return;
@@ -107,6 +93,9 @@ const FeaturedProducts = () => {
           console.log('즐겨찾기 활동 기록 실패 (무시):', err);
         });
       }
+
+      // 즐겨찾기 변경 알림 (헤더 업데이트)
+      favoriteService.notifyChange();
     } catch (err) {
       console.error('즐겨찾기 토글 실패:', err);
       alert('즐겨찾기 처리 중 오류가 발생했습니다.');

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import authService from '../services/authService';
-import apiService, { fetchUserLikedPosts } from '../services/api';
+import apiService, { fetchUserLikedPosts, fetchFavorites } from '../services/api';
 
 const MyPage = () => {
   const navigate = useNavigate();
@@ -40,6 +40,17 @@ const MyPage = () => {
     enabled: !!user?.id,
   });
   const likedPostsCount = likedPostsData?.totalElements ?? 0;
+
+  // 즐겨찾기 개수 조회
+  const { data: favoritesData } = useQuery({
+    queryKey: ['favorites', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return [];
+      return await fetchFavorites(user.id);
+    },
+    enabled: !!user?.id,
+  });
+  const favoritesCount = favoritesData?.length ?? 0;
 
   // 유저 작성글
   const { data: userPostsData } = useQuery({
@@ -565,7 +576,10 @@ const MyPage = () => {
                 활동 정보
               </h2>
               <div className="space-y-4">
-                <div className="flex items-center justify-between p-4 bg-blue-50 rounded-lg">
+                <Link
+                  to="/favorites"
+                  className="flex items-center justify-between p-4 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors border border-blue-200 hover:border-blue-300"
+                >
                   <div className="flex items-center">
                     <i className="fas fa-star text-yellow-500 mr-3 text-xl"></i>
                     <div>
@@ -573,8 +587,11 @@ const MyPage = () => {
                       <p className="text-sm text-gray-600">저장된 상품</p>
                     </div>
                   </div>
-                  <span className="text-2xl font-bold text-primary">0</span>
-                </div>
+                  <div className="flex items-center">
+                    <span className="text-2xl font-bold text-primary mr-2">{favoritesCount}</span>
+                    <i className="fas fa-chevron-right text-gray-400"></i>
+                  </div>
+                </Link>
 
                 <Link
                   to="/mypage/my-posts"

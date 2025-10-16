@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import AlcoholPreloader from '../components/AlcoholPreloader';
 import { fetchFavorites, removeFavorite as removeFavoriteApi, fetchProduct, togglePriceAlert as togglePriceAlertApi } from '../services/api';
 import favoriteService from '../services/favoriteService';
+import authService from '../services/authService';
 import api from '../services/api';
 
 function Favorites() {
@@ -15,89 +16,93 @@ function Favorites() {
   const carouselRef = useRef(null);
   const autoSlideInterval = useRef(null);
 
-  // 사용자 ID 가져오기 (로그인한 사용자 ID를 localStorage에서 가져온다고 가정)
-  const getUserId = () => {
-    const userInfo = localStorage.getItem('userInfo') || sessionStorage.getItem('userInfo');
-    if (userInfo) {
-      const parsed = JSON.parse(userInfo);
-      return parsed.id || parsed.userId;
+  // 즐겨찾기 목록 로드
+  const loadFavorites = async () => {
+    const userId = authService.getUserId();
+    if (!userId) {
+      setError('로그인이 필요합니다.');
+      setIsLoading(false);
+      return;
     }
-    return null;
+
+    try {
+      setIsLoading(true);
+      const favorites = await fetchFavorites(userId);
+
+      // 각 즐겨찾기의 상품 정보를 가져와서 병합
+      const favoriteItemsWithDetails = await Promise.all(
+        favorites.map(async (fav) => {
+          try {
+            const productDetail = await fetchProduct(fav.productId);
+
+            // 현재 최저가 계산
+            const priceDtoList = productDetail.priceDtoList || [];
+            const currentLowestPrice = priceDtoList.length > 0
+              ? Math.min(...priceDtoList.map(p => (p.price || 0) + (p.deliveryFee || 0)))
+              : 0;
+
+            // 어제 최저가 (API에서 제공 - null이면 현재가 사용)
+            const yesterdayLowestPrice = productDetail.yesterdayLowestPrice !== null && productDetail.yesterdayLowestPrice !== undefined
+              ? productDetail.yesterdayLowestPrice
+              : currentLowestPrice;
+
+            return {
+              id: fav.productId,
+              favoriteId: fav.id,
+              name: productDetail.productName,
+              currentPrice: currentLowestPrice,
+              originalPrice: yesterdayLowestPrice,
+              lowestPrice: currentLowestPrice,
+              priceAlert: fav.priceAlert !== undefined ? fav.priceAlert : true,
+              image: productDetail.url || 'https://images.unsplash.com/photo-1551538827-9c037cb4f32a?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80',
+              category: productDetail.subCategoryDto?.subName || '주류',
+              priceHistory: [],
+              lastChecked: new Date(fav.createdAt).toLocaleString('ko-KR')
+            };
+          } catch (err) {
+            console.warn(`상품 ${fav.productId}는 더 이상 존재하지 않습니다. 즐겨찾기에서 자동으로 제외됩니다.`);
+            // 존재하지 않는 상품은 즐겨찾기에서 자동 삭제
+            try {
+              await removeFavoriteApi(userId, fav.productId);
+            } catch (removeErr) {
+              console.error('즐겨찾기 삭제 실패:', removeErr);
+            }
+            return null;
+          }
+        })
+      );
+
+      const filteredItems = favoriteItemsWithDetails.filter(item => item !== null);
+      setFavoriteItems(filteredItems);
+
+      // 연관 상품 로드
+      if (filteredItems.length > 0) {
+        loadRecommendedProducts(filteredItems);
+      }
+    } catch (err) {
+      console.error('즐겨찾기 목록 로드 실패:', err);
+      setError(err.message);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  // 즐겨찾기 목록 로드
+  // 초기 로드
   useEffect(() => {
-    const loadFavorites = async () => {
-      const userId = getUserId();
-      if (!userId) {
-        setError('로그인이 필요합니다.');
-        setIsLoading(false);
-        return;
-      }
+    loadFavorites();
+  }, []);
 
-      try {
-        setIsLoading(true);
-        const favorites = await fetchFavorites(userId);
-
-        // 각 즐겨찾기의 상품 정보를 가져와서 병합
-        const favoriteItemsWithDetails = await Promise.all(
-          favorites.map(async (fav) => {
-            try {
-              const productDetail = await fetchProduct(fav.productId);
-
-              // 현재 최저가 계산
-              const priceDtoList = productDetail.priceDtoList || [];
-              const currentLowestPrice = priceDtoList.length > 0
-                ? Math.min(...priceDtoList.map(p => (p.price || 0) + (p.deliveryFee || 0)))
-                : 0;
-
-              // 어제 최저가 (API에서 제공 - null이면 현재가 사용)
-              const yesterdayLowestPrice = productDetail.yesterdayLowestPrice !== null && productDetail.yesterdayLowestPrice !== undefined
-                ? productDetail.yesterdayLowestPrice
-                : currentLowestPrice;
-
-              return {
-                id: fav.productId,
-                favoriteId: fav.id,
-                name: productDetail.productName,
-                currentPrice: currentLowestPrice,
-                originalPrice: yesterdayLowestPrice,
-                lowestPrice: currentLowestPrice,
-                priceAlert: fav.priceAlert !== undefined ? fav.priceAlert : true,
-                image: productDetail.url || 'https://images.unsplash.com/photo-1551538827-9c037cb4f32a?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80',
-                category: productDetail.subCategoryDto?.subName || '주류',
-                priceHistory: [],
-                lastChecked: new Date(fav.createdAt).toLocaleString('ko-KR')
-              };
-            } catch (err) {
-              console.warn(`상품 ${fav.productId}는 더 이상 존재하지 않습니다. 즐겨찾기에서 자동으로 제외됩니다.`);
-              // 존재하지 않는 상품은 즐겨찾기에서 자동 삭제
-              try {
-                await removeFavoriteApi(userId, fav.productId);
-              } catch (removeErr) {
-                console.error('즐겨찾기 삭제 실패:', removeErr);
-              }
-              return null;
-            }
-          })
-        );
-
-        const filteredItems = favoriteItemsWithDetails.filter(item => item !== null);
-        setFavoriteItems(filteredItems);
-
-        // 연관 상품 로드
-        if (filteredItems.length > 0) {
-          loadRecommendedProducts(filteredItems);
-        }
-      } catch (err) {
-        console.error('즐겨찾기 목록 로드 실패:', err);
-        setError(err.message);
-      } finally {
-        setIsLoading(false);
-      }
+  // favoriteService 변경 감지
+  useEffect(() => {
+    const handleFavoriteChange = () => {
+      loadFavorites();
     };
 
-    loadFavorites();
+    favoriteService.addListener(handleFavoriteChange);
+
+    return () => {
+      favoriteService.removeListener(handleFavoriteChange);
+    };
   }, []);
 
   // 연관 상품 로드
@@ -106,12 +111,13 @@ function Favorites() {
       // 즐겨찾기한 상품들의 카테고리 수집
       const categories = [...new Set(favorites.map(item => item.category))];
 
-      // 전체 상품 목록 가져오기 (api.get은 이미 파싱된 데이터를 반환)
-      const allProductsWithRating = await api.get('/product/api/list');
+      // 전체 상품 목록 가져오기 (페이징 응답이므로 content 필드에서 배열 추출)
+      const response = await api.get('/product/api/list');
+      const allProductsWithRating = response.content || [];
 
       // 데이터 유효성 검사
-      if (!allProductsWithRating || !Array.isArray(allProductsWithRating)) {
-        console.error('API 응답이 배열이 아닙니다:', allProductsWithRating);
+      if (!Array.isArray(allProductsWithRating)) {
+        console.error('API 응답의 content가 배열이 아닙니다:', allProductsWithRating);
         return;
       }
 
@@ -179,7 +185,7 @@ function Favorites() {
   };
 
   const removeFavorite = async (productId) => {
-    const userId = getUserId();
+    const userId = authService.getUserId();
     if (!userId) return;
 
     try {
@@ -195,7 +201,7 @@ function Favorites() {
   };
 
   const togglePriceAlert = async (productId) => {
-    const userId = getUserId();
+    const userId = authService.getUserId();
     if (!userId) return;
 
     // 먼저 UI 업데이트
@@ -246,7 +252,7 @@ function Favorites() {
 
   const handleRefreshPrices = async () => {
     setIsRefreshing(true);
-    const userId = getUserId();
+    const userId = authService.getUserId();
     if (!userId) return;
 
     try {
@@ -295,7 +301,7 @@ function Favorites() {
     setIsLoading(false);
   };
 
-  if (favoriteItems.length === 0) {
+  if (!isLoading && favoriteItems.length === 0) {
     return (
       <>
         <AlcoholPreloader isLoading={isLoading} handleLoadingComplete={handleLoadingComplete} />
