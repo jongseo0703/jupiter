@@ -2,7 +2,8 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import PricePredictionChart from '../components/PricePredictionChart';
 import AlcoholPreloader from '../components/AlcoholPreloader';
-import { fetchProduct, recordUserActivity } from '../services/api';
+import { fetchProduct, recordUserActivity, reviewAnalyzer } from '../services/api';
+import { processReviewAnalysis } from '../utils/processReviewAnalysis';
 
 // API 응답 데이터를 컴포넌트에서 사용하는 형태로 변환하는 함수
 const transformApiProductData = (apiData) => {
@@ -114,6 +115,7 @@ function ProductDetail() {
   const [visiblePriceCount, setVisiblePriceCount] = useState(4);
   const [selectedShop, setSelectedShop] = useState('all');
   const [selectedRating, setSelectedRating] = useState('all');
+  const [reviewAnalysis, setReviewAnalysis] = useState(null);
 
 
   useEffect(() => {
@@ -153,6 +155,23 @@ function ProductDetail() {
     loadData();
   }, [id, navigate]);
 
+  // 리뷰 분석 API 호출 (페이지 로드 시 한 번만 실행)
+  useEffect(() => {
+    const fetchReviewAnalysis = async () => {
+      try {
+        const analysisData = await reviewAnalyzer(id);
+        console.log('리뷰 분석 데이터:', analysisData);
+        setReviewAnalysis(analysisData);
+      } catch (err) {
+        console.error('리뷰 분석 요청 실패:', err);
+      }
+    };
+
+    if (id) {
+      fetchReviewAnalysis();
+    }
+  }, [id, navigate]);
+
   // 상품이 변경되면 리뷰 페이지 및 가격 표시 초기화
   useEffect(() => {
     setCurrentReviewPage(1);
@@ -161,6 +180,24 @@ function ProductDetail() {
 
   const handleLoadingComplete = () => {
     setIsLoading(false);
+  };
+
+  // 리뷰 분석 데이터 처리
+  const analysisCategories = processReviewAnalysis(reviewAnalysis);
+
+  // 카테고리별 아이콘 매핑
+  const getCategoryIcon = (categoryName) => {
+    const iconMap = {
+      '맛': 'fa-utensils',
+      '바디감': 'fa-wine-bottle',
+      '가성비': 'fa-won-sign',
+      '만족도': 'fa-smile',
+      '향': 'fa-leaf',
+      '품질': 'fa-star',
+      '포장': 'fa-box',
+      '배송': 'fa-truck'
+    };
+    return iconMap[categoryName] || 'fa-tag';
   };
 
   // 리뷰 별점 통계 계산 함수
@@ -539,6 +576,51 @@ function ProductDetail() {
               </div>
             </div>
           </div>
+
+          {/* 리뷰 키워드 분석 */}
+          {analysisCategories && analysisCategories.length > 0 && (
+            <div className="mb-8">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {analysisCategories.map((category, index) => (
+                  <div key={index} className="bg-white rounded-lg shadow-sm p-5 border border-gray-200">
+                    <div className="mb-4 text-center">
+                      <div className="inline-flex items-center justify-center w-12 h-12 bg-blue-50 rounded-full mb-2">
+                        <i className={`fas ${getCategoryIcon(category.categoryName)} text-primary text-lg`}></i>
+                      </div>
+                      <h4 className="text-base font-bold text-gray-800">{category.categoryName}</h4>
+                    </div>
+                    <div className="space-y-3">
+                      {category.topKeywords.map((item, idx) => {
+                        const starCount = Math.round((item.percentage / 100) * 5);
+                        return (
+                          <div key={idx} className="text-center">
+                            <span className="text-sm text-purple-700 font-medium bg-purple-200 px-3 py-1 rounded-md block mb-2 inline-block">
+                              "{item.keyword}"
+                            </span>
+                            <div className="flex items-center justify-center gap-2">
+                              <div className="flex items-center">
+                                {[...Array(5)].map((_, starIdx) => (
+                                  <i
+                                    key={starIdx}
+                                    className={`fas fa-star text-sm ${
+                                      starIdx < starCount ? 'text-secondary' : 'text-gray-300'
+                                    }`}
+                                  ></i>
+                                ))}
+                              </div>
+                              <span className="text-xs font-bold text-gray-600">
+                                {item.percentage}%
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* 개별 리뷰 */}
           {filteredReviews.length > 0 ? (
