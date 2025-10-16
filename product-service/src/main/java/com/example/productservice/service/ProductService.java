@@ -103,9 +103,10 @@ public class ProductService {
      * @param page 페이지 번호 (0부터 시작)
      * @param size 페이지 크기
      * @param category 카테고리 필터 (선택사항, null이면 전체)
+     * @param searchTerm 검색어 (상품명 또는 카테고리명으로 검색, null이면 전체)
      * @return 페이징된 상품 목록 및 메타데이터
      */
-    public Map<String, Object> getProductListPaged(Boolean includeInactive, Integer page, Integer size, String category) {
+    public Map<String, Object> getProductListPaged(Boolean includeInactive, Integer page, Integer size, String category, String searchTerm) {
         List<Map<String, Object>> result = new ArrayList<>();
 
         try {
@@ -114,9 +115,25 @@ public class ProductService {
 
             // category가 "all"이거나 null/빈문자열이면 전체 조회
             boolean filterByCategory = category != null && !category.isEmpty() && !"all".equalsIgnoreCase(category);
+            // searchTerm이 있으면 검색 필터링
+            boolean filterBySearch = searchTerm != null && !searchTerm.trim().isEmpty();
 
-            if (filterByCategory) {
-                // 카테고리별 조회
+            if (filterByCategory && filterBySearch) {
+                // 카테고리 + 검색어 필터링
+                if (includeInactive != null && includeInactive) {
+                    allProductIdList = productRepository.findAllProductIdsByCategoryAndSearch(category, searchTerm);
+                } else {
+                    allProductIdList = productRepository.findAvailableProductIdsByCategoryAndSearch(category, searchTerm);
+                }
+            } else if (filterBySearch) {
+                // 검색어만 필터링
+                if (includeInactive != null && includeInactive) {
+                    allProductIdList = productRepository.findAllProductIdsBySearch(searchTerm);
+                } else {
+                    allProductIdList = productRepository.findAvailableProductIdsBySearch(searchTerm);
+                }
+            } else if (filterByCategory) {
+                // 카테고리만 필터링
                 if (includeInactive != null && includeInactive) {
                     allProductIdList = productRepository.findAllProductIdsByCategory(category);
                 } else {
@@ -480,16 +497,35 @@ public class ProductService {
     }
 
     /**
-     * 상품 삭제 (soft delete - 재고를 비활성화)
+     * 상품 완전 삭제 (hard delete)
      * @param productId 상품 ID
      */
     @Transactional
     public void deleteProduct(Integer productId) {
-        // 실제 삭제 대신 재고를 비활성화
-        Stock stock = stockRepository.findByProduct_ProductId(productId)
-            .orElseThrow(() -> new RuntimeException("상품의 재고 정보를 찾을 수 없습니다."));
+        // 상품 존재 여부 확인
+        Product product = productRepository.findById(productId)
+            .orElseThrow(() -> new RuntimeException("상품을 찾을 수 없습니다."));
 
-        stock.setAvailable(false);
-        stockRepository.save(stock);
+        // 관련 데이터 삭제 (외래키 제약 조건 고려)
+        // 1. 재고 정보 삭제
+        stockRepository.findByProduct_ProductId(productId).ifPresent(stockRepository::delete);
+
+        // 2. 가격 정보 삭제 (priceId로 삭제)
+        List<Object[]> prices = priceRepository.findByProductId(productId);
+        for (Object[] priceData : prices) {
+            Integer priceId = (Integer) priceData[0];
+            priceRepository.deleteById(priceId);
+        }
+
+        // 3. 리뷰 삭제 (reviewId로 삭제)
+        List<Object[]> reviews = reviewRepository.findReviewByProductId(productId);
+        for (Object[] reviewData : reviews) {
+            Integer reviewId = (Integer) reviewData[0];
+            reviewRepository.deleteById(reviewId);
+        }
+
+        // 4. 상품 삭제
+        productRepository.delete(product);
+        log.info("상품 ID {} 완전 삭제 완료", productId);
     }
 }

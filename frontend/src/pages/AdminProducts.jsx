@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import authService from '../services/authService';
-import { fetchProducts, fetchProduct, updateProductAvailability, updateProduct, deleteProduct, updatePrice } from '../services/api';
+import { fetchProducts, fetchProduct, updateProductAvailability, updateProduct, deleteProduct, updatePrice, fethCategory } from '../services/api';
 
 const AdminProducts = () => {
   const navigate = useNavigate();
@@ -30,17 +30,84 @@ const AdminProducts = () => {
   const [totalPages, setTotalPages] = useState(0);
   const [totalElements, setTotalElements] = useState(0);
 
-  const categories = ['all', '소주', '맥주', '와인', '양주', '전통주'];
+  // 카테고리 state
+  const [topCategories, setTopCategories] = useState([]);
+  const [allSubCategories, setAllSubCategories] = useState([]);
 
   useEffect(() => {
     checkAdminAccess();
+    loadCategories();
     loadProducts();
   }, []);
+
+  const loadCategories = async () => {
+    try {
+      const categoryData = await fethCategory();
+
+      // API 응답이 객체이므로 키에서 topCategory 정보 추출하고 값에서 subCategories 가져오기
+      const topCats = [];
+      const subCats = [];
+
+      // 객체를 순회하며 처리
+      Object.entries(categoryData).forEach(([key, subCategories]) => {
+        // 키에서 topCategoryId와 topName 추출 (정규식 사용)
+        const idMatch = key.match(/topCategoryId=(\d+)/);
+        const nameMatch = key.match(/topName=([^)]+)\)/);
+
+        if (idMatch && nameMatch) {
+          const topCategoryId = parseInt(idMatch[1]);
+          const topName = nameMatch[1] === 'null' ? '기타' : nameMatch[1];
+
+          // null이나 빈 이름은 건너뛰기
+          if (!topName || topName === 'null') return;
+
+          // 상위 카테고리 추가
+          topCats.push({
+            id: topCategoryId,
+            name: topName
+          });
+
+          // 하위 카테고리들 추가
+          if (Array.isArray(subCategories)) {
+            subCategories.forEach(sub => {
+              // subName이 null이거나 빈 문자열이 아닌 경우만 추가
+              if (sub.subName && sub.subName.trim()) {
+                subCats.push({
+                  id: sub.subCategoryId,
+                  name: sub.subName,
+                  topCategoryId: topCategoryId,
+                  topCategoryName: topName
+                });
+              }
+            });
+          }
+        }
+      });
+
+      // ID 순으로 정렬
+      topCats.sort((a, b) => a.id - b.id);
+      subCats.sort((a, b) => a.id - b.id);
+
+      setTopCategories(topCats);
+      setAllSubCategories(subCats);
+    } catch (error) {
+      console.error('Failed to load categories:', error);
+    }
+  };
 
   // 카테고리 변경 시 첫 페이지로 이동하면서 새로 로드
   useEffect(() => {
     loadProducts(0);
   }, [selectedCategory]);
+
+  // 검색어 변경 시 첫 페이지로 이동하면서 새로 로드 (디바운스 적용)
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      loadProducts(0);
+    }, 500); // 500ms 디바운스
+
+    return () => clearTimeout(timeoutId);
+  }, [searchTerm]);
 
   const checkAdminAccess = async () => {
     try {
@@ -64,8 +131,8 @@ const AdminProducts = () => {
   const loadProducts = async (page = currentPage) => {
     try {
       setIsLoading(true);
-      // 관리자는 비활성 상품도 포함하여 모든 상품을 조회 (페이징 + 카테고리 필터링 포함)
-      const data = await fetchProducts(true, page, pageSize, selectedCategory); // includeInactive=true
+      // 관리자는 비활성 상품도 포함하여 모든 상품을 조회 (페이징 + 카테고리 필터링 + 검색 포함)
+      const data = await fetchProducts(true, page, pageSize, selectedCategory, searchTerm); // includeInactive=true
 
       console.log('API Response:', data); // 디버깅용
 
@@ -175,12 +242,12 @@ const AdminProducts = () => {
   const confirmDelete = async () => {
     try {
       await deleteProduct(selectedProduct.id);
-      // 삭제된 상품 제거 (실제로는 비활성화)
-      setProducts(products.map(p =>
-        p.id === selectedProduct.id ? { ...p, isActive: false } : p
-      ));
+      // 삭제된 상품을 목록에서 완전히 제거
+      setProducts(products.filter(p => p.id !== selectedProduct.id));
       setShowDeleteModal(false);
-      alert('상품이 성공적으로 삭제되었습니다 (비활성화).');
+      alert('상품이 완전히 삭제되었습니다.');
+      // 상품 목록 새로고침
+      await loadProducts();
     } catch (error) {
       console.error('Failed to delete product:', error);
       alert('상품 삭제에 실패했습니다.');
@@ -203,12 +270,8 @@ const AdminProducts = () => {
     }
   };
 
-  // 검색어 필터링만 프론트엔드에서 처리 (카테고리는 백엔드에서 처리됨)
-  const filteredProducts = products.filter(product => {
-    const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         product.category.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesSearch;
-  });
+  // 백엔드에서 검색과 카테고리 필터링을 모두 처리하므로 프론트엔드 필터링 불필요
+  const filteredProducts = products;
 
   const getPriceChangePercentage = (current, original) => {
     return ((current - original) / original * 100).toFixed(1);
@@ -271,10 +334,18 @@ const AdminProducts = () => {
                 onChange={(e) => setSelectedCategory(e.target.value)}
                 className="w-full sm:w-auto px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
               >
-                {categories.map(category => (
-                  <option key={category} value={category}>
-                    {category === 'all' ? '전체 카테고리' : category}
-                  </option>
+                <option value="all">전체 카테고리</option>
+                {topCategories.map(topCat => (
+                  <optgroup key={topCat.id} label={topCat.name}>
+                    {allSubCategories
+                      .filter(sub => sub.topCategoryId === topCat.id)
+                      .map(subCat => (
+                        <option key={subCat.id} value={subCat.name}>
+                          {subCat.name}
+                        </option>
+                      ))
+                    }
+                  </optgroup>
                 ))}
               </select>
             </div>

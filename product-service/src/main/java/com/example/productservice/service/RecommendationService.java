@@ -179,6 +179,7 @@ public class RecommendationService {
     /**
      * 사용자 맞춤 추천 상품 조회 (점수 기반)
      */
+    @Transactional(readOnly = true)
     public List<ProductDto> getRecommendedProducts(Long userId, int limit) {
         List<UserProductScore> topScores = userProductScoreRepository.findTopProductsByUserId(userId);
 
@@ -193,6 +194,7 @@ public class RecommendationService {
     /**
      * 카테고리 기반 추천 (사용자가 좋아하는 카테고리의 다른 상품 추천)
      */
+    @Transactional(readOnly = true)
     public List<ProductDto> getRecommendedProductsByCategory(Long userId, int limit) {
         // 사용자가 높은 점수를 준 상품들의 카테고리 파악
         List<UserProductScore> userScores = userProductScoreRepository.findTopProductsByUserId(userId);
@@ -201,31 +203,32 @@ public class RecommendationService {
             return Collections.emptyList();
         }
 
-        // 상위 점수 상품의 서브카테고리 추출
-        Set<Integer> preferredSubcategoryIds = userScores.stream()
-                .limit(3)
-                .map(score -> productRepository.findById(score.getProductId()).orElse(null))
-                .filter(Objects::nonNull)
-                .map(product -> product.getSubCategory().getSubcategoryId())
-                .collect(Collectors.toSet());
+      // 상위 점수 상품의 서브카테고리 추출
+      Set<Integer> preferredSubcategoryIds = userScores.stream()
+        .limit(3)
+        .map(score -> productRepository.findById(score.getProductId()).orElse(null))
+        .filter(Objects::nonNull)
+        .map(product -> product.getSubCategory().getSubcategoryId())
+        .collect(Collectors.toSet());
 
-        // 상위 3개 상품만 제외 (나머지는 추천 가능)
-        Set<Integer> topScoredProductIds = userScores.stream()
-                .limit(3)
-                .map(UserProductScore::getProductId)
-                .collect(Collectors.toSet());
+      // 상위 3개 상품만 제외 (나머지는 추천 가능)
+      Set<Integer> topScoredProductIds = userScores.stream()
+        .limit(3)
+        .map(UserProductScore::getProductId)
+        .collect(Collectors.toSet());
 
-        return productRepository.findAll().stream()
-                .filter(product -> preferredSubcategoryIds.contains(product.getSubCategory().getSubcategoryId()))
-                .filter(product -> !topScoredProductIds.contains(product.getProductId()))
-                .limit(limit)
-                .map(this::convertToDto)
-                .collect(Collectors.toList());
+      return productRepository.findAll().stream()
+        .filter(product -> preferredSubcategoryIds.contains(product.getSubCategory().getSubcategoryId()))
+        .filter(product -> !topScoredProductIds.contains(product.getProductId()))
+        .limit(limit)
+        .map(this::convertToDto)
+        .collect(Collectors.toList());
     }
 
     /**
      * 종합 추천 (점수 기반 + 카테고리 기반)
      */
+    @Transactional(readOnly = true)
     public Map<String, List<ProductDto>> getComprehensiveRecommendations(Long userId) {
         Map<String, List<ProductDto>> recommendations = new HashMap<>();
 
@@ -263,6 +266,7 @@ public class RecommendationService {
      * @param subcategoryIds - 쉼표로 구분된 서브카테고리 ID 목록 (예: "1,3,5")
      * @param limit - 반환할 최대 상품 수
      */
+    @Transactional(readOnly = true)
     public List<ProductDto> getSurveyBasedRecommendations(String subcategoryIds, int limit) {
         if (subcategoryIds == null || subcategoryIds.isEmpty()) {
             // 서브카테고리가 없으면 전체 인기 상품 반환

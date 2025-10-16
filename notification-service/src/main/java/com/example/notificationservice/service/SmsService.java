@@ -34,9 +34,11 @@ public class SmsService {
             message.setFrom(fromNumber);
             message.setTo(phoneNumber);
 
+            // SMS 제목 설정 (상품명 제외)
+            message.setSubject("[Ju(酒)piter] 가격 하락 알림");
+
             // 간결하고 보기 좋은 메시지 형식
             String messageText = String.format(
-                "[Ju(酒)piter] 가격 하락 알림\n\n" +
                 "%s\n" +
                 "어제: %,d원\n" +
                 "오늘: %,d원\n" +
