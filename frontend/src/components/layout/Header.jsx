@@ -88,13 +88,9 @@ const Header = () => {
     const handleFavoriteChange = () => {
       // 로그인 상태 확인 후 즐겨찾기 로드
       if (authService.isLoggedIn()) {
-        const userInfo = localStorage.getItem('userInfo') || sessionStorage.getItem('userInfo');
-        if (userInfo) {
-          const parsed = JSON.parse(userInfo);
-          const userId = parsed.id || parsed.userId;
-          if (userId) {
-            loadFavoriteCount(userId);
-          }
+        const userId = authService.getUserId();
+        if (userId) {
+          loadFavoriteCount(userId);
         }
       }
     };

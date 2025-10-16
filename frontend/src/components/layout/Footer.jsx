@@ -171,32 +171,6 @@ const Footer = () => {
         </div>
       </div>
 
-      {/* Newsletter */}
-      <div className="bg-primary py-8">
-        <div className="container mx-auto px-4">
-          <div className="flex flex-col lg:flex-row items-center justify-between">
-            <div className="mb-4 lg:mb-0">
-              <h4 className="text-white text-lg font-semibold mb-2">
-                최저가 알림 구독
-              </h4>
-              <p className="text-green-100">
-                새로운 할인 정보와 최저가 알림을 받아보세요
-              </p>
-            </div>
-            <div className="flex w-full lg:w-auto">
-              <input
-                type="email"
-                placeholder="이메일 주소를 입력하세요"
-                className="flex-1 lg:w-80 px-4 py-3 rounded-l-full focus:outline-none"
-              />
-              <button className="bg-secondary text-white px-6 py-3 rounded-r-full hover:bg-yellow-500 transition-colors">
-                구독하기
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-
       {/* Copyright */}
       <div className="bg-gray-800 py-4">
         <div className="container mx-auto px-4">

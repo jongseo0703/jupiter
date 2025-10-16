@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import {fetchProducts, fethCategory, fetchFavorites, addFavorite, removeFavorite, recordUserActivity} from '../services/api';
 import favoriteService from '../services/favoriteService';
+import authService from '../services/authService';
 import AlcoholPreloader from '../components/AlcoholPreloader';
 
 function Shop() {
@@ -20,22 +21,6 @@ function Shop() {
   const [topCategories, setTopCategories] = useState(['전체']);
   const [products, setProducts] = useState([]);
   const [favoriteProductIds, setFavoriteProductIds] = useState(new Set());
-
-  // 사용자 ID 가져오기 (JWT 토큰에서 추출)
-  const getUserId = () => {
-    const token = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken');
-    if (!token) return null;
-
-    try {
-      // JWT의 payload 부분 디코딩 (base64)
-      const payload = token.split('.')[1];
-      const decoded = JSON.parse(atob(payload));
-      return decoded.sub; // sub 필드에 userId가 저장되어 있음
-    } catch (err) {
-      console.error('토큰 디코딩 실패:', err);
-      return null;
-    }
-  };
 
   // 용량 카테고리 정의
   const volumeCategories = [
@@ -118,7 +103,7 @@ function Shop() {
           const productsResponse = productsPageResponse.content || [];
 
           // 즐겨찾기 목록 가져오기 (로그인한 경우)
-          const userId = getUserId();
+          const userId = authService.getUserId();
           if (userId) {
             try {
               const favorites = await fetchFavorites(userId);
@@ -246,7 +231,7 @@ function Shop() {
     e.preventDefault();
     e.stopPropagation();
 
-    const userId = getUserId();
+    const userId = authService.getUserId();
     if (!userId) {
       alert('로그인이 필요합니다.');
       return;
